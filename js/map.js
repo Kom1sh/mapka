@@ -5,10 +5,9 @@ async function initMap() {
 
     const rostovLocation = {
         center: [39.711515, 47.236171],
-        zoom: 18
+        zoom: 14
     };
 
-    // 4. Создаем карту
     const map = new YMap(
         document.getElementById('map'),
         {
