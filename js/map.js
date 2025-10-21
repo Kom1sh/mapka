@@ -1,19 +1,23 @@
 async function initMap() {
     await ymaps3.ready;
 
-    const {YMap, YMapDefaultSchemeLayer} = ymaps3;
+    const {YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer} = ymaps3;
 
+    const rostovLocation = {
+        center: [39.711515, 47.236171],
+        zoom: 12
+    };
+
+    // 4. Создаем карту
     const map = new YMap(
         document.getElementById('map'),
         {
-            location: {
-                center: [37.588144, 55.733842],
-                zoom: 10
-            }
+            location: rostovLocation
         }
     );
 
     map.addChild(new YMapDefaultSchemeLayer());
+    map.addChild(new YMapDefaultFeaturesLayer());
 }
 
 initMap();
