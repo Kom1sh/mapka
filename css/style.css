@@ -1,0 +1,340 @@
+:root{
+    --bg: #fff;
+    --bgDark: #565555;
+    --bgGrey: #D9D9D9;
+    --bgCard: #d1d1d1;
+    --accent: #69AFDF;
+    --accentLight: #C2F4FF;
+    --mainText: #fff;
+    --mainTextDark: #000000;
+}
+
+p{
+
+}
+
+body{
+    font-family: 'Average Sans', sans-serif;
+    line-height: 1.45;
+    letter-spacing: -0.02px;
+    font-size: 20px;
+    color: var(--mainText);
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+button{
+    color: var(--mainText);
+    font-size: 20px;
+}
+
+header .mainBtn{
+
+}
+.mainBtn{
+    background-color: #69AFDF;
+    border-radius: 25px;
+    min-height: 50px;
+    padding: 1.25rem 1rem;
+}
+
+header .mainBtn{
+    padding: 0 1rem;
+    white-space: nowrap;
+}
+
+.logoContainer{
+    max-height: fit-content;
+}
+
+.mainLogo{
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.iconImage{
+    max-width: 32px;
+    max-height: 32px;
+}
+
+header{
+    display: flex;
+    flex-direction: row;
+    padding: 9px 38px;
+    background-color: var(--bgDark);
+    justify-content: space-between;
+    gap: 32px;
+}
+
+/* .headerIcon{
+    transform:translateY(25%) ;
+} */
+.headerList{
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    margin-right: auto;
+}
+
+.mainContainer{
+    position: relative;
+    background-color: red;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    right: 0;
+    z-index: 0;
+}
+
+.mainWrapper{
+    height:100%;
+}
+
+#map{
+    position: absolute;
+    background-color: blue;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    right: 0;
+    z-index: -1;
+}
+
+.infoControl{
+    margin: 1rem 0.25rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+}
+
+.upperInfoControl{
+    display: flex;
+    flex-direction: row;
+    height: 72px;
+    gap: 10px;
+    width: 50%;
+    flex-shrink: 0;
+}
+
+.filterBtn{
+    position: relative;
+    font-size: 24px;
+    color: var(--mainText);
+    background: var(--accent);
+    min-height: 100%;
+    border-radius: 25px;
+    padding: 0 62px;
+}
+
+.filterImg{
+    position: absolute;
+    top: 30%;
+    left: 15%;
+}
+
+.searchBox{
+    display: flex;
+    flex-direction: row;
+    min-height: calc(100% - (4px*2));
+    flex: 1;
+    background-color: var(--accent);
+    justify-content: space-between;
+    border-radius: 25px;
+    padding: 4px;
+    flex-grow: 1;
+}
+
+.searchBox button{
+    background-color: #ffffff00;
+    color: var(--mainText);
+    font-size: 22px;
+    padding-right: 34px;
+    padding-left: 34px;
+}
+.searchBox{
+    display: flex;
+    flex-direction: row;
+}
+
+.textFilter{
+    display: flex;
+    flex: 1;
+    min-width: 0; 
+}
+
+.textFilter input{
+    box-sizing: border-box;
+    min-height: 100%;
+    width: 100%;
+    min-width: 33vw;
+    resize: none;
+    border-radius: 25px;
+    padding-left: 25px;
+    font-size: 22px;
+}
+
+
+.rightHeader, .rightHeader *{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
+.msgButton{
+    margin-left: 21px;
+}
+
+.profileLink img{
+    margin-left: 8px;
+}
+
+.cardContainer{
+    box-sizing: border-box;
+    width: 800px;
+    height: 78.5%;
+    max-height: 81%;
+    overflow: scroll;
+    background-color: var(--bg);
+    margin: 1rem;
+    border-radius: 25px;
+    color: var(--mainTextDark);
+}
+
+.sectionCard {
+    height: 330px;
+    margin: 1rem;
+    border-radius: 25px;
+    background-color: var(--bgCard);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-sizing: content-box;
+    justify-content: space-between;
+}
+
+.topSectionCard{
+    display: flex;
+    flex-direction: row;
+   border-radius: 25px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.cardImgContainer{
+    width: 250px;
+    height: 250px;
+    border-radius: 25px;
+    aspect-ratio: 1/1;
+    background-color: yellow;
+    position: relative;
+}
+
+
+.cardImage{
+
+}
+
+.cardLike{
+    position: absolute;
+    left: 5%;
+    top: 5%;
+}
+
+.cardLike.active {
+    filter: invert(27%) sepia(51%) saturate(9999%) hue-rotate(346deg) brightness(120%) contrast(200%);
+}
+
+.cardDescription{
+    padding-left: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 8px;
+    max-height: 250px;
+}
+
+.cardDescription h2{
+    font-size: 24px;
+}
+
+.cardDescription p, .cardDescription h2{
+    padding: 8px 25px;
+    text-align: left;
+    background: var(--bg);
+    border-radius: 25px;
+    
+}
+
+.cardDescription p{
+    box-sizing: border-box;
+    max-height: 100%;
+    padding: 0 25px;
+    
+}
+
+.cardDescription .contentBox{
+    display: flex;
+    flex-direction: row;
+    background-color: var(--bg);
+    max-height: 76%;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-right: 11px;
+    border-radius: 25px;
+}
+
+.contentBox p{
+    max-width: fit-content;
+    overflow-y: scroll;
+    &&::-webkit-scrollbar{
+        display: unset;
+        background-color: var(--bgGrey);
+        border-radius: 25px;
+    }
+    &&::-webkit-scrollbar-thumb{
+        background-color: var(--bg);
+        margin: 10px;
+        border-radius: 25px;
+        border: 3px solid transparent; /* Transparent border creates the padding */
+        background-clip: padding-box;
+    }
+}
+.scrollBox{
+    min-width: 16px;
+    height: 100%;
+    background-color: var(--bgCard);
+    border-radius: 25px;
+}
+
+.scrollBoxEl{
+
+}
+
+
+.bottomSectionCard{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.bottomSectionCard .iconImage{
+    margin: auto;
+}
+
+.cardLocation{
+    justify-self: center;
+    display: flex;
+}
+
+.cardLocationText{
+   justify-content: center;
+    display: flex;
+    flex-direction: column;
+    padding-right: 8px;
+    font-size: 16px;
+}

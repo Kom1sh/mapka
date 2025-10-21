@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./css/reset.css" >
+    <link rel="stylesheet" href="./css/style.css" >
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Average+Sans&display=swap" rel="stylesheet">
+    <script src="https://api-maps.yandex.ru/v3/?apikey=bae1bd91-2c04-439b-96b0-9f93f9cbf908&lang=ru_RU"></script>
+    <title>avitoPrject</title>
+</head>
+<body>
+    <div class="wrapper">
+        <header>
+            <div class="logoContainer">
+                <img src="./assets/logo.svg" alt="logo map course" class="mainLogo">
+            </div>
+            <ul class="headerList">
+                <li><a>Все категории</a></li>
+                <li><a>Новости</a></li>
+                <li><a>Помощь</a></li>
+            </ul>
+            <div class="rightHeader">
+                <div>
+                    <div class="likeBtn"><img class="iconImage" src="./assets/heart.svg"></div>
+                    <!-- <div class="msgButton"> <img class="iconImage" src="./assets/message.svg"></div> -->
+                </div>
+                <!-- <div>
+                    <button class="mainBtn" style="margin-left: 32px;">Мои объявления</button>
+                </div> -->
+                    <div class="userContainer" style="margin-left: 32px;margin-right: 32px;"><a class="profileLink">Профиль<img src="./assets/userExample.png"></a></div>
+                    <div>
+                    <a class="locationLink"><img src="./assets/location.svg" class="iconImage headerIcon">Ростов-на-Дону</a>
+                    </div>
+            </div>
+        </header>
+        <div class="mainContainer">
+                <div class="mainWrapper">
+                    <section class="infoControl">
+                        <div class="upperInfoControl">
+                            <div class="searchFilter">
+                                <button class="filterBtn"><img class="filterImg" src="./assets/filter.svg">Фильтры</button>
+                            </div>
+                            <form class="searchBox">
+                                <div class="textFilter">
+                                  <input type="search" id="search-input" name="q" placeholder="поиск кружка!">  
+                                </div>
+                                <button type="submit">Найти</button>
+                            </form>
+                        </div>
+
+                        <div class="cardContainer">
+                            <div class="sectionCard">
+                                <div class="topSectionCard">
+                                    <div class="cardImgContainer"><img class="cardLike iconImage" src="./assets/heart.svg"><img class="cardImage"></div>
+                                    <div class="cardDescription">
+                                        <h2>Имя кружка</h2>
+                                        <div class="contentBox">    
+                                            <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Aperiam tempora autem vel veniam assumenda, neque excepturi nostrum facere iusto, facilis libero quo, dignissimos dolor ut aspernatur corporis repudiandae laudantium? Ipsam. Lorem ipsum dolor sit amet consectetur adipisicing elit. Aliquid quisquam accusantium natus voluptatem a rem veniam perferendis laudantium, quae quo veritatis est, blanditiis reiciendis saepe deserunt nesciunt consectetur accusamus nulla!</p>
+                                            <!-- <div class="scrollBox">
+                                                <div class="scrollBoxEl"></div>
+                                            </div> -->
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="bottomSectionCard">
+                                    <div class="btnGroupCard">
+                                        <button class="mainBtn">Подробнее</button>
+                                        <button class="mainBtn">Написать</button>
+                                    </div>
+                                    <div class="cardLocation">
+                                        <img src="./assets/locationDark.svg" class="iconImage">
+                                            <p class="cardLocationText">ул. Пушкина 32, д. Колотушкина, г. Ростов-на-Дону </p>
+                                            
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="sectionCard">
+                                <div class="topSectionCard">
+                                    <div class="cardImgContainer"><img class="cardLike iconImage active" src="./assets/heart.svg"><img class="cardImage"></div>
+                                    <div class="cardDescription">
+                                        <h2>Имя кружка</h2>
+                                        <div class="contentBox">    
+                                            <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Aperiam tempora autem vel veniam assumenda, neque excepturi nostrum facere iusto, facilis libero quo, dignissimos dolor ut aspernatur corporis repudiandae laudantium? Ipsam. Lorem ipsum dolor sit amet consectetur adipisicing elit. Aliquid quisquam accusantium natus voluptatem a rem veniam perferendis laudantium, quae quo veritatis est, blanditiis reiciendis saepe deserunt nesciunt consectetur accusamus nulla!</p>
+                                            <!-- <div class="scrollBox">
+                                                <div class="scrollBoxEl"></div>
+                                            </div> -->
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="bottomSectionCard">
+                                    <div class="btnGroupCard">
+                                        <button class="mainBtn">Подробнее</button>
+                                        <button class="mainBtn">Написать</button>
+                                    </div>
+                                    <div class="cardLocation">
+                                        <img src="./assets/locationDark.svg" class="iconImage">
+                                            <p class="cardLocationText">ул. Пушкина 32, д. Колотушкина, г. Ростов-на-Дону </p>
+                                            
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                    </section>
+                    <div id="map">   
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- <script src="./js/map.js"></script> -->
+</body>
+</html>
