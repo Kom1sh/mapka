@@ -60,6 +60,7 @@ header .mainBtn{
 .iconImage{
     max-width: 32px;
     max-height: 32px;
+    filter: grayscale(1) brightness(200%);
 }
 
 header{
@@ -248,10 +249,19 @@ header{
     position: absolute;
     left: 5%;
     top: 5%;
+    cursor: pointer;
+    transition: transform 0.15s ease-out, filter 0.2s ease-in-out;
+    transform: scale(1);
+    filter: grayscale(100%) brightness(200%);
+}
+
+.cardLike:active {
+  transform: scale(1.25);
+  transition-duration: 0.05s;
 }
 
 .cardLike.active {
-    filter: invert(27%) sepia(51%) saturate(9999%) hue-rotate(346deg) brightness(120%) contrast(200%);
+    filter: grayscale(0) brightness(100%);
 }
 
 .cardDescription{
