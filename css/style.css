@@ -100,7 +100,9 @@ header{
     top: 0;
     right: 0;
     z-index: -1;
+    cursor: grab;
 }
+
 
 .infoControl{
     margin: 1rem 0.25rem;
