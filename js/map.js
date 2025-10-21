@@ -1,18 +1,13 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Функция initMap будет вызвана автоматически после загрузки API
-});
-
-// Выносим функцию в глобальную область видимости
 async function initMap() {
     await ymaps3.ready;
 
     const {YMap, YMapDefaultSchemeLayer} = ymaps3;
 
     const map = new YMap(
-        document.getElementById('map'),
+        document.getElementById('app'),
         {
             location: {
-                center: [37.588144, 55.733842], // Москва
+                center: [37.588144, 55.733842],
                 zoom: 10
             }
         }
@@ -20,3 +15,5 @@ async function initMap() {
 
     map.addChild(new YMapDefaultSchemeLayer());
 }
+
+initMap();
