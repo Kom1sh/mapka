@@ -47,6 +47,13 @@ header .mainBtn{
     white-space: nowrap;
 }
 
+.rightHeader, .rightHeader *{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
 .logoContainer{
     max-height: fit-content;
 }
@@ -182,13 +189,6 @@ header{
     font-size: 22px;
 }
 
-
-.rightHeader, .rightHeader *{
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-}
 
 .msgButton{
     margin-left: 21px;
