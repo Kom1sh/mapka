@@ -240,6 +240,23 @@ header{
     position: relative;
 }
 
+.cardImgContainer .cardImage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;      /* масштабирует и кадрирует красиво */
+  object-position: center;
+  border-radius: inherit; /* скругления совпадают с контейнером */
+  z-index: 0;
+  max-width: none;        /* на случай, если где-то есть глобальный max-width */
+}
+
+.cardImgContainer .cardLike {
+  z-index: 2;             /* сердечко всегда поверх картинки */
+}
 
 .cardImage{
 
@@ -352,4 +369,14 @@ header{
     flex-direction: column;
     padding-right: 8px;
     font-size: 16px;
+}
+
+.cardImgContainer {
+  width: 250px;           /* по дизайну — можно подправить */
+  height: 250px;          /* по дизайну — можно подправить */
+  border-radius: 25px;
+  position: relative;
+  overflow: hidden;       /* ключ: обрезает изображение по рамке */
+  flex: 0 0 auto;
+  background-color: #f5f5f5;
 }
