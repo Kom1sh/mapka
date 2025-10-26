@@ -380,3 +380,6 @@ header{
   flex: 0 0 auto;
   background-color: #f5f5f5;
 }
+
+.custom-marker { transform: translate(-50%, -100%); } /* центрируем точку относительно координат */
+.custom-marker img { display: block; max-width: 28px; }
