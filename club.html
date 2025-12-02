@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapka - Страница кружка</title>
+  <!-- Подключаем Яндекс.Карты API -->
+  <script src="https://api-maps.yandex.ru/v3/?apikey=58c38b72-57f7-4946-bc13-a256d341281a&lang=ru_RU"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    /* Header */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: #565555;
+      color: white;
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      height: 56px;
+      gap: 16px;
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+
+    .back-btn:hover {
+      opacity: 0.8;
+    }
+
+    .back-btn svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .header-title {
+      flex: 1;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .icon-btn svg {
+      width: 24px;
+      height: 24px;
+    }
+    
+
+    .icon-btn.active svg {
+      fill: #ef4444;
+      color: #ef4444;
+    }
+
+    /* Gallery */
+    .gallery {
+      background: #d1d1d1;
+    }
+
+    .gallery-main {
+      position: relative;
+      aspect-ratio: 16/10;
+      max-height: 400px;
+      cursor: pointer;
+    }
+
+    .gallery-main img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .gallery-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 40px;
+      height: 40px;
+      background: rgba(255,255,255,0.8);
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .gallery-nav:hover {
+      background: white;
+    }
+
+    .gallery-nav.prev {
+      left: 8px;
+    }
+
+    .gallery-nav.next {
+      right: 8px;
+    }
+
+    .gallery-counter {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.5);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 14px;
+    }
+
+    .gallery-thumbs {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      overflow-x: auto;
+    }
+
+    .gallery-thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      overflow: hidden;
+      flex-shrink: 0;
+      opacity: 0.7;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .gallery-thumb.active {
+      opacity: 1;
+      border-color: #69AFDF;
+    }
+
+    .gallery-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Content */
+    .content {
+      padding: 24px 16px;
+      max-width: 1024px;
+      margin: 0 auto;
+    }
+
+    /* Title section */
+    .title-section {
+      margin-bottom: 24px;
+    }
+
+    .badges {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .category-badge {
+      background: #69AFDF;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 14px;
+    }
+
+    .age-text {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .club-title {
+      font-size: 24px;
+      font-weight: 500;
+    }
+
+    /* Info cards grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .info-card {
+      background: #d1d1d1;
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .info-label {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .info-label svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .info-value {
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .info-note {
+      font-size: 14px;
+      color: #69AFDF;
+      margin-top: 4px;
+    }
+
+    /* Section */
+    .section {
+      background: #d1d1d1;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Schedule */
+    .schedule-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .schedule-item {
+      background: white;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .schedule-item svg {
+      width: 20px;
+      height: 20px;
+      color: #69AFDF;
+    }
+
+    .schedule-day {
+      font-weight: 500;
+    }
+
+    .schedule-time {
+      font-size: 14px;
+      color: #666;
+    }
+
+    /* Description box */
+    .description-box {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      line-height: 1.6;
+      white-space: pre-line;
+    }
+
+    /* Tags */
+    .tags-section {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .tag-btn {
+      background: #d1d1d1;
+      color: #1a1a1a;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.2s;
+    }
+
+    .tag-btn:hover {
+      background: #c1c1c1;
+    }
+
+    .tag-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* Contacts */
+    .contact-item {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .contact-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .contact-left svg {
+      width: 20px;
+      height: 20px;
+      color: #69AFDF;
+    }
+
+    .show-phone-btn {
+      background: none;
+      border: none;
+      color: #69AFDF;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .social-links {
+      display: flex;
+      gap: 12px;
+    }
+
+    .social-link {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      flex: 1;
+      text-align: center;
+      color: #69AFDF;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+
+    .social-link:hover {
+      background: #f0f0f0;
+    }
+
+    /* Map container - убрали placeholder стили, добавили реальные стили для карты */
+    .map-container {
+      background: white;
+      border-radius: 12px;
+      height: 256px;
+      overflow: hidden;
+    }
+
+    /* Стили для меток на карте клуба */
+    .club-marker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      /* Центрируем метку относительно координат (снизу по центру) */
+      transform: translate(-50%, -100%);
+    }
+
+    .club-marker-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #111;
+      background: rgba(255,255,255,0.95);
+      padding: 6px 12px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      white-space: nowrap;
+      margin-bottom: 6px;
+    }
+
+    .club-marker-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #69AFDF;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+      border: 3px solid white;
+    }
+
+    /* Fixed bottom actions */
+    .bottom-actions {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      border-top: 1px solid #e5e5e5;
+      padding: 16px;
+      display: flex;
+      gap: 12px;
+      z-index: 40;
+    }
+
+    .action-btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.2s;
+    }
+
+    .action-btn:hover {
+      transform: scale(1.02);
+    }
+
+    .action-btn.primary {
+      background: #69AFDF;
+      color: white;
+    }
+
+    .action-btn.secondary {
+      background: #565555;
+      color: white;
+    }
+
+    .action-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Fullscreen gallery */
+    .fullscreen-gallery {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: black;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .fullscreen-gallery.active {
+      display: flex;
+    }
+
+    .fullscreen-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 40px;
+      height: 40px;
+      background: rgba(255,255,255,0.2);
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      z-index: 10;
+    }
+
+    .fullscreen-image {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .fullscreen-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 48px;
+      height: 48px;
+      background: rgba(255,255,255,0.2);
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .fullscreen-nav.prev {
+      left: 16px;
+    }
+
+    .fullscreen-nav.next {
+      right: 16px;
+    }
+
+    .fullscreen-counter {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.5);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 999px;
+    }
+
+    /* Desktop styles */
+    @media (min-width: 768px) {
+      .header-inner {
+        padding: 0 40px;
+        height: 64px;
+      }
+
+      .gallery {
+        display: flex;
+        justify-content: center;
+      }
+
+      .header-title {
+        font-size: 16px;
+      }
+
+      .gallery-main {
+        aspect-ratio: 21/9;
+        max-height: 500px;
+      }
+
+      .gallery-nav {
+        width: 48px;
+        height: 48px;
+      }
+
+      .gallery-nav.prev {
+        left: 16px;
+      }
+
+      .gallery-nav.next {
+        right: 16px;
+      }
+
+      .gallery-thumb {
+        width: 80px;
+        height: 80px;
+      }
+
+      .content {
+        padding: 32px 40px;
+      }
+
+      .club-title {
+        font-size: 36px;
+      }
+
+      .info-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .section {
+        padding: 24px;
+      }
+
+      .section-title {
+        font-size: 20px;
+      }
+
+      .schedule-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .map-container {
+        height: 320px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="back-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+        </svg>
+        <span class="back-text" style="display: none;">Назад</span>
+      </a>
+      <h1 class="header-title" id="headerTitle">Загрузка...</h1>
+      <button class="icon-btn" id="favoriteBtn" aria-label="Избранное">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="mainContent">
+    <!-- Content will be loaded by JavaScript -->
+  </main>
+
+  <!-- Fixed Bottom Actions -->
+  <div class="bottom-actions">
+    <button class="action-btn primary">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
+      </svg>
+      Позвонить
+    </button>
+    <button class="action-btn secondary">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+      </svg>
+      Написать
+    </button>
+  </div>
+
+  <!-- Fullscreen Gallery -->
+  <div class="fullscreen-gallery" id="fullscreenGallery">
+    <button class="fullscreen-close" id="closeGallery">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="24" height="24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+      </svg>
+    </button>
+    <img class="fullscreen-image" id="fullscreenImage" src="/placeholder.svg" alt="">
+    <button class="fullscreen-nav prev" id="fullscreenPrev">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="24" height="24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+      </svg>
+    </button>
+    <button class="fullscreen-nav next" id="fullscreenNext">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="24" height="24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+      </svg>
+    </button>
+    <div class="fullscreen-counter" id="fullscreenCounter">1 / 3</div>
+  </div>
+
+  <script>
+    // Club data
+    const clubsData = {
+      'karate-tigr': {
+        title: "Каратэ для детей «Тигр»",
+        category: "Боевые искусства",
+        minAge: 5,
+        maxAge: 14,
+        priceMin: 3000,
+        priceMax: 4500,
+        priceType: "monthly",
+        priceNotes: "Первое пробное занятие бесплатно",
+        address: "ул. Большая Садовая, 45, Ростов-на-Дону",
+        phone: "+7 (863) 123-45-67",
+        capacity: 15,
+        photos: [
+          "https://images.unsplash.com/photo-1555597673-b21d5c935865?w=800",
+          "https://images.unsplash.com/photo-1509255929945-586a420363cf?w=800",
+          "https://images.unsplash.com/photo-1564415315949-7a0c4c73aab4?w=800"
+        ],
+        schedules: [
+          { day: "Понедельник", time: "16:00 - 17:30" },
+          { day: "Среда", time: "16:00 - 17:30" },
+          { day: "Пятница", time: "16:00 - 17:30" }
+        ],
+        description: `Клуб каратэ «Тигр» — это место, где ваш ребёнок научится не только приёмам самообороны, но и обретёт уверенность в себе, дисциплину и уважение к окружающим.
+
+Наши занятия включают:
+• Базовую технику каратэ (ката, кумитэ)
+• Общефизическую подготовку
+• Растяжку и гибкость
+• Работу в парах
+• Подготовку к соревнованиям
+
+Мы принимаем детей с любым уровнем подготовки.`,
+        teacherInfo: "Иванов Сергей Петрович, мастер спорта по каратэ, 15 лет тренерского опыта",
+        tags: ["каратэ", "боевые искусства", "самооборона", "спорт", "дети"],
+        webSite: "https://karate-tigr.ru",
+        socialLinks: { vk: "https://vk.com/karate_tigr", telegram: "https://t.me/karate_tigr" }
+      },
+      'ballet-gracia': {
+        title: "Балетная студия «Грация»",
+        category: "Танцы",
+        minAge: 4,
+        maxAge: 12,
+        priceMin: 3500,
+        priceMax: 5000,
+        priceType: "monthly",
+        address: "пр. Ворошиловский, 12, Ростов-на-Дону",
+        phone: "+7 (863) 987-65-43",
+        capacity: 12,
+        photos: [
+          "https://images.unsplash.com/photo-1518834107812-67b0b7c58434?w=800",
+          "https://images.unsplash.com/photo-1508807526345-15e9b5f4eaff?w=800"
+        ],
+        schedules: [
+          { day: "Вторник", time: "15:00 - 16:30" },
+          { day: "Четверг", time: "15:00 - 16:30" },
+          { day: "Суббота", time: "10:00 - 11:30" }
+        ],
+        description: `Балетная студия «Грация» приглашает детей окунуться в волшебный мир классического танца.
+
+В нашей программе:
+• Классический танец у станка
+• Упражнения на середине зала
+• Растяжка и гибкость
+• Хореографические постановки
+• Подготовка к отчётным концертам`,
+        teacherInfo: "Петрова Анна Михайловна, выпускница Московской академии хореографии",
+        tags: ["балет", "танцы", "хореография", "классический танец"],
+        webSite: "https://ballet-gracia.ru",
+        socialLinks: { vk: "https://vk.com/ballet_gracia" }
+      }
+    };
+
+    // Get slug from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const slug = urlParams.get('slug') || 'karate-tigr';
+    const club = clubsData[slug];
+
+    let currentPhoto = 0;
+    let showFullPhone = false;
+
+    function maskPhone(phone) {
+      if (phone.length <= 10) return phone;
+      return phone.slice(0, 12) + '••-••';
+    }
+
+    function formatPrice(min, max, type) {
+      const typeLabel = type === 'monthly' ? '/ мес' : '/ занятие';
+      if (min === max) {
+        return `${min.toLocaleString('ru-RU')} ₽ ${typeLabel}`;
+      }
+      return `${min.toLocaleString('ru-RU')} - ${max.toLocaleString('ru-RU')} ₽ ${typeLabel}`;
+    }
+
+    function renderClub() {
+      document.getElementById('headerTitle').textContent = club.title;
+      document.title = `${club.title} - Mapka`;
+
+      const mainContent = document.getElementById('mainContent');
+      mainContent.innerHTML = `
+        <!-- Gallery -->
+        <section class="gallery">
+          <div class="gallery-main" id="galleryMain">
+            <img src="${club.photos[0]}" alt="${club.title}" id="mainImage">
+            ${club.photos.length > 1 ? `
+              <button class="gallery-nav prev" id="prevPhoto">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="24" height="24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+              <button class="gallery-nav next" id="nextPhoto">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="24" height="24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
+            ` : ''}
+            <div class="gallery-counter" id="galleryCounter">1 / ${club.photos.length}</div>
+          </div>
+          ${club.photos.length > 1 ? `
+            <div class="gallery-thumbs" id="galleryThumbs">
+              ${club.photos.map((photo, i) => `
+                <div class="gallery-thumb ${i === 0 ? 'active' : ''}" data-index="${i}">
+                  <img src="${photo}" alt="">
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        </section>
+
+        <div class="content">
+          <!-- Title Section -->
+          <div class="title-section">
+            <div class="badges">
+              <span class="category-badge">${club.category}</span>
+              <span class="age-text">${club.minAge} - ${club.maxAge} лет</span>
+            </div>
+            <h1 class="club-title">${club.title}</h1>
+          </div>
+
+          <!-- Info Grid -->
+          <div class="info-grid">
+            <div class="info-card">
+              <p class="info-label">Стоимость</p>
+              <p class="info-value">${formatPrice(club.priceMin, club.priceMax, club.priceType)}</p>
+              ${club.priceNotes ? `<p class="info-note">${club.priceNotes}</p>` : ''}
+            </div>
+            <div class="info-card">
+              <p class="info-label">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                </svg>
+                Адрес
+              </p>
+              <p class="info-value" style="font-size: 16px;">${club.address}</p>
+            </div>
+            ${club.capacity ? `
+              <div class="info-card">
+                <p class="info-label">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                  </svg>
+                  В группе
+                </p>
+                <p class="info-value">до ${club.capacity} человек</p>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Schedule -->
+          <div class="section">
+            <h2 class="section-title">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+              </svg>
+              Расписание
+            </h2>
+            <div class="schedule-grid">
+              ${club.schedules.map(s => `
+                <div class="schedule-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  <div>
+                    <p class="schedule-day">${s.day}</p>
+                    <p class="schedule-time">${s.time}</p>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="section">
+            <h2 class="section-title">О кружке</h2>
+            <div class="description-box">${club.description}</div>
+          </div>
+
+          <!-- Teacher -->
+          ${club.teacherInfo ? `
+            <div class="section">
+              <h2 class="section-title">Преподаватель</h2>
+              <div class="description-box">${club.teacherInfo}</div>
+            </div>
+          ` : ''}
+
+          <!-- Tags -->
+          <div class="tags-section">
+            ${club.tags.map(tag => `
+              <button class="tag-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6Z" />
+                </svg>
+                ${tag}
+              </button>
+            `).join('')}
+          </div>
+
+          <!-- Contacts -->
+          <div class="section">
+            <h2 class="section-title">Контакты</h2>
+            <div class="contact-item">
+              <div class="contact-left">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
+                </svg>
+                <span id="phoneDisplay">${maskPhone(club.phone)}</span>
+              </div>
+              <button class="show-phone-btn" id="showPhoneBtn">Показать</button>
+            </div>
+            ${club.webSite ? `
+              <a href="${club.webSite}" target="_blank" class="contact-item" style="text-decoration: none;">
+                <div class="contact-left">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418" />
+                  </svg>
+                  <span style="color: #69AFDF;">${club.webSite}</span>
+                </div>
+              </a>
+            ` : ''}
+            ${club.socialLinks ? `
+              <div class="social-links">
+                ${club.socialLinks.vk ? `<a href="${club.socialLinks.vk}" target="_blank" class="social-link">VK</a>` : ''}
+                ${club.socialLinks.telegram ? `<a href="${club.socialLinks.telegram}" target="_blank" class="social-link">Telegram</a>` : ''}
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Map -->
+          <div class="section">
+            <h2 class="section-title">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+              </svg>
+              На карте
+            </h2>
+            <!-- Заменили placeholder на реальный контейнер карты -->
+            <div class="map-container" id="clubMap"></div>
+          </div>
+        </div>
+      `;
+
+      // Setup event listeners
+      setupGalleryListeners();
+      setupPhoneListener();
+      
+      initClubMap(club.address, club.title);
+    }
+
+    async function initClubMap(address, title) {
+      const ymaps3 = window.ymaps3;
+      if (!ymaps3) {
+        console.error('ymaps3 не загружен');
+        return;
+      }
+
+      try {
+        await ymaps3.ready;
+      } catch (e) {
+        console.error('ymaps3.ready failed', e);
+        return;
+      }
+
+      const { YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer, YMapMarker } = ymaps3;
+      const GEOCODE_API_KEY = '58c38b72-57f7-4946-bc13-a256d341281a';
+
+      // Геокодируем адрес клуба
+      const coords = await geocodeAddress(address, GEOCODE_API_KEY);
+      if (!coords) {
+        console.warn('Не удалось получить координаты для:', address);
+        return;
+      }
+
+      const mapContainer = document.getElementById('clubMap');
+      if (!mapContainer) {
+        console.error('Контейнер карты не найден');
+        return;
+      }
+
+      // Создаём карту с центром на координатах клуба
+      const map = new YMap(mapContainer, { 
+        location: { center: coords, zoom: 16 } 
+      });
+      map.addChild(new YMapDefaultSchemeLayer());
+      map.addChild(new YMapDefaultFeaturesLayer());
+
+      // Создаём метку
+      const markerElement = document.createElement('div');
+      markerElement.className = 'club-marker';
+      
+      const label = document.createElement('div');
+      label.className = 'club-marker-label';
+      label.textContent = title;
+      
+      const dot = document.createElement('div');
+      dot.className = 'club-marker-dot';
+      
+      markerElement.appendChild(label);
+      markerElement.appendChild(dot);
+
+      const marker = new YMapMarker({ coordinates: coords }, markerElement);
+      map.addChild(marker);
+    }
+
+    async function geocodeAddress(address, apiKey) {
+      if (!address) return null;
+      const url = `https://geocode-maps.yandex.ru/1.x/?format=json&geocode=${encodeURIComponent(address)}&apikey=${apiKey}&results=1`;
+      try {
+        const r = await fetch(url);
+        if (!r.ok) return null;
+        const json = await r.json();
+        const fm = json?.response?.GeoObjectCollection?.featureMember;
+        if (Array.isArray(fm) && fm.length) {
+          const pos = fm[0].GeoObject?.Point?.pos;
+          if (pos) {
+            const [lng, lat] = pos.split(' ').map(Number);
+            if (!Number.isNaN(lng) && !Number.isNaN(lat)) return [lng, lat];
+          }
+        }
+        return null;
+      } catch (err) {
+        console.error('Geocode failed', err);
+        return null;
+      }
+    }
+
+    function setupGalleryListeners() {
+      const prevBtn = document.getElementById('prevPhoto');
+      const nextBtn = document.getElementById('nextPhoto');
+      const galleryMain = document.getElementById('galleryMain');
+      const thumbs = document.querySelectorAll('.gallery-thumb');
+
+      if (prevBtn) {
+        prevBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          currentPhoto = (currentPhoto - 1 + club.photos.length) % club.photos.length;
+          updateGallery();
+        });
+      }
+
+      if (nextBtn) {
+        nextBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          currentPhoto = (currentPhoto + 1) % club.photos.length;
+          updateGallery();
+        });
+      }
+
+      if (galleryMain) {
+        galleryMain.addEventListener('click', () => {
+          openFullscreen();
+        });
+      }
+
+      thumbs.forEach(thumb => {
+        thumb.addEventListener('click', () => {
+          currentPhoto = parseInt(thumb.dataset.index);
+          updateGallery();
+        });
+      });
+
+      // Fullscreen controls
+      document.getElementById('closeGallery').addEventListener('click', closeFullscreen);
+      document.getElementById('fullscreenPrev').addEventListener('click', () => {
+        currentPhoto = (currentPhoto - 1 + club.photos.length) % club.photos.length;
+        updateGallery();
+        updateFullscreen();
+      });
+      document.getElementById('fullscreenNext').addEventListener('click', () => {
+        currentPhoto = (currentPhoto + 1) % club.photos.length;
+        updateGallery();
+        updateFullscreen();
+      });
+    }
+
+    function updateGallery() {
+      document.getElementById('mainImage').src = club.photos[currentPhoto];
+      document.getElementById('galleryCounter').textContent = `${currentPhoto + 1} / ${club.photos.length}`;
+      
+      document.querySelectorAll('.gallery-thumb').forEach((thumb, i) => {
+        thumb.classList.toggle('active', i === currentPhoto);
+      });
+    }
+
+    function openFullscreen() {
+      const gallery = document.getElementById('fullscreenGallery');
+      gallery.classList.add('active');
+      updateFullscreen();
+    }
+
+    function closeFullscreen() {
+      document.getElementById('fullscreenGallery').classList.remove('active');
+    }
+
+    function updateFullscreen() {
+      document.getElementById('fullscreenImage').src = club.photos[currentPhoto];
+      document.getElementById('fullscreenCounter').textContent = `${currentPhoto + 1} / ${club.photos.length}`;
+    }
+
+    function setupPhoneListener() {
+      const btn = document.getElementById('showPhoneBtn');
+      const display = document.getElementById('phoneDisplay');
+
+      btn.addEventListener('click', () => {
+        showFullPhone = !showFullPhone;
+        display.textContent = showFullPhone ? club.phone : maskPhone(club.phone);
+        btn.textContent = showFullPhone ? 'Скрыть' : 'Показать';
+      });
+    }
+
+    // Favorite toggle
+    document.getElementById('favoriteBtn').addEventListener('click', function() {
+      this.classList.toggle('active');
+    });
+
+    // Desktop back text
+    if (window.innerWidth >= 768) {
+      document.querySelector('.back-text').style.display = 'inline';
+    }
+
+    // Initial render
+    renderClub();
+  </script>
+</body>
+</html>
