@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mapka — Admin: Clubs</title>
+<style>
+  :root{--accent:#2b87d4;--muted:#666}
+  body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; margin:0;background:#f3f5f7;color:#111}
+  header{background:#fff;border-bottom:1px solid #e6e9ec;padding:12px 20px;display:flex;align-items:center;gap:12px}
+  header h1{font-size:16px;margin:0}
+  .wrap{display:flex;height:calc(100vh - 56px)}
+  .left{width:340px;background:#fff;border-right:1px solid #e6e9ec;overflow:auto;padding:12px}
+  .left .toolbar{display:flex;gap:8px;margin-bottom:12px}
+  .btn{background:var(--accent);color:white;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+  .list{display:flex;flex-direction:column;gap:8px}
+  .item{padding:10px;border-radius:10px;border:1px solid #eee;background:#fafafa;cursor:pointer;display:flex;align-items:center;gap:10px}
+  .item .meta{flex:1}
+  .item .meta h4{margin:0;font-size:14px}
+  .item .meta p{margin:4px 0 0;font-size:12px;color:var(--muted)}
+  .item.selected{box-shadow:0 4px 18px rgba(43,135,212,0.12);border-color:rgba(43,135,212,0.18)}
+  .main{flex:1;padding:18px;overflow:auto}
+  .grid{display:grid;grid-template-columns:1fr 320px;gap:18px}
+  .card{background:#fff;border-radius:12px;padding:14px;border:1px solid #eee}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  input[type=text], textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ec;font-size:14px}
+  textarea{min-height:120px;resize:vertical}
+  .row{display:flex;gap:8px}
+  .small{width:140px}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .tag{background:#eef6ff;color:var(--accent);padding:6px 8px;border-radius:999px;font-size:12px}
+  .actions{display:flex;gap:8px;margin-top:12px}
+  .preview{border-radius:8px;overflow:hidden;border:1px solid #e6e9ec;height:160px;background:#ddd;display:flex;align-items:center;justify-content:center}
+  .muted{color:var(--muted);font-size:13px}
+  .toast{position:fixed;right:18px;bottom:18px;background:#111;color:#fff;padding:10px 14px;border-radius:8px;opacity:0;transform:translateY(10px);transition:all .22s}
+  .toast.show{opacity:1;transform:translateY(0)}
+  .search{display:flex;gap:8px;margin-bottom:10px}
+  .search input{flex:1;padding:8px;border-radius:8px;border:1px solid #e6e9ec}
+  .muted-log{white-space:pre-wrap;font-family:monospace;font-size:12px;color:#444}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mapka — Admin: Управление кружками</h1>
+  <div style="margin-left:auto" class="muted">Интерфейс для CRUD — локально и через ngrok</div>
+</header>
+
+<div class="wrap">
+  <aside class="left">
+    <div class="toolbar">
+      <button id="btnRefresh" class="btn ghost">Обновить</button>
+      <button id="btnNew" class="btn">Новый</button>
+      <button id="btnDelete" class="btn ghost" style="margin-left:auto">Удалить</button>
+    </div>
+
+    <div class="search">
+      <input id="q" placeholder="Фильтр по названию или тегу" />
+      <button id="btnFilter" class="btn">Фильтр</button>
+    </div>
+
+    <div class="list" id="clubList" aria-live="polite">
+      <!-- items -->
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="grid">
+      <div class="card">
+        <label>Название</label>
+        <input id="name" type="text" />
+
+        <label style="margin-top:10px">Slug</label>
+        <input id="slug" type="text" />
+
+        <label style="margin-top:10px">Описание</label>
+        <textarea id="description"></textarea>
+
+        <div class="row" style="margin-top:10px">
+          <div style="flex:1">
+            <label>Image URL</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input id="image" type="text" style="flex:1" />
+              <input id="fileInput" type="file" accept="image/*" style="display:none" />
+              <button id="btnUpload" type="button" class="btn ghost" title="Загрузить картинку">📁</button>
+            </div>
+          </div>
+          <div style="width:150px">
+            <label>Цена (₽)</label>
+            <input id="price_rub" type="text" placeholder="1000" />
+          </div>
+        </div>
+
+        <label style="margin-top:10px">Адрес (location)</label>
+        <input id="location" type="text" />
+
+        <label style="margin-top:10px">Расписание (по строке: День|время)</label>
+        <textarea id="schedules" placeholder="Понедельник|16:00-17:30&#10;Среда|16:00-17:30" style="min-height:80px"></textarea>
+
+        <label style="margin-top:10px">Contacts (телефон, сайт, соцссылки)</label>
+        <input id="phone" type="text" placeholder="+7 (___) ___-__-__" style="margin-bottom:6px" />
+        <input id="webSite" type="text" placeholder="https://..." style="margin-bottom:6px" />
+        <input id="social_vk" type="text" placeholder="VK URL (опционально)" style="margin-bottom:6px" />
+        <input id="social_telegram" type="text" placeholder="Telegram URL (опционально)" />
+
+        <label style="margin-top:10px">Tags (через запятую)</label>
+        <input id="tags" type="text" placeholder="каратэ,спорт,дети" />
+
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+          <label style="margin:0"><input id="isFavorite" type="checkbox" /> isFavorite</label>
+          <div style="flex:1"></div>
+          <div class="muted" id="currentId">ID: —</div>
+        </div>
+
+        <div class="actions">
+          <button id="btnSave" class="btn">Сохранить</button>
+          <button id="btnSaveNew" class="btn ghost">Сохранить как новый</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <label>Превью</label>
+        <div class="preview" id="previewBox" tabindex="0" style="outline:none;">Нет изображения</div>
+
+        <label style="margin-top:12px">Теги</label>
+        <div class="tags" id="tagList"></div>
+
+        <label style="margin-top:10px">Лог</label>
+        <div style="font-size:13px;color:var(--muted);margin-top:6px" id="logBox">—</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+(async function () {
+  // auto-detect API_BASE like map.js
+  const API_BASE = (function(){
+    try {
+      if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+        return "http://localhost:8000/api";
+      }
+      return `${location.protocol}//${location.host}/api`;
+    } catch(e) {
+      return "http://localhost:8000/api";
+    }
+  })();
+
+  const API_ORIGIN = (function(){
+    try {
+      if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+        return "http://localhost:8000";
+      }
+      return `${location.protocol}//${location.host}`;
+    } catch(e){
+      return "http://localhost:8000";
+    }
+  })();
+
+
+  // elements (объявляем все ДО использования)
+  const listEl = document.getElementById('clubList');
+  const qInput = document.getElementById('q');
+  const btnFilter = document.getElementById('btnFilter');
+  const btnRefresh = document.getElementById('btnRefresh');
+  const btnNew = document.getElementById('btnNew');
+  const btnDelete = document.getElementById('btnDelete');
+  const btnSave = document.getElementById('btnSave');
+  const btnSaveNew = document.getElementById('btnSaveNew');
+
+  const nameInput = document.getElementById('name');
+  const slugInput = document.getElementById('slug');
+  const descInput = document.getElementById('description');
+  const imageInput = document.getElementById('image');
+  const locationInput = document.getElementById('location');
+  const tagsInput = document.getElementById('tags');
+  const isFavInput = document.getElementById('isFavorite');
+
+  // new fields
+  const priceRubInput = document.getElementById('price_rub');
+  const phoneInput = document.getElementById('phone');
+  const webSiteInput = document.getElementById('webSite');
+  const socialVkInput = document.getElementById('social_vk');
+  const socialTgInput = document.getElementById('social_telegram');
+  const schedulesInput = document.getElementById('schedules');
+
+  const previewBox = document.getElementById('previewBox');
+  const tagList = document.getElementById('tagList');
+  const logBox = document.getElementById('logBox');
+  const currentId = document.getElementById('currentId');
+
+  const toast = document.getElementById('toast');
+  const fileInput = document.getElementById('fileInput');
+  const btnUpload = document.getElementById('btnUpload');
+
+  // --- UPLOAD IMAGE HANDLERS ---
+  previewBox.addEventListener('dragover', e => { e.preventDefault(); previewBox.style.borderColor = '#2b87d4'; });
+  previewBox.addEventListener('dragleave', e => { e.preventDefault(); previewBox.style.borderColor = '#e6e9ec'; });
+  previewBox.addEventListener('drop', async e => {
+    e.preventDefault(); previewBox.style.borderColor = '#e6e9ec';
+    if (!selectedId) { showToast('Сначала сохраните кружок'); return; }
+    const file = e.dataTransfer.files[0];
+    if (file) await uploadImageFile(file);
+  });
+  previewBox.addEventListener('paste', async e => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          if (!selectedId) { showToast('Сначала сохраните кружок'); return; }
+          await uploadImageFile(file);
+        }
+      }
+    }
+  });
+  btnUpload.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async e => {
+    const file = fileInput.files[0];
+    if (file) {
+      if (!selectedId) { showToast('Сначала сохраните кружок'); return; }
+      await uploadImageFile(file);
+      fileInput.value = '';
+    }
+  });
+  async function uploadImageFile(file) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API_BASE}/clubs/${selectedId}/images`, { method: 'POST', body: formData });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      if (data.url) {
+        imageInput.value = data.url.startsWith('/') ? API_ORIGIN + data.url : data.url;
+        fillForm(Object.assign(findClub(selectedId) || {}, { image: imageInput.value }));
+        showToast('Картинка загружена');
+        log('Загружено изображение');
+      }
+    } catch (e) {
+      showToast('Ошибка загрузки: ' + e.message);
+      log('Ошибка загрузки: ' + e.message);
+    }
+  }
+
+  let clubs = [];
+  let selectedId = null;
+
+  function showToast(text, ms = 2200) {
+    toast.textContent = text;
+    toast.classList.add('show');
+    setTimeout(()=> toast.classList.remove('show'), ms);
+  }
+
+  function log(msg) {
+    const t = new Date().toLocaleTimeString();
+    logBox.textContent = `[${t}] ${msg}\n` + logBox.textContent;
+  }
+
+  async function apiGet(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return res.json();
+  }
+
+  async function apiPost(url, body) {
+    const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    if (!res.ok) {
+      const txt = await res.text().catch(()=>res.statusText);
+      throw new Error(`${res.status} ${res.statusText} ${txt}`);
+    }
+    return res.json();
+  }
+
+  async function apiPut(url, body) {
+    let res = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    if (res.status === 405 || !res.ok) {
+      // попробуем POST как запасной вариант (некоторые прокси/hosts могут запретить PUT)
+      res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    }
+    if (!res.ok) {
+      const txt = await res.text().catch(()=>res.statusText);
+      throw new Error(`${res.status} ${res.statusText} ${txt}`);
+    }
+    return res.json();
+  }
+
+  async function apiDelete(url) {
+    const res = await fetch(url, {method:'DELETE'});
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return res.text();
+  }
+
+  function renderList(items) {
+    listEl.innerHTML = '';
+    items.forEach(it => {
+      const div = document.createElement('div');
+      div.className = 'item' + (it.id === selectedId ? ' selected' : '');
+      div.dataset.id = it.id;
+      div.innerHTML = `<div class="meta"><h4>${escape(it.name||'—')}</h4><p>${escape((it.location||'').slice(0,60))}</p></div><div class="muted">${escape(it.price_cents? (it.price_cents/100).toFixed(0)+' ₽':'')}</div>`;
+      div.addEventListener('click', ()=> selectItem(it.id));
+      listEl.appendChild(div);
+    });
+  }
+
+  function escape(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }
+
+  function fillForm(obj) {
+    if (!obj) {
+      nameInput.value=''; slugInput.value=''; descInput.value=''; imageInput.value=''; locationInput.value=''; tagsInput.value=''; isFavInput.checked=false;
+      priceRubInput.value=''; phoneInput.value=''; webSiteInput.value=''; socialVkInput.value=''; socialTgInput.value=''; schedulesInput.value='';
+      currentId.textContent = 'ID: —';
+      previewBox.innerHTML = 'Нет изображения';
+      tagList.innerHTML = '';
+      return;
+    }
+    nameInput.value = obj.name || '';
+    slugInput.value = obj.slug || '';
+    descInput.value = obj.description || '';
+    imageInput.value = obj.image || '';
+    locationInput.value = obj.location || '';
+    tagsInput.value = (obj.tags && obj.tags.join(',')) || '';
+    isFavInput.checked = !!obj.isFavorite;
+
+    // price: show in rubles (if price_cents present)
+    priceRubInput.value = obj.price_cents ? (Number(obj.price_cents) / 100).toString() : '';
+
+    // contacts
+    phoneInput.value = obj.phone || '';
+    webSiteInput.value = obj.webSite || '';
+    socialVkInput.value = (obj.socialLinks && obj.socialLinks.vk) || '';
+    socialTgInput.value = (obj.socialLinks && obj.socialLinks.telegram) || '';
+
+    // schedules -> textarea (expect array of {day, time})
+    if (Array.isArray(obj.schedules) && obj.schedules.length) {
+      const lines = obj.schedules.map(s => (s.day || '') + '|' + (s.time || ''));
+      schedulesInput.value = lines.join('\n');
+    } else {
+      schedulesInput.value = '';
+    }
+
+    currentId.textContent = 'ID: ' + (obj.id||'—');
+    // preview
+    if (obj.image) {
+      const url = (obj.image.startsWith('/') ? API_ORIGIN + obj.image : obj.image);
+      previewBox.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover">`;
+    } else previewBox.innerHTML = 'Нет изображения';
+    // tags visual
+    tagList.innerHTML = '';
+    (obj.tags||[]).slice(0,8).forEach(t => {
+      const el = document.createElement('div'); el.className='tag'; el.textContent = t; tagList.appendChild(el);
+    });
+  }
+
+  function parseSchedulesTextarea(txt) {
+    return txt.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+      const parts = line.split('|').map(p=>p.trim());
+      return { day: parts[0] || '', time: parts[1] || '' };
+    });
+  }
+
+  function getFormData() {
+    const tags = tagsInput.value.split(',').map(s=>s.trim()).filter(Boolean);
+    // price in rubles (send price_rub, backend will convert)
+    const prRaw = priceRubInput.value ? priceRubInput.value.toString().replace(',', '.') : '';
+    const price_rub = prRaw ? Number(prRaw) : null;
+
+    const schedules = parseSchedulesTextarea(schedulesInput.value || '');
+
+    const socialLinks = {};
+    const vk = socialVkInput.value.trim();
+    const tg = socialTgInput.value.trim();
+    if (vk) socialLinks.vk = vk;
+    if (tg) socialLinks.telegram = tg;
+
+    return {
+      name: nameInput.value.trim(),
+      slug: slugInput.value.trim(),
+      description: descInput.value.trim(),
+      image: imageInput.value.trim(),
+      location: locationInput.value.trim(),
+      tags: tags,
+      isFavorite: !!isFavInput.checked,
+      price_rub: price_rub,
+      // additional contact fields:
+      phone: phoneInput.value.trim(),
+      webSite: webSiteInput.value.trim(),
+      socialLinks: socialLinks,
+      schedules: schedules
+    };
+  }
+
+  async function loadClubs() {
+    try {
+      const arr = await apiGet(`${API_BASE}/clubs`);
+      clubs = (arr || []).map(x => Object.assign({tags:[], isFavorite:false, schedules:[], socialLinks:{}}, x));
+      renderList(clubs);
+      showToast('Список загружен');
+      log('Загружено ' + clubs.length + ' кружков');
+    } catch (e) {
+      console.error(e);
+      showToast('Ошибка загрузки: ' + e.message);
+      log('Ошибка: ' + e.message);
+    }
+  }
+
+  function findClub(id) { return clubs.find(c => String(c.id) === String(id)); }
+
+  function selectItem(id) {
+    selectedId = id;
+    const obj = findClub(id);
+    renderList(clubs);
+    fillForm(obj);
+  }
+
+  async function handleNew() {
+    selectedId = null;
+    renderList(clubs);
+    fillForm(null);
+    showToast('Создайте новый кружок и нажмите "Сохранить как новый"');
+  }
+
+  async function handleSave(asNew=false) {
+    const payload = getFormData();
+    if (!payload.name) { showToast('Введите название'); return; }
+
+    try {
+      if (!selectedId || asNew) {
+        // create
+        const created = await apiPost(`${API_BASE}/clubs`, payload);
+        clubs.unshift(created);
+        selectedId = created.id;
+        renderList(clubs);
+        fillForm(created);
+        showToast('Создан новый кружок');
+        log('Создан: ' + created.id);
+      } else {
+        // update
+        const updated = await apiPut(`${API_BASE}/clubs/${selectedId}`, payload);
+        const idx = clubs.findIndex(c => String(c.id) === String(selectedId));
+        if (idx >= 0) clubs[idx] = updated;
+        renderList(clubs);
+        fillForm(updated);
+        showToast('Сохранено');
+        log('Обновлен: ' + selectedId);
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Ошибка сохранения: ' + e.message);
+      log('Ошибка при сохранении: ' + e.message);
+    }
+  }
+
+  async function handleDelete() {
+    if (!selectedId) { showToast('Нет выбранного кружка'); return; }
+    if (!confirm('Удалить кружок?')) return;
+    try {
+      await apiDelete(`${API_BASE}/clubs/${selectedId}`);
+      clubs = clubs.filter(c => String(c.id) !== String(selectedId));
+      selectedId = null;
+      renderList(clubs);
+      fillForm(null);
+      showToast('Удалено');
+      log('Удалён');
+    } catch (e) {
+      console.error(e);
+      showToast('Ошибка удаления: ' + e.message);
+      log('Ошибка удаления: ' + e.message);
+    }
+  }
+
+  // wire events
+  btnRefresh.addEventListener('click', loadClubs);
+  btnNew.addEventListener('click', handleNew);
+  btnDelete.addEventListener('click', handleDelete);
+  btnSave.addEventListener('click', ()=> handleSave(false));
+  btnSaveNew.addEventListener('click', ()=> handleSave(true));
+  btnFilter.addEventListener('click', ()=> {
+    const q = qInput.value.trim().toLowerCase();
+    if (!q) { renderList(clubs); return; }
+    const filtered = clubs.filter(c => (c.name||'').toLowerCase().includes(q) || (c.tags||[]).some(t=>t.toLowerCase().includes(q)));
+    renderList(filtered);
+  });
+
+  // initial load
+  await loadClubs();
+
+})();
+</script>
+</body>
+</html>
