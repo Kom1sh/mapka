@@ -44,22 +44,22 @@
   const API_BASE = (function(){
     try {
       if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
-        return "http://ad99bba9eca9.ngrok-free.app/api";
+        return "http://localhost:8000/api";
       }
       return `${location.protocol}//${location.host}/api`;
     } catch(e) {
-      return "http://ad99bba9eca9.ngrok-free.app/api";
+      return "http://localhost:8000/api";
     }
   })();
 
   const API_ORIGIN = (function(){
     try {
       if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
-        return "http://ad99bba9eca9.ngrok-free.app";
+        return "http://localhost:8000";
       }
       return `${location.protocol}//${location.host}`;
     } catch(e){
-      return "http://ad99bba9eca9.ngrok-free.app";
+      return "http://localhost:8000";
     }
   })();
 
