@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Sitemap (unicode)
+Sitemap: https://мапка.рф/sitemap.xml
+# Sitemap (punycode for compatibility)
+Sitemap: https://xn--80aa3agq.xn--p1ai/sitemap.xml
+
+Host: https://мапка.рф
