@@ -159,6 +159,29 @@
     }
   })();
 
+   // --- AUTH CHECK: redirect to backend login if not authenticated ---
+  async function ensureAuth() {
+    try {
+        const res = await fetch(`${API_ORIGIN}/admin`, {
+        method: 'GET',
+        credentials: 'include',
+        redirect: 'manual'
+        });
+
+        if (res.status === 200) {
+        // авторизован — продолжаем
+        return;
+        }
+
+        // если 401/403/302/404 — перенаправляем на страницу логина
+        window.location.href = `${API_ORIGIN}/admin/login`;
+    } catch (err) {
+        console.error('Auth check failed:', err);
+        alert('Не удалось связаться с бэкендом для проверки авторизации.');
+        throw err;
+    }
+    }
+
 
   // elements (объявляем все ДО использования)
   const listEl = document.getElementById('clubList');
@@ -259,35 +282,50 @@
   }
 
   async function apiGet(url) {
-    const res = await fetch(url);
+    const res = await fetch(url, { credentials: 'include' });
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     return res.json();
   }
 
   async function apiPost(url, body) {
-    const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      credentials: 'include'
+    });
     if (!res.ok) {
-      const txt = await res.text().catch(()=>res.statusText);
+      const txt = await res.text().catch(() => res.statusText);
       throw new Error(`${res.status} ${res.statusText} ${txt}`);
     }
     return res.json();
   }
 
   async function apiPut(url, body) {
-    let res = await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    let res = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      credentials: 'include'
+    });
     if (res.status === 405 || !res.ok) {
-      // попробуем POST как запасной вариант (некоторые прокси/hosts могут запретить PUT)
-      res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+      // fallback to POST if PUT not allowed
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'include'
+      });
     }
     if (!res.ok) {
-      const txt = await res.text().catch(()=>res.statusText);
+      const txt = await res.text().catch(() => res.statusText);
       throw new Error(`${res.status} ${res.statusText} ${txt}`);
     }
     return res.json();
   }
 
   async function apiDelete(url) {
-    const res = await fetch(url, {method:'DELETE'});
+    const res = await fetch(url, { method: 'DELETE', credentials: 'include' });
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     return res.text();
   }
@@ -484,6 +522,8 @@
   });
 
   // initial load
+  await ensureAuth();   // <- проверим, залогинен ли пользователь; если нет — редиректит на /admin/login
+  await loadClubs();
   await loadClubs();
 
 })();
