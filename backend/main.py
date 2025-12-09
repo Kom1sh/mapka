@@ -19,6 +19,7 @@ import uuid
 
 from crud import get_clubs, get_club_by_id, create_review_for_club
 from schemas import ClubSchema, ReviewSchema, ReviewCreateSchema
+from auth import router as auth_router, admin_required
 
 from fastapi.responses import JSONResponse
 from fastapi.requests import Request as FastAPIRequest
@@ -27,6 +28,7 @@ from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 app = FastAPI(title="Mapka API")
+app.include_router(auth_router)
 
 # Middleware для добавления CORS-заголовков даже к ошибкам
 class CORSMiddlewareAll(BaseHTTPMiddleware):
@@ -287,7 +289,7 @@ def remove_static_club_file(slug):
         pass
 
 @app.post("/api/clubs")
-async def api_create_club(request: Request, payload: dict):
+async def api_create_club(request: Request, payload: dict, user=Depends(admin_required)):
     name = payload.get("name")
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
