@@ -19,10 +19,22 @@
       box-sizing: border-box;
     }
 
+    /* removed dark theme variables, keeping only light theme */
+    :root {
+      --bg-primary: #f5f5f5;
+      --bg-secondary: white;
+      --bg-card: #d1d1d1;
+      --bg-input: white;
+      --text-primary: #1a1a1a;
+      --text-secondary: #565555;
+      --border-color: #e5e5e5;
+      --handle-color: #d1d1d1;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f5f5f5;
-      color: #1a1a1a;
+      background: var(--bg-primary);
+      color: var(--text-primary);
       min-height: 100vh;
     }
 
@@ -185,12 +197,12 @@
       background: #e5e5e5;
     }
 
-    /* Стили для контейнера карты */
     #map {
       width: 100%;
       height: 100%;
     }
 
+    /* updated left-panel to support collapsing */
     .left-panel {
       position: absolute;
       left: 0;
@@ -203,14 +215,57 @@
       padding: 16px;
       gap: 16px;
       z-index: 10;
+      transition: transform 0.3s ease;
     }
 
+    .left-panel.collapsed {
+      transform: translateX(calc(-100% + 24px));
+    }
+
+    /* added cards-container styling with border and rounded corners */
     .cards-container {
       flex: 1;
-      background: white;
+      background: var(--bg-secondary);
       border-radius: 24px;
       overflow-y: auto;
       padding: 16px;
+      border: 2px solid #1a1a1a;
+      position: relative;
+    }
+
+    /* added desktop panel handle for collapsing */
+    .desktop-panel-handle {
+      position: absolute;
+      right: -24px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 80px;
+      background: var(--bg-secondary);
+      border: 2px solid #1a1a1a;
+      border-left: none;
+      border-radius: 0 12px 12px 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 11;
+      transition: background 0.2s;
+    }
+
+    .desktop-panel-handle:hover {
+      background: var(--bg-card);
+    }
+
+    .desktop-panel-handle svg {
+      width: 16px;
+      height: 16px;
+      color: var(--text-primary);
+      transition: transform 0.3s;
+    }
+
+    .left-panel.collapsed .desktop-panel-handle svg {
+      transform: rotate(180deg);
     }
 
     .cards-list {
@@ -244,6 +299,11 @@
       transform: scale(1.02);
     }
 
+    /* Mobile filter button - icon only */
+    .filter-btn .filter-text {
+      display: none;
+    }
+
     .search-box {
       flex: 1;
       display: flex;
@@ -255,7 +315,8 @@
     .search-box input {
       flex: 1;
       min-width: 0;
-      background: white;
+      background: var(--bg-input);
+      color: var(--text-primary);
       border: none;
       border-radius: 24px;
       padding: 0 16px;
@@ -272,9 +333,25 @@
       cursor: pointer;
     }
 
+    .search-box .search-btn-mobile {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+    }
+
+    .search-box .search-btn-mobile svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .search-box .search-btn-text {
+      display: none;
+    }
+
     /* Club Card */
     .club-card {
-      background: #d1d1d1;
+      background: var(--bg-card);
       border-radius: 24px;
       padding: 8px;
       display: flex;
@@ -282,7 +359,6 @@
       gap: 8px;
     }
 
-    /* Добавляем класс sectionCard для совместимости с map.js */
     .sectionCard {
       transition: box-shadow 0.3s;
     }
@@ -293,13 +369,14 @@
 
     .card-top {
       display: flex;
+      flex-direction: column;
       gap: 8px;
     }
 
     .card-image {
       position: relative;
-      width: 92px;
-      height: 92px;
+      width: 100%;
+      height: 180px;
       border-radius: 16px;
       overflow: hidden;
       flex-shrink: 0;
@@ -342,7 +419,8 @@
     }
 
     .card-title {
-      background: white;
+      background: var(--bg-input);
+      color: var(--text-primary);
       border-radius: 16px;
       padding: 8px 12px;
       font-size: 14px;
@@ -350,7 +428,8 @@
     }
 
     .card-description {
-      background: white;
+      background: var(--bg-input);
+      color: var(--text-primary);
       border-radius: 16px;
       padding: 8px 12px;
       flex: 1;
@@ -366,8 +445,8 @@
     }
 
     .tag-btn {
-      background: white;
-      color: #1a1a1a;
+      background: var(--bg-input);
+      color: var(--text-primary);
       font-size: 10px;
       padding: 4px 8px;
       border-radius: 999px;
@@ -377,6 +456,11 @@
     }
 
     .tag-btn:hover {
+      background: #69AFDF;
+      color: white;
+    }
+
+    .tag-btn.active {
       background: #69AFDF;
       color: white;
     }
@@ -392,7 +476,7 @@
       align-items: center;
       gap: 4px;
       font-size: 12px;
-      color: #1a1a1a;
+      color: var(--text-primary);
     }
 
     .card-location svg {
@@ -422,12 +506,25 @@
       transform: scale(1.02);
     }
 
+    .card-price {
+      background: var(--bg-input);
+      border-radius: 12px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .card-price.free {
+      background: #4ade80;
+      color: white;
+    }
+
     /* Mobile Layout */
     .main-mobile {
       display: block;
     }
 
-    /* Стили для мобильной карты */
     .mobile-map {
       position: fixed;
       inset: 0;
@@ -442,18 +539,21 @@
       height: 100%;
     }
 
-    /* Bottom Sheet */
+    /* updated Bottom Sheet with black border */
     .bottom-sheet {
       position: fixed;
       left: 0;
       right: 0;
       bottom: 0;
-      background: white;
+      background: var(--bg-secondary);
       border-radius: 24px 24px 0 0;
+      border: 2px solid #1a1a1a;
+      border-bottom: none;
       z-index: 30;
       touch-action: none;
       transition: transform 0.3s ease-out;
       max-height: calc(100vh - 56px);
+      top: 56px;
     }
 
     .bottom-sheet.peek {
@@ -478,14 +578,27 @@
     .handle-bar {
       width: 48px;
       height: 4px;
-      background: #d1d1d1;
+      background: var(--handle-color);
       border-radius: 2px;
+    }
+
+    /* Sheet header for filter/search buttons */
+    .sheet-header {
+      display: flex;
+      gap: 8px;
+      padding: 0 16px 12px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 12px;
+    }
+
+    .sheet-header .search-filter {
+      flex: 1;
     }
 
     .sheet-content {
       padding: 0 16px 24px;
       overflow-y: auto;
-      max-height: calc(100vh - 56px - 28px);
+      max-height: calc(100vh - 56px - 40px - 80px);
     }
 
     .sheet-cards {
@@ -493,6 +606,304 @@
       flex-direction: column;
       gap: 12px;
       margin-top: 16px;
+    }
+
+    /* Filter Panel Styles */
+    .filter-panel {
+      display: none;
+      position: fixed;
+      inset: 0;
+      top: 56px;
+      background: var(--bg-secondary);
+      z-index: 40;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .filter-panel.active {
+      display: flex;
+    }
+
+    .filter-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      background: var(--bg-secondary);
+      z-index: 1;
+    }
+
+    .filter-panel-header h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .filter-panel-content {
+      padding: 16px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .filter-section {
+      margin-bottom: 24px;
+    }
+
+    .filter-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Tag search input with autocomplete */
+    .tag-search-container {
+      position: relative;
+      margin-bottom: 12px;
+    }
+
+    .tag-search-input {
+      width: 100%;
+      padding: 10px 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      font-size: 14px;
+      background: var(--bg-input);
+      color: var(--text-primary);
+      outline: none;
+    }
+
+    .tag-search-input:focus {
+      border-color: #69AFDF;
+    }
+
+    .tag-suggestions {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-top: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 10;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .tag-suggestions.active {
+      display: block;
+    }
+
+    .tag-suggestion-item {
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+      color: var(--text-primary);
+    }
+
+    .tag-suggestion-item:hover {
+      background: var(--bg-card);
+    }
+
+    .tag-suggestion-item.selected {
+      background: #69AFDF;
+      color: white;
+    }
+
+    /* Tags container with expand/collapse */
+    .filter-tags-wrapper {
+      position: relative;
+    }
+
+    .filter-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      overflow: hidden;
+      max-height: 120px;
+      transition: max-height 0.3s ease;
+    }
+
+    .filter-tags.expanded {
+      max-height: 2000px;
+    }
+
+    /* updated filter-tag to have same hover effect as card tags */
+    .filter-tag {
+      background: var(--bg-input);
+      color: var(--text-primary);
+      font-size: 14px;
+      padding: 8px 16px;
+      border-radius: 24px;
+      border: 1px solid #1a1a1a;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .filter-tag:hover {
+      background: #69AFDF;
+      color: white;
+      border-color: #69AFDF;
+    }
+
+    .filter-tag.active {
+      background: #69AFDF;
+      color: white;
+      border-color: #69AFDF;
+    }
+
+    .tags-expand-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 12px;
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      color: var(--text-secondary);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .tags-expand-btn:hover {
+      border-color: #69AFDF;
+      color: #69AFDF;
+    }
+
+    .tags-expand-btn svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.3s;
+    }
+
+    .tags-expand-btn.expanded svg {
+      transform: rotate(180deg);
+    }
+
+    /* Price Slider Styles */
+    .price-slider-container {
+      padding: 8px 0;
+    }
+
+    .price-range-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .price-slider {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: linear-gradient(to right, #69AFDF 0%, #69AFDF var(--slider-percent, 50%), var(--border-color) var(--slider-percent, 50%), var(--border-color) 100%);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .price-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #69AFDF;
+      cursor: pointer;
+      border: 3px solid white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .price-slider::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #69AFDF;
+      cursor: pointer;
+      border: 3px solid white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .price-current {
+      text-align: center;
+      margin-top: 12px;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .filter-panel-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 12px;
+      position: sticky;
+      bottom: 0;
+      background: var(--bg-secondary);
+    }
+
+    .filter-reset-btn {
+      flex: 1;
+      padding: 12px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .filter-apply-btn {
+      flex: 2;
+      padding: 12px;
+      background: #69AFDF;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    /* Active filters indicator */
+    .active-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .active-filter-chip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #69AFDF;
+      color: white;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 16px;
+    }
+
+    .active-filter-chip button {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 0;
+      display: flex;
+      align-items: center;
     }
 
     /* Desktop styles */
@@ -535,6 +946,11 @@
         font-size: 20px;
       }
 
+      /* Show filter text on desktop */
+      .filter-btn .filter-text {
+        display: inline;
+      }
+
       .search-box {
         padding: 4px;
       }
@@ -547,6 +963,19 @@
       .search-box button {
         padding: 0 32px;
         font-size: 20px;
+      }
+
+      .search-box .search-btn-text {
+        display: block;
+      }
+
+      .search-box .search-btn-mobile {
+        display: none;
+      }
+
+      /* Desktop: image on side, not above */
+      .card-top {
+        flex-direction: row;
       }
 
       .card-image {
@@ -601,6 +1030,25 @@
         border-radius: 24px;
         font-size: 16px;
       }
+
+      .card-price {
+        font-size: 14px;
+        padding: 8px 16px;
+      }
+
+      /* Desktop filter panel */
+      .filter-panel {
+        position: absolute;
+        left: 16px;
+        top: 100px;
+        right: auto;
+        bottom: auto;
+        width: 400px;
+        max-height: calc(100vh - 180px);
+        border-radius: 24px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        inset: auto;
+      }
     }
   </style>
 </head>
@@ -619,6 +1067,7 @@
       </nav>
 
       <div class="header-right-desktop">
+        <!-- removed theme toggle button from desktop header -->
         <button class="icon-btn" aria-label="Избранное">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
@@ -642,6 +1091,7 @@
       </div>
 
       <div class="header-right-mobile">
+        <!-- removed theme toggle button from mobile header -->
         <button class="icon-btn" aria-label="Избранное">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
@@ -687,27 +1137,87 @@
     </div>
   </div>
 
+  <!-- Filter Panel -->
+  <div class="filter-panel" id="filterPanel">
+    <div class="filter-panel-header">
+      <h2>Фильтры</h2>
+      <button class="icon-btn" id="closeFilterBtn" style="color: var(--text-primary);">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+    <div class="filter-panel-content">
+      <div class="filter-section">
+        <h3>Теги</h3>
+        <!-- Tag search input with autocomplete -->
+        <div class="tag-search-container">
+          <input type="text" class="tag-search-input" id="tagSearchInput" placeholder="Введите название тега...">
+          <div class="tag-suggestions" id="tagSuggestions"></div>
+        </div>
+        <!-- Tags with expand/collapse functionality -->
+        <div class="filter-tags-wrapper">
+          <div class="filter-tags" id="filterTags">
+            <!-- Tags will be populated dynamically -->
+          </div>
+          <button class="tags-expand-btn" id="tagsExpandBtn">
+            <span class="expand-text">Показать все</span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="filter-section">
+        <h3>Цена за занятие</h3>
+        <div class="price-slider-container">
+          <div class="price-range-labels">
+            <span>Бесплатно</span>
+            <span id="maxPriceLabel">5000 ₽</span>
+          </div>
+          <input type="range" class="price-slider" id="priceSlider" min="0" max="5000" value="5000" step="100">
+          <div class="price-current">До <span id="currentPriceValue">5000</span> ₽</div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-panel-footer">
+      <button class="filter-reset-btn" id="filterResetBtn">Сбросить</button>
+      <button class="filter-apply-btn" id="filterApplyBtn">Применить</button>
+    </div>
+  </div>
+
   <!-- Desktop Layout -->
   <main class="main-desktop">
-    <!-- Исправлена структура карты - убран дублирующий id -->
     <div class="map-container">
       <div id="map"></div>
     </div>
 
-    <div class="left-panel">
+    <div class="left-panel" id="leftPanel">
       <div class="search-filter">
-        <button class="filter-btn">
+        <button class="filter-btn" id="desktopFilterBtn">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="24" height="24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
           </svg>
-          Фильтры
+          <span class="filter-text">Фильтры</span>
         </button>
         <div class="search-box">
-          <input type="search" placeholder="поиск кружка!">
-          <button type="submit">Найти</button>
+          <input type="search" placeholder="поиск кружка!" id="desktopSearchInput">
+          <button type="submit" class="search-btn-text" id="desktopSearchBtn">Найти</button>
+          <button type="submit" class="search-btn-mobile" id="desktopSearchBtnMobile">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
+          </button>
         </div>
       </div>
 
+      <div class="active-filters" id="desktopActiveFilters"></div>
+
+      <div class="desktop-panel-handle" id="desktopPanelHandle">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
+        </svg>
+      </div>
       <div class="cards-container">
         <div class="cards-list" id="desktopCards"></div>
       </div>
@@ -716,7 +1226,6 @@
 
   <!-- Mobile Layout -->
   <main class="main-mobile">
-    <!-- Мобильная карта с уникальным id -->
     <div class="mobile-map">
       <div id="mobileMap"></div>
     </div>
@@ -725,26 +1234,44 @@
       <div class="sheet-handle" id="sheetHandle">
         <div class="handle-bar"></div>
       </div>
-      <div class="sheet-content">
+      <!-- Sheet header with filter and search buttons -->
+      <div class="sheet-header">
         <div class="search-filter">
-          <button class="filter-btn">
+          <button class="filter-btn" id="mobileFilterBtn">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="16" height="16">
               <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
             </svg>
-            Фильтры
           </button>
           <div class="search-box">
-            <input type="search" placeholder="поиск кружка!">
-            <button type="submit">Найти</button>
+            <input type="search" placeholder="поиск кружка!" id="mobileSearchInput">
+            <button type="submit" class="search-btn-mobile" id="mobileSearchBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+              </svg>
+            </button>
           </div>
         </div>
+      </div>
+      <div class="sheet-content">
+        <div class="active-filters" id="mobileActiveFilters"></div>
         <div class="sheet-cards" id="mobileCards"></div>
       </div>
     </div>
   </main>
 
   <script>
-    // Club data
+    let filterState = {
+      selectedTags: [],
+      maxPrice: 5000,
+      searchQuery: ''
+    };
+
+    let allTags = [];
+    let allClubs = [];
+    let maxPriceFromDB = 5000;
+    let tagsExpanded = false;
+    let desktopPanelCollapsed = false;
+
     const clubs = [
       {
         id: 1,
@@ -754,7 +1281,8 @@
         image: "https://images.unsplash.com/photo-1555597673-b21d5c935865?w=400&h=400&fit=crop",
         location: "ул. Большая Садовая, 45, Ростов-на-Дону",
         isFavorite: false,
-        tags: ["каратэ", "боевые искусства", "самооборона", "спорт", "дети"]
+        tags: ["каратэ", "боевые искусства", "самооборона", "спорт", "дети"],
+        price_cents: 150000
       },
       {
         id: 2,
@@ -764,13 +1292,23 @@
         image: "https://images.unsplash.com/photo-1518834107812-67b0b7c58434?w=400&h=400&fit=crop",
         location: "пр. Ворошиловский, 12, Ростов-на-Дону",
         isFavorite: true,
-        tags: ["балет", "танцы", "хореография", "классический танец"]
+        tags: ["балет", "танцы", "хореография", "классический танец"],
+        price_cents: null
       }
     ];
 
+    function formatPrice(priceCents) {
+      if (priceCents === null || priceCents === undefined || priceCents === 0) {
+        return { text: 'Бесплатно', isFree: true };
+      }
+      const priceRub = Math.round(priceCents / 100);
+      return { text: `${priceRub.toLocaleString('ru-RU')} ₽`, isFree: false };
+    }
+
     function createCardHTML(club) {
+      const price = formatPrice(club.price_cents);
       return `
-        <div class="club-card sectionCard">
+        <div class="club-card sectionCard" data-tags="${(club.tags || []).join(',').toLowerCase()}" data-price="${club.price_cents || 0}">
           <div class="card-top">
             <div class="card-image">
               <img src="${club.image}" alt="${club.name}">
@@ -786,7 +1324,7 @@
             </div>
           </div>
           <div class="card-tags">
-            ${club.tags.map(tag => `<button class="tag-btn">${tag}</button>`).join('')}
+            ${(club.tags || []).map(tag => `<button class="tag-btn" data-tag="${tag.toLowerCase()}">${tag}</button>`).join('')}
           </div>
           <div class="card-bottom">
             <div class="card-location">
@@ -796,6 +1334,7 @@
               </svg>
               <span class="cardLocationText">${club.location}</span>
             </div>
+            <span class="card-price ${price.isFree ? 'free' : ''}">${price.text}</span>
             <div class="card-buttons">
               <a href="club.html?slug=${club.slug}" class="card-btn">Подробнее</a>
               <button class="card-btn">Написать</button>
@@ -805,9 +1344,163 @@
       `;
     }
 
+    window.createCardHTML = createCardHTML;
+
+    function initFilters(clubsData) {
+      allClubs = clubsData;
+      
+      const tagSet = new Set();
+      let maxPrice = 0;
+      
+      clubsData.forEach(club => {
+        (club.tags || []).forEach(tag => tagSet.add(tag.toLowerCase()));
+        const priceCents = club.price_cents || 0;
+        const priceRub = Math.round(priceCents / 100);
+        if (priceRub > maxPrice) maxPrice = priceRub;
+      });
+      
+      allTags = Array.from(tagSet).sort();
+      maxPriceFromDB = maxPrice > 0 ? maxPrice : 5000;
+      
+      const priceSlider = document.getElementById('priceSlider');
+      const maxPriceLabel = document.getElementById('maxPriceLabel');
+      const currentPriceValue = document.getElementById('currentPriceValue');
+      
+      priceSlider.max = maxPriceFromDB;
+      priceSlider.value = maxPriceFromDB;
+      filterState.maxPrice = maxPriceFromDB;
+      maxPriceLabel.textContent = `${maxPriceFromDB.toLocaleString('ru-RU')} ₽`;
+      currentPriceValue.textContent = maxPriceFromDB.toLocaleString('ru-RU');
+      updateSliderBackground(priceSlider);
+      
+      renderFilterTags();
+    }
+
+    function renderFilterTags() {
+      const filterTagsContainer = document.getElementById('filterTags');
+      filterTagsContainer.innerHTML = allTags.map(tag => 
+        `<button class="filter-tag ${filterState.selectedTags.includes(tag) ? 'active' : ''}" data-tag="${tag}">${tag}</button>`
+      ).join('');
+      
+      // Show/hide expand button based on tag count
+      const expandBtn = document.getElementById('tagsExpandBtn');
+      if (allTags.length > 4) {
+        expandBtn.style.display = 'flex';
+      } else {
+        expandBtn.style.display = 'none';
+        filterTagsContainer.classList.add('expanded');
+      }
+    }
+
+    window.initFilters = initFilters;
+
+    function updateSliderBackground(slider) {
+      const percent = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+      slider.style.setProperty('--slider-percent', percent + '%');
+    }
+
+    function applyFilters() {
+      const searchQuery = filterState.searchQuery.toLowerCase();
+      const selectedTags = filterState.selectedTags;
+      const maxPriceRub = filterState.maxPrice;
+
+      ['desktopCards', 'mobileCards'].forEach(containerId => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const cards = container.querySelectorAll('.club-card');
+        cards.forEach(card => {
+          const cardTags = (card.dataset.tags || '').split(',').filter(Boolean);
+          const cardPriceCents = parseInt(card.dataset.price) || 0;
+          const cardPriceRub = Math.round(cardPriceCents / 100);
+          const cardTitle = card.querySelector('.card-title')?.textContent.toLowerCase() || '';
+          const cardDesc = card.querySelector('.card-description')?.textContent.toLowerCase() || '';
+
+          let show = true;
+
+          if (searchQuery && !cardTitle.includes(searchQuery) && !cardDesc.includes(searchQuery)) {
+            show = false;
+          }
+
+          if (selectedTags.length > 0) {
+            const hasMatchingTag = selectedTags.some(tag => cardTags.includes(tag));
+            if (!hasMatchingTag) show = false;
+          }
+
+          if (cardPriceRub > maxPriceRub) {
+            show = false;
+          }
+
+          card.style.display = show ? '' : 'none';
+        });
+      });
+
+      updateActiveFiltersDisplay();
+    }
+
+    function updateActiveFiltersDisplay() {
+      ['desktopActiveFilters', 'mobileActiveFilters'].forEach(containerId => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        let html = '';
+
+        filterState.selectedTags.forEach(tag => {
+          html += `
+            <div class="active-filter-chip">
+              ${tag}
+              <button onclick="removeTagFilter('${tag}')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          `;
+        });
+
+        if (filterState.maxPrice < maxPriceFromDB) {
+          html += `
+            <div class="active-filter-chip">
+              До ${filterState.maxPrice.toLocaleString('ru-RU')} ₽
+              <button onclick="removePriceFilter()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          `;
+        }
+
+        container.innerHTML = html;
+      });
+    }
+
+    function removeTagFilter(tag) {
+      filterState.selectedTags = filterState.selectedTags.filter(t => t !== tag);
+      document.querySelectorAll(`.filter-tag[data-tag="${tag}"]`).forEach(btn => {
+        btn.classList.remove('active');
+      });
+      applyFilters();
+    }
+    window.removeTagFilter = removeTagFilter;
+
+    function removePriceFilter() {
+      filterState.maxPrice = maxPriceFromDB;
+      const priceSlider = document.getElementById('priceSlider');
+      const currentPriceValue = document.getElementById('currentPriceValue');
+      priceSlider.value = maxPriceFromDB;
+      currentPriceValue.textContent = maxPriceFromDB.toLocaleString('ru-RU');
+      updateSliderBackground(priceSlider);
+      applyFilters();
+    }
+    window.removePriceFilter = removePriceFilter;
+
     // Render cards
     document.getElementById('desktopCards').innerHTML = clubs.map(createCardHTML).join('');
     document.getElementById('mobileCards').innerHTML = clubs.map(createCardHTML).join('');
+
+    // Initialize filters with default data
+    initFilters(clubs);
 
     // Mobile menu toggle
     const menuBtn = document.getElementById('menuBtn');
@@ -828,6 +1521,160 @@
     menuBtn.addEventListener('click', openMenu);
     closeMenuBtn.addEventListener('click', closeMenu);
     menuOverlay.addEventListener('click', closeMenu);
+
+    const filterPanel = document.getElementById('filterPanel');
+    const closeFilterBtn = document.getElementById('closeFilterBtn');
+    const desktopFilterBtn = document.getElementById('desktopFilterBtn');
+    const mobileFilterBtn = document.getElementById('mobileFilterBtn');
+    const filterResetBtn = document.getElementById('filterResetBtn');
+    const filterApplyBtn = document.getElementById('filterApplyBtn');
+
+    function openFilterPanel() {
+      filterPanel.classList.add('active');
+    }
+
+    function closeFilterPanel() {
+      filterPanel.classList.remove('active');
+    }
+
+    desktopFilterBtn?.addEventListener('click', openFilterPanel);
+    mobileFilterBtn?.addEventListener('click', openFilterPanel);
+    closeFilterBtn?.addEventListener('click', closeFilterPanel);
+
+    const tagSearchInput = document.getElementById('tagSearchInput');
+    const tagSuggestions = document.getElementById('tagSuggestions');
+
+    tagSearchInput?.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      
+      if (!query) {
+        tagSuggestions.classList.remove('active');
+        return;
+      }
+
+      const matchingTags = allTags.filter(tag => 
+        tag.includes(query) && !filterState.selectedTags.includes(tag)
+      );
+
+      if (matchingTags.length === 0) {
+        tagSuggestions.classList.remove('active');
+        return;
+      }
+
+      tagSuggestions.innerHTML = matchingTags.slice(0, 10).map(tag => 
+        `<div class="tag-suggestion-item" data-tag="${tag}">${tag}</div>`
+      ).join('');
+      tagSuggestions.classList.add('active');
+    });
+
+    tagSearchInput?.addEventListener('blur', () => {
+      // Delay hiding to allow click on suggestion
+      setTimeout(() => {
+        tagSuggestions.classList.remove('active');
+      }, 200);
+    });
+
+    tagSuggestions?.addEventListener('click', (e) => {
+      const item = e.target.closest('.tag-suggestion-item');
+      if (!item) return;
+
+      const tag = item.dataset.tag;
+      if (tag && !filterState.selectedTags.includes(tag)) {
+        filterState.selectedTags.push(tag);
+        document.querySelectorAll(`.filter-tag[data-tag="${tag}"]`).forEach(btn => {
+          btn.classList.add('active');
+        });
+      }
+
+      tagSearchInput.value = '';
+      tagSuggestions.classList.remove('active');
+    });
+
+    const tagsExpandBtn = document.getElementById('tagsExpandBtn');
+    const filterTagsContainer = document.getElementById('filterTags');
+
+    tagsExpandBtn?.addEventListener('click', () => {
+      tagsExpanded = !tagsExpanded;
+      filterTagsContainer.classList.toggle('expanded', tagsExpanded);
+      tagsExpandBtn.classList.toggle('expanded', tagsExpanded);
+      tagsExpandBtn.querySelector('.expand-text').textContent = tagsExpanded ? 'Свернуть' : 'Показать все';
+    });
+
+    document.getElementById('filterTags')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.filter-tag');
+      if (!btn) return;
+
+      const tag = btn.dataset.tag;
+      btn.classList.toggle('active');
+
+      if (btn.classList.contains('active')) {
+        if (!filterState.selectedTags.includes(tag)) {
+          filterState.selectedTags.push(tag);
+        }
+      } else {
+        filterState.selectedTags = filterState.selectedTags.filter(t => t !== tag);
+      }
+    });
+
+    const priceSlider = document.getElementById('priceSlider');
+    const currentPriceValue = document.getElementById('currentPriceValue');
+
+    priceSlider?.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value);
+      currentPriceValue.textContent = value === 0 ? 'Бесплатно' : value.toLocaleString('ru-RU');
+      filterState.maxPrice = value;
+      updateSliderBackground(e.target);
+    });
+
+    filterResetBtn?.addEventListener('click', () => {
+      filterState.selectedTags = [];
+      filterState.maxPrice = maxPriceFromDB;
+      
+      document.querySelectorAll('.filter-tag').forEach(btn => btn.classList.remove('active'));
+      priceSlider.value = maxPriceFromDB;
+      currentPriceValue.textContent = maxPriceFromDB.toLocaleString('ru-RU');
+      updateSliderBackground(priceSlider);
+      tagSearchInput.value = '';
+      
+      applyFilters();
+    });
+
+    filterApplyBtn?.addEventListener('click', () => {
+      applyFilters();
+      closeFilterPanel();
+    });
+
+    function handleSearch() {
+      const desktopInput = document.getElementById('desktopSearchInput');
+      const mobileInput = document.getElementById('mobileSearchInput');
+      
+      filterState.searchQuery = desktopInput?.value || mobileInput?.value || '';
+      applyFilters();
+    }
+
+    document.getElementById('desktopSearchBtn')?.addEventListener('click', handleSearch);
+    document.getElementById('desktopSearchBtnMobile')?.addEventListener('click', handleSearch);
+    document.getElementById('mobileSearchBtn')?.addEventListener('click', handleSearch);
+    document.getElementById('desktopSearchInput')?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleSearch();
+    });
+    document.getElementById('mobileSearchInput')?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleSearch();
+    });
+
+    document.addEventListener('click', (e) => {
+      const tagBtn = e.target.closest('.card-tags .tag-btn');
+      if (tagBtn) {
+        const tag = tagBtn.dataset.tag;
+        if (tag && !filterState.selectedTags.includes(tag)) {
+          filterState.selectedTags.push(tag);
+          document.querySelectorAll(`.filter-tag[data-tag="${tag}"]`).forEach(btn => {
+            btn.classList.add('active');
+          });
+          applyFilters();
+        }
+      }
+    });
 
     // Bottom sheet drag
     const bottomSheet = document.getElementById('bottomSheet');
@@ -871,6 +1718,45 @@
         if (club) club.isFavorite = !club.isFavorite;
       }
     });
+
+    const leftPanel = document.getElementById('leftPanel');
+    const desktopPanelHandle = document.getElementById('desktopPanelHandle');
+    
+    // Click to toggle
+    desktopPanelHandle?.addEventListener('click', () => {
+      desktopPanelCollapsed = !desktopPanelCollapsed;
+      leftPanel.classList.toggle('collapsed', desktopPanelCollapsed);
+    });
+
+    // Drag to toggle on desktop
+    let desktopDragStartX = 0;
+    let isDesktopDragging = false;
+
+    desktopPanelHandle?.addEventListener('mousedown', (e) => {
+      desktopDragStartX = e.clientX;
+      isDesktopDragging = true;
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDesktopDragging) return;
+      const deltaX = e.clientX - desktopDragStartX;
+      if (Math.abs(deltaX) > 50) {
+        if (deltaX < 0 && !desktopPanelCollapsed) {
+          desktopPanelCollapsed = true;
+          leftPanel.classList.add('collapsed');
+        } else if (deltaX > 0 && desktopPanelCollapsed) {
+          desktopPanelCollapsed = false;
+          leftPanel.classList.remove('collapsed');
+        }
+        isDesktopDragging = false;
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDesktopDragging = false;
+    });
+
   </script>
 </body>
 </html>
