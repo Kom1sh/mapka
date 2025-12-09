@@ -17,7 +17,7 @@ document.getElementById('f').addEventListener('submit', async (e) => {
   const res = await fetch('/admin/login', {
     method: 'POST',
     body: new URLSearchParams(fd),
-    credentials: 'include', // чтобы кука от бэка сохранилась
+    credentials: 'include',
   });
 
   if (res.redirected) {
