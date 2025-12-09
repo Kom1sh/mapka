@@ -10,16 +10,16 @@
     <button>Войти</button>
   </form>
 <script>
-document.getElementById('f').addEventListener('submit', async (e)=>{
+document.getElementById('f').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  // put real backend URL here (example: https://api.mapka.example)
-  const API_ORIGIN = "https://api.мапка.рф"; // <-- замени на реальный адрес backend или на origin с портом
-  const res = await fetch(API_ORIGIN + '/admin/login', {
+
+  const res = await fetch('/admin/login', {
     method: 'POST',
     body: new URLSearchParams(fd),
-    credentials: 'include'
+    credentials: 'include', // чтобы кука от бэка сохранилась
   });
+
   if (res.redirected) {
     window.location.href = res.url;
   } else if (res.ok) {
