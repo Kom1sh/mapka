@@ -94,3 +94,11 @@ class Review(Base):
     text = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
     club = relationship("Club", back_populates="reviews")
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username = Column(String(150), unique=True, nullable=False, index=True)
+    password_hash = Column(Text, nullable=False)
+    role = Column(String(50), nullable=False, default="moder")
+    created_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
