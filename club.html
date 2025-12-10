@@ -810,6 +810,8 @@
 
           <div class="section">
             <h2 class="section-title">Контакты</h2>
+    
+            <!-- Телефон -->
             <div class="contact-item">
               <div class="contact-left">
                 <svg ...></svg>
@@ -817,7 +819,43 @@
               </div>
               <button class="show-phone-btn" id="showPhoneBtn">Показать</button>
             </div>
-            ${club.webSite ? `<a href="${escapeAttr(club.webSite)}" target="_blank" class="contact-item" style="text-decoration:none"><div class="contact-left"><svg ...></svg><span style="color:#69AFDF;">${escapeHtml(club.webSite)}</span></div></a>` : ''}
+    
+            <!-- Сайт -->
+            ${club.webSite ? `
+              <a href="${escapeAttr(club.webSite)}" target="_blank" class="contact-item" style="text-decoration:none">
+                <div class="contact-left">
+                  <svg ...></svg>
+                  <span style="color:#69AFDF;">${escapeHtml(club.webSite)}</span>
+                </div>
+              </a>
+            ` : ''}
+    
+            <!-- Соцсети: VK / Telegram -->
+            ${(club.socialLinks && (club.socialLinks.vk || club.socialLinks.telegram)) ? `
+              <div class="social-links">
+                ${club.socialLinks.vk ? `
+                  <a
+                    class="social-link"
+                    href="${escapeAttr(club.socialLinks.vk)}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    VK
+                  </a>
+                ` : ''}
+    
+                ${club.socialLinks.telegram ? `
+                  <a
+                    class="social-link"
+                    href="${escapeAttr(club.socialLinks.telegram)}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Telegram
+                  </a>
+                ` : ''}
+              </div>
+            ` : ''}
           </div>
 
           <div class="section">
