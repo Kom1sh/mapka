@@ -10,7 +10,7 @@
     <button>Войти</button>
   </form>
 <script>
-document.getElementById('f').addEventListener('submit', async (e) => {
+document.getElementById('f').addEventListener('submit', async (e)=> {
   e.preventDefault();
   const fd = new FormData(e.target);
 
@@ -20,10 +20,9 @@ document.getElementById('f').addEventListener('submit', async (e) => {
     credentials: 'include',
   });
 
-  if (res.redirected) {
-    window.location.href = res.url;
-  } else if (res.ok) {
-    window.location.href = "/";
+  if (res.ok) {
+    // Раз логин прошёл, идём в админку
+    window.location.href = "/admin.html";
   } else {
     alert('Ошибка входа');
   }
