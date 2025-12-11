@@ -233,14 +233,41 @@
       position: relative;
     }
 
+    /* Add custom scrollbar styling for desktop cards container */
+    .cards-container::-webkit-scrollbar {
+      width: 12px;
+    }
+
+    .cards-container::-webkit-scrollbar-track {
+      background: var(--bg-primary);
+      border-radius: 12px;
+      margin: 8px;
+    }
+
+    .cards-container::-webkit-scrollbar-thumb {
+      background: #69AFDF;
+      border-radius: 12px;
+      border: 3px solid var(--bg-secondary);
+    }
+
+    .cards-container::-webkit-scrollbar-thumb:hover {
+      background: #5a9fcf;
+    }
+
+    /* Firefox scrollbar styling */
+    .cards-container {
+      scrollbar-width: thin;
+      scrollbar-color: #69AFDF var(--bg-primary);
+    }
+
     /* added desktop panel handle for collapsing */
     .desktop-panel-handle {
       position: absolute;
       right: -24px;
       top: 50%;
       transform: translateY(-50%);
-      width: 24px;
-      height: 80px;
+      width: 48px;
+      height: 48px;
       background: var(--bg-secondary);
       border: 2px solid #1a1a1a;
       border-left: none;
@@ -1272,30 +1299,16 @@
     let tagsExpanded = false;
     let desktopPanelCollapsed = false;
 
-    const clubs = [
-      {
-        id: 1,
-        name: "Каратэ «Кодокан»",
-        slug: "karate-tigr",
-        description: "В кружке каратэ ребёнок освоит базовые приёмы, укрепит тело и характер, научится дисциплине и уважению. Программы адаптированы по возрасту: игровые задания для младших и техника для старших. Ждем вас на пробное занятие!",
-        image: "https://images.unsplash.com/photo-1555597673-b21d5c935865?w=400&h=400&fit=crop",
-        location: "ул. Большая Садовая, 45, Ростов-на-Дону",
-        isFavorite: false,
-        tags: ["каратэ", "боевые искусства", "самооборона", "спорт", "дети"],
-        price_cents: 150000
-      },
-      {
-        id: 2,
-        name: "Школа Балета «Гармония»",
-        slug: "ballet-gracia",
-        description: "Здесь ваши дети научатся самовыражению, приобретут гибкость, ловкость и координацию движений. Мы поможем раскрыть потенциал вашего ребенка и подарим любовь к изящному с самого раннего детства. Не упустите шанс стать частью нашей дружной семьи!",
-        image: "https://images.unsplash.com/photo-1518834107812-67b0b7c58434?w=400&h=400&fit=crop",
-        location: "пр. Ворошиловский, 12, Ростов-на-Дону",
-        isFavorite: true,
-        tags: ["балет", "танцы", "хореография", "классический танец"],
-        price_cents: null
+    const API_BASE = (function(){
+      try {
+        if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+          return "http://localhost:8000/api";
+        }
+        return `${location.protocol}//${location.host}/api`;
+      } catch(e) {
+        return "http://localhost:8000/api";
       }
-    ];
+    })();
 
     function formatPrice(priceCents) {
       if (priceCents === null || priceCents === undefined || priceCents === 0) {
@@ -1376,20 +1389,40 @@
       renderFilterTags();
     }
 
-    function renderFilterTags() {
-      const filterTagsContainer = document.getElementById('filterTags');
-      filterTagsContainer.innerHTML = allTags.map(tag => 
-        `<button class="filter-tag ${filterState.selectedTags.includes(tag) ? 'active' : ''}" data-tag="${tag}">${tag}</button>`
-      ).join('');
-      
-      // Show/hide expand button based on tag count
-      const expandBtn = document.getElementById('tagsExpandBtn');
-      if (allTags.length > 4) {
-        expandBtn.style.display = 'flex';
-      } else {
-        expandBtn.style.display = 'none';
-        filterTagsContainer.classList.add('expanded');
+    // Fetch clubs data from API
+    async function fetchClubs(query = '', tags = [], maxPrice = null) {
+      let url = `${API_BASE}/clubs/`;
+      const params = [];
+      if (query) params.push(`search=${encodeURIComponent(query)}`);
+      if (tags.length > 0) params.push(`tags=${encodeURIComponent(tags.join(','))}`);
+      if (maxPrice !== null && maxPrice > 0) params.push(`max_price_cents=${maxPrice * 100}`);
+
+      if (params.length > 0) {
+        url += `?${params.join('&')}`;
       }
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error("Error fetching clubs:", error);
+        return [];
+      }
+    }
+
+    async function loadClubsAndInitFilters() {
+      const clubs = await fetchClubs();
+      initFilters(clubs);
+      renderCards(clubs);
+    }
+
+    function renderCards(clubsData) {
+      document.getElementById('desktopCards').innerHTML = clubsData.map(createCardHTML).join('');
+      document.getElementById('mobileCards').innerHTML = clubsData.map(createCardHTML).join('');
     }
 
     window.initFilters = initFilters;
@@ -1404,38 +1437,16 @@
       const selectedTags = filterState.selectedTags;
       const maxPriceRub = filterState.maxPrice;
 
-      ['desktopCards', 'mobileCards'].forEach(containerId => {
-        const container = document.getElementById(containerId);
-        if (!container) return;
-
-        const cards = container.querySelectorAll('.club-card');
-        cards.forEach(card => {
-          const cardTags = (card.dataset.tags || '').split(',').filter(Boolean);
-          const cardPriceCents = parseInt(card.dataset.price) || 0;
-          const cardPriceRub = Math.round(cardPriceCents / 100);
-          const cardTitle = card.querySelector('.card-title')?.textContent.toLowerCase() || '';
-          const cardDesc = card.querySelector('.card-description')?.textContent.toLowerCase() || '';
-
-          let show = true;
-
-          if (searchQuery && !cardTitle.includes(searchQuery) && !cardDesc.includes(searchQuery)) {
-            show = false;
-          }
-
-          if (selectedTags.length > 0) {
-            const hasMatchingTag = selectedTags.some(tag => cardTags.includes(tag));
-            if (!hasMatchingTag) show = false;
-          }
-
-          if (cardPriceRub > maxPriceRub) {
-            show = false;
-          }
-
-          card.style.display = show ? '' : 'none';
+      // Fetch filtered clubs from API
+      fetchClubs(searchQuery, selectedTags, maxPriceRub)
+        .then(filteredClubs => {
+          renderCards(filteredClubs);
+          updateActiveFiltersDisplay();
+        })
+        .catch(error => {
+          console.error("Error applying filters:", error);
+          renderCards([]); // Clear cards if error
         });
-      });
-
-      updateActiveFiltersDisplay();
     }
 
     function updateActiveFiltersDisplay() {
@@ -1495,12 +1506,73 @@
     }
     window.removePriceFilter = removePriceFilter;
 
-    // Render cards
-    document.getElementById('desktopCards').innerHTML = clubs.map(createCardHTML).join('');
-    document.getElementById('mobileCards').innerHTML = clubs.map(createCardHTML).join('');
+    // Old static render removed:
+    // document.getElementById('desktopCards').innerHTML = clubs.map(createCardHTML).join('');
+    // document.getElementById('mobileCards').innerHTML = clubs.map(createCardHTML).join('');
+    // initFilters(clubs);
 
-    // Initialize filters with default data
-    initFilters(clubs);
+    async function loadClubsFromAPI() {
+      try {
+        const res = await fetch(`${API_BASE}/clubs`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const clubsData = await res.json();
+        
+        // Normalize data from API to match expected format
+        const normalizedClubs = clubsData.map(c => {
+          // Handle image URL - make absolute if relative
+          let img = c.image || c.main_image_url || '';
+          if (img && img.startsWith('/')) {
+            const origin = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+              ? 'http://localhost:8000'
+              : `${location.protocol}//${location.host}`;
+            img = origin + img;
+          }
+          
+          return {
+            id: c.id,
+            name: c.name || '',
+            slug: c.slug || c.id,
+            description: c.description || '',
+            image: img || 'https://via.placeholder.com/400x400?text=No+image',
+            location: c.location || '',
+            isFavorite: c.isFavorite || false,
+            tags: c.tags || [],
+            price_cents: c.price_cents || null
+          };
+        });
+        
+        return normalizedClubs;
+      } catch (err) {
+        console.error('Failed to load clubs from API:', err);
+        return [];
+      }
+    }
+
+    (async function initPage() {
+      // Show loading state
+      const desktopCards = document.getElementById('desktopCards');
+      const mobileCards = document.getElementById('mobileCards');
+      
+      if (desktopCards) desktopCards.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">Загрузка кружков...</div>';
+      if (mobileCards) mobileCards.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">Загрузка кружков...</div>';
+      
+      // Load data from API
+      const clubs = await loadClubsFromAPI();
+      
+      if (clubs.length === 0) {
+        const emptyMsg = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">Кружки не найдены или ошибка загрузки</div>';
+        if (desktopCards) desktopCards.innerHTML = emptyMsg;
+        if (mobileCards) mobileCards.innerHTML = emptyMsg;
+        return;
+      }
+      
+      // Render cards
+      if (desktopCards) desktopCards.innerHTML = clubs.map(createCardHTML).join('');
+      if (mobileCards) mobileCards.innerHTML = clubs.map(createCardHTML).join('');
+      
+      // Initialize filters with actual data from API
+      initFilters(clubs);
+    })();
 
     // Mobile menu toggle
     const menuBtn = document.getElementById('menuBtn');
@@ -1531,10 +1603,13 @@
 
     function openFilterPanel() {
       filterPanel.classList.add('active');
+      // Ensure filter panel content is scrollable if needed
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling
     }
 
     function closeFilterPanel() {
       filterPanel.classList.remove('active');
+      document.body.style.overflow = ''; // Restore background scrolling
     }
 
     desktopFilterBtn?.addEventListener('click', openFilterPanel);
@@ -1588,10 +1663,18 @@
 
       tagSearchInput.value = '';
       tagSuggestions.classList.remove('active');
+      // Apply filter immediately after selecting a tag from suggestions
+      applyFilters();
     });
 
     const tagsExpandBtn = document.getElementById('tagsExpandBtn');
     const filterTagsContainer = document.getElementById('filterTags');
+
+    function renderFilterTags() {
+      filterTagsContainer.innerHTML = allTags.map(tag => 
+        `<button class="filter-tag" data-tag="${tag}">${tag}</button>`
+      ).join('');
+    }
 
     tagsExpandBtn?.addEventListener('click', () => {
       tagsExpanded = !tagsExpanded;
@@ -1614,6 +1697,7 @@
       } else {
         filterState.selectedTags = filterState.selectedTags.filter(t => t !== tag);
       }
+      applyFilters(); // Apply filters immediately when tags are clicked
     });
 
     const priceSlider = document.getElementById('priceSlider');
@@ -1624,6 +1708,11 @@
       currentPriceValue.textContent = value === 0 ? 'Бесплатно' : value.toLocaleString('ru-RU');
       filterState.maxPrice = value;
       updateSliderBackground(e.target);
+    });
+
+    priceSlider?.addEventListener('change', () => {
+      // Apply filter when the slider value is finalized (on release)
+      applyFilters();
     });
 
     filterResetBtn?.addEventListener('click', () => {
@@ -1680,32 +1769,56 @@
     const bottomSheet = document.getElementById('bottomSheet');
     const sheetHandle = document.getElementById('sheetHandle');
     const states = ['peek', 'split', 'full'];
-    let currentState = 1;
+    let currentState = 1; // Start in 'split' state
 
     let startY = 0;
     let isDragging = false;
+    let initialSheetTop = 0; // Store initial top position for dragging calculation
 
     sheetHandle.addEventListener('touchstart', (e) => {
       startY = e.touches[0].clientY;
+      initialSheetTop = bottomSheet.getBoundingClientRect().top;
       isDragging = true;
+      bottomSheet.style.transition = 'none'; // Disable transition during drag
     });
 
     document.addEventListener('touchmove', (e) => {
       if (!isDragging) return;
       const deltaY = e.touches[0].clientY - startY;
-      if (Math.abs(deltaY) > 50) {
-        if (deltaY > 0 && currentState > 0) {
-          currentState--;
-        } else if (deltaY < 0 && currentState < 2) {
-          currentState++;
-        }
-        bottomSheet.className = `bottom-sheet ${states[currentState]}`;
-        isDragging = false;
-      }
+      let newTop = initialSheetTop + deltaY;
+
+      // Clamp newTop to prevent going above the header or below the bottom
+      const headerHeight = document.querySelector('.header').offsetHeight;
+      const maxSheetTop = window.innerHeight - bottomSheet.offsetHeight; // Max possible top is when sheet is fully collapsed
+      const minSheetTop = headerHeight; // Minimum top is just below the header
+
+      if (newTop < minSheetTop) newTop = minSheetTop;
+      if (newTop > maxSheetTop) newTop = maxSheetTop;
+
+      bottomSheet.style.top = `${newTop}px`;
+      bottomSheet.style.transform = 'none'; // Remove transform during drag
     });
 
     document.addEventListener('touchend', () => {
+      if (!isDragging) return;
       isDragging = false;
+      bottomSheet.style.transition = 'transform 0.3s ease-out'; // Re-enable transition
+
+      const sheetRect = bottomSheet.getBoundingClientRect();
+      const sheetBottom = sheetRect.bottom;
+      const peekThreshold = window.innerHeight - 84; // Approximate bottom for peek state
+      const splitThreshold = window.innerHeight / 2 + document.querySelector('.header').offsetHeight; // Approximate middle for split
+      const fullThreshold = document.querySelector('.header').offsetHeight; // Top for full state
+
+      if (sheetBottom > splitThreshold) { // If mostly in the bottom half
+        currentState = 0; // Peek
+      } else if (sheetBottom > fullThreshold) { // If in the middle
+        currentState = 1; // Split
+      } else { // If in the top
+        currentState = 2; // Full
+      }
+      
+      bottomSheet.className = `bottom-sheet ${states[currentState]}`;
     });
 
     // Favorite toggle
@@ -1714,8 +1827,11 @@
       if (btn) {
         btn.classList.toggle('active');
         const id = btn.dataset.id;
-        const club = clubs.find(c => c.id == id);
-        if (club) club.isFavorite = !club.isFavorite;
+        // In a real app, you would update this state on the server via API
+        const clubIndex = allClubs.findIndex(c => c.id == id);
+        if (clubIndex !== -1) {
+            allClubs[clubIndex].isFavorite = !allClubs[clubIndex].isFavorite;
+        }
       }
     });
 
@@ -1726,6 +1842,7 @@
     desktopPanelHandle?.addEventListener('click', () => {
       desktopPanelCollapsed = !desktopPanelCollapsed;
       leftPanel.classList.toggle('collapsed', desktopPanelCollapsed);
+      desktopPanelHandle.style.transition = 'transform 0.3s ease'; // Add transition to handle itself
     });
 
     // Drag to toggle on desktop
@@ -1736,25 +1853,67 @@
       desktopDragStartX = e.clientX;
       isDesktopDragging = true;
       e.preventDefault();
+      leftPanel.style.transition = 'transform 0s'; // Disable transition during drag
     });
 
     document.addEventListener('mousemove', (e) => {
       if (!isDesktopDragging) return;
       const deltaX = e.clientX - desktopDragStartX;
-      if (Math.abs(deltaX) > 50) {
-        if (deltaX < 0 && !desktopPanelCollapsed) {
+      const panelWidth = leftPanel.offsetWidth;
+      const collapseThreshold = panelWidth * 0.3; // Collapse if dragged more than 30% to the left
+
+      if (Math.abs(deltaX) > 50) { // Only act after a significant drag
+        if (deltaX < -collapseThreshold && !desktopPanelCollapsed) {
           desktopPanelCollapsed = true;
           leftPanel.classList.add('collapsed');
-        } else if (deltaX > 0 && desktopPanelCollapsed) {
+        } else if (deltaX > collapseThreshold && desktopPanelCollapsed) {
           desktopPanelCollapsed = false;
           leftPanel.classList.remove('collapsed');
         }
-        isDesktopDragging = false;
+        isDesktopDragging = false; // Reset after a decision
+        leftPanel.style.transition = 'transform 0.3s ease'; // Re-enable transition
       }
     });
 
     document.addEventListener('mouseup', () => {
-      isDesktopDragging = false;
+      if (isDesktopDragging) { // If mouseup happens without significant drag
+        isDesktopDragging = false;
+        leftPanel.style.transition = 'transform 0.3s ease'; // Re-enable transition
+      }
+    });
+
+    // Initialize map (placeholder, actual map logic would be here)
+    function initializeMap() {
+      // This is a placeholder. In a real application, you would initialize
+      // Yandex Maps here, potentially centering it on the user's location
+      // or a default area, and then add markers based on fetched clubs.
+      console.log("Map initialization placeholder.");
+      // Example:
+      // if (typeof ymaps !== 'undefined') {
+      //   const mapInstance = new ymaps.Map("map", {
+      //     center: [55.751574, 37.573856], // Moscow center as default
+      //     zoom: 9
+      //   });
+      //   // Add markers from clubs data
+      //   // clubs.forEach(club => {
+      //   //   mapInstance.geoObjects.add(new ymaps.Placemark([lat, lon], { ... }));
+      //   // });
+      // }
+    }
+
+    // Call map initialization after DOM is ready and potentially after clubs are loaded
+    // document.addEventListener('DOMContentLoaded', initializeMap); // Might need to be called after clubs load
+    // Moved initialization to after clubs load or after DOMContentLoaded in this example
+    document.addEventListener('DOMContentLoaded', () => {
+      // Ensure map containers exist before trying to initialize
+      if (document.getElementById('map') && typeof ymaps !== 'undefined') {
+        initializeMap(); // Initial call for desktop map
+      }
+      if (document.getElementById('mobileMap') && typeof ymaps !== 'undefined') {
+        // You might want a separate initialization for mobile map, or reuse the desktop one
+        // For simplicity, calling it once here.
+        console.log("Mobile map initialization placeholder.");
+      }
     });
 
   </script>
