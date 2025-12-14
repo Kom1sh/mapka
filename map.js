@@ -208,7 +208,7 @@
               <span class="cardLocationText">${"${club.location}"}</span>
             </div>
             <div class="card-buttons">
-              <a href="/${encodeURIComponent(club.slug)}" class="club-card-more">Подробнее</a>
+              <a href="/${encodeURIComponent(club.slug)}" class="card-btn">Подробнее</a>
               <button class="card-btn">Написать</button>
             </div>
           </div>
