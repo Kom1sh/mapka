@@ -149,24 +149,15 @@
     .hint {
       font-size: 13px;
       color: #777;
-      margin-bottom: 20px;
-    }
-
-    .actions {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
       margin-bottom: 16px;
     }
 
-    @media (min-width: 520px) {
-      .actions {
-        flex-direction: row;
-      }
+    .actions {
+      margin-bottom: 20px;
     }
 
     .btn {
-      flex: 1;
+      width: 100%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -190,16 +181,6 @@
     .btn-primary:hover {
       transform: translateY(-1px);
       box-shadow: 0 14px 30px rgba(105, 175, 223, 0.55);
-    }
-
-    .btn-secondary {
-      background: #f1f1f1;
-      color: #1a1a1a;
-    }
-
-    .btn-secondary:hover {
-      background: #e5e5e5;
-      transform: translateY(-1px);
     }
 
     .btn svg {
@@ -254,22 +235,11 @@
 
       <div class="actions">
         <a href="/" class="btn btn-primary">
-          <!-- иконка домика -->
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
             <path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-5.25h-5V21H5A1 1 0 0 1 4 20v-9.5Z"
                   stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           На главную
-        </a>
-
-        <a href="/#map" class="btn btn-secondary">
-          <!-- иконка пина -->
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-            <path d="M12 21s7-5.25 7-11a7 7 0 1 0-14 0c0 5.75 7 11 7 11Z"
-                  stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="12" cy="10" r="2.75" stroke="currentColor" stroke-width="1.5"/>
-          </svg>
-          Открыть карту Ростова
         </a>
       </div>
 
