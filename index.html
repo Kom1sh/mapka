@@ -1865,61 +1865,56 @@
       }
     });
 
-    // Bottom sheet drag
+    // Bottom sheet drag (мобильная шторка)
     const bottomSheet = document.getElementById('bottomSheet');
     const sheetHandle = document.getElementById('sheetHandle');
-    const states = ['peek', 'split', 'full'];
-    let currentState = 1; // Start in 'split' state
 
-    let startY = 0;
-    let isDragging = false;
-    let initialSheetTop = 0; // Store initial top position for dragging calculation
+    if (bottomSheet && sheetHandle) {
+      const states = ['peek', 'split', 'full'];
+      let currentState = 1; // стартуем в split
+      let startY = 0;
+      let dragging = false;
 
-    sheetHandle.addEventListener('touchstart', (e) => {
-      startY = e.touches[0].clientY;
-      initialSheetTop = bottomSheet.getBoundingClientRect().top;
-      isDragging = true;
-      bottomSheet.style.transition = 'none'; // Disable transition during drag
-    });
-
-    document.addEventListener('touchmove', (e) => {
-      if (!isDragging) return;
-      const deltaY = e.touches[0].clientY - startY;
-      let newTop = initialSheetTop + deltaY;
-
-      // Clamp newTop to prevent going above the header or below the bottom
-      const headerHeight = document.querySelector('.header').offsetHeight;
-      const maxSheetTop = window.innerHeight - bottomSheet.offsetHeight; // Max possible top is when sheet is fully collapsed
-      const minSheetTop = headerHeight; // Minimum top is just below the header
-
-      if (newTop < minSheetTop) newTop = minSheetTop;
-      if (newTop > maxSheetTop) newTop = maxSheetTop;
-
-      bottomSheet.style.top = `${newTop}px`;
-      bottomSheet.style.transform = 'none'; // Remove transform during drag
-    });
-
-    document.addEventListener('touchend', () => {
-      if (!isDragging) return;
-      isDragging = false;
-      bottomSheet.style.transition = 'transform 0.3s ease-out'; // Re-enable transition
-
-      const sheetRect = bottomSheet.getBoundingClientRect();
-      const sheetBottom = sheetRect.bottom;
-      const peekThreshold = window.innerHeight - 84; // Approximate bottom for peek state
-      const splitThreshold = window.innerHeight / 2 + document.querySelector('.header').offsetHeight; // Approximate middle for split
-      const fullThreshold = document.querySelector('.header').offsetHeight; // Top for full state
-
-      if (sheetBottom > splitThreshold) { // If mostly in the bottom half
-        currentState = 0; // Peek
-      } else if (sheetBottom > fullThreshold) { // If in the middle
-        currentState = 1; // Split
-      } else { // If in the top
-        currentState = 2; // Full
+      function applySheetState() {
+        bottomSheet.className = `bottom-sheet ${states[currentState]}`;
       }
-      
-      bottomSheet.className = `bottom-sheet ${states[currentState]}`;
-    });
+
+      sheetHandle.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        startY = e.touches[0].clientY;
+        dragging = true;
+        bottomSheet.style.transition = 'none';
+      });
+
+      document.addEventListener('touchend', (e) => {
+        if (!dragging) return;
+        dragging = false;
+        bottomSheet.style.transition = '';
+
+        const endY = (e.changedTouches && e.changedTouches[0].clientY) || startY;
+        const deltaY = endY - startY;
+        const threshold = 30; // минимальный свайп
+
+        if (deltaY < -threshold && currentState < states.length - 1) {
+          // свайп вверх
+          currentState++;
+        } else if (deltaY > threshold && currentState > 0) {
+          // свайп вниз
+          currentState--;
+        }
+
+        applySheetState();
+      });
+
+      // Клик по ручке: просто циклично переключаем состояние
+      sheetHandle.addEventListener('click', () => {
+        if (dragging) return;
+        currentState = (currentState + 1) % states.length;
+        applySheetState();
+      });
+
+      applySheetState();
+    }
 
     // Favorite toggle
     document.addEventListener('click', (e) => {
