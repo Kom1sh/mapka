@@ -1076,33 +1076,38 @@
 
       .card-bottom {
         flex-direction: row;
-        justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
       }
 
-      .card-location {
-        font-size: 16px;
-        order: 2;
-      }
-
-      .card-location svg {
-        width: 24px;
-        height: 24px;
+      /* порядок: цена → кнопка → адрес */
+      .card-price {
+        order: 0;
+        font-size: 14px;
+        padding: 8px 16px;
       }
 
       .card-buttons {
         order: 1;
       }
 
+      .card-location {
+        order: 2;
+        margin-left: auto;      /* уезжает вправо */
+        font-size: 14px;
+        max-width: 50%;
+      }
+
+      .card-location svg {
+        width: 20px;
+        height: 20px;
+      }
+
       .card-btn {
         padding: 8px 16px;
         border-radius: 24px;
         font-size: 16px;
-      }
-
-      .card-price {
-        font-size: 14px;
-        padding: 8px 16px;
       }
 
       /* Desktop filter panel */
