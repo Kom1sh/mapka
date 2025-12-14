@@ -1,11 +1,288 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <title>Страница не найдена — Мапка</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>404 — Страница не найдена | Мапка</title>
+  <meta name="robots" content="noindex, nofollow" />
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* HEADER как на клубной странице */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: #565555;
+      color: #ffffff;
+    }
+
+    .header-inner {
+      max-width: 1024px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      height: 56px;
+      gap: 16px;
+    }
+
+    @media (min-width: 768px) {
+      .header-inner {
+        padding: 0 40px;
+        height: 64px;
+      }
+    }
+
+    .logo-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .logo-link img {
+      width: 28px;
+      height: 28px;
+    }
+
+    .logo-text {
+      font-weight: 600;
+      font-size: 18px;
+      letter-spacing: 0.04em;
+    }
+
+    .header-right {
+      font-size: 13px;
+      opacity: 0.85;
+    }
+
+    /* PAGE 404 */
+
+    .page-404 {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px 16px 40px;
+    }
+
+    .page-404-inner {
+      width: 100%;
+      max-width: 560px;
+      background: #ffffff;
+      border-radius: 24px;
+      padding: 24px 20px 24px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08);
+    }
+
+    @media (min-width: 768px) {
+      .page-404-inner {
+        padding: 32px 32px 28px;
+        border-radius: 28px;
+      }
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #e4eff8;
+      color: #1a1a1a;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .badge-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: #69afdf;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .code-404 {
+      font-size: 56px;
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #69afdf;
+      margin-bottom: 8px;
+    }
+
+    .title {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: #555;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .hint {
+      font-size: 13px;
+      color: #777;
+      margin-bottom: 20px;
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    @media (min-width: 520px) {
+      .actions {
+        flex-direction: row;
+      }
+    }
+
+    .btn {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    .btn-primary {
+      background: #69afdf;
+      color: #ffffff;
+      box-shadow: 0 10px 24px rgba(105, 175, 223, 0.45);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 30px rgba(105, 175, 223, 0.55);
+    }
+
+    .btn-secondary {
+      background: #f1f1f1;
+      color: #1a1a1a;
+    }
+
+    .btn-secondary:hover {
+      background: #e5e5e5;
+      transform: translateY(-1px);
+    }
+
+    .btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .tip-links {
+      font-size: 13px;
+      color: #777;
+    }
+
+    .tip-links a {
+      color: #69afdf;
+      text-decoration: none;
+    }
+
+    .tip-links a:hover {
+      text-decoration: underline;
+    }
+  </style>
 </head>
 <body>
-  <h1>404 — Страница не найдена</h1>
-  <p>Такой страницы нет. Вернуться на <a href="/">главную</a>.</p>
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="logo-link">
+        <img src="/logo.svg" alt="Мапка" />
+        <span class="logo-text">Мапка</span>
+      </a>
+      <div class="header-right">
+        Навигатор кружков и секций Ростова
+      </div>
+    </div>
+  </header>
+
+  <!-- 404 CONTENT -->
+  <main class="page-404">
+    <section class="page-404-inner">
+      <div class="badge">
+        <span class="badge-icon">404</span>
+        <span>Страница не найдена</span>
+      </div>
+
+      <div class="code-404">Ой...</div>
+      <h1 class="title">Такой страницы на Мапке нет</h1>
+      <p class="subtitle">
+        Возможно, вы перешли по старой ссылке, опечатались в адресе или кружок
+        уже удалён из каталога. Но вы всегда можете вернуться на главную и
+        подобрать другие активности для ребёнка.
+      </p>
+
+      <div class="actions">
+        <a href="/" class="btn btn-primary">
+          <!-- иконка домика -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+            <path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-5.25h-5V21H5A1 1 0 0 1 4 20v-9.5Z"
+                  stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          На главную
+        </a>
+
+        <a href="/#map" class="btn btn-secondary">
+          <!-- иконка пина -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+            <path d="M12 21s7-5.25 7-11a7 7 0 1 0-14 0c0 5.75 7 11 7 11Z"
+                  stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="12" cy="10" r="2.75" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          Открыть карту Ростова
+        </a>
+      </div>
+
+      <p class="hint">
+        Если вы уверены, что по этой ссылке должна быть страница кружка или секции,
+        напишите нам — мы проверим и всё поправим.
+      </p>
+
+      <p class="tip-links">
+        Вернуться на <a href="/">главную</a> или
+        посмотреть <a href="/club.html?slug=happy-swim">пример страницы кружка</a>.
+      </p>
+    </section>
+  </main>
 </body>
 </html>
