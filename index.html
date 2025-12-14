@@ -1372,23 +1372,35 @@
       }
     })();
 
-    function formatPrice(raw) {
-      const priceCents = Number(raw || 0);
+    function formatPrice(rawCents, rawRub) {
+      let priceCents = rawCents != null ? Number(rawCents) : null;
+      let priceRub = rawRub != null ? Number(rawRub) : null;
 
+      // Если есть только рубли — пересчитываем в копейки
+      if ((priceCents == null || Number.isNaN(priceCents)) && priceRub != null) {
+        priceCents = Math.round(priceRub * 100);
+      }
+
+      // Бесплатно
       if (!priceCents) {
         return { text: 'Бесплатно', isFree: true };
       }
 
-      const priceRub = Math.round(priceCents / 100);
+      if (priceRub == null) {
+        priceRub = Math.round(priceCents / 100);
+      }
+
       return { text: `${priceRub.toLocaleString('ru-RU')} ₽`, isFree: false };
     }
 
     function createCardHTML(club) {
-      const price = formatPrice(
-        club.price_cents != null
-          ? club.price_cents
-          : (club.price_rub != null ? club.price_rub * 100 : 0)
-      );
+      const price = formatPrice(club.price_cents, club.price_rub);
+
+      const priceRubForFilter = price.isFree
+        ? 0
+        : (club.price_rub != null
+            ? Number(club.price_rub)
+            : Math.round(Number(club.price_cents || 0) / 100));
 
       return `
         <div class="club-card sectionCard" data-tags="${(club.tags || []).join(',').toLowerCase()}" data-price="${club.price_cents || 0}">
@@ -1417,7 +1429,7 @@
               </svg>
               <span class="cardLocationText">${club.location}</span>
             </div>
-            <span class="card-price ${price.isFree ? 'free' : ''}">${price.text}</span>
+            <span class="card-price ${priceRubForFilter}</span>
             <div class="card-buttons">
               <a href="/${encodeURIComponent(club.slug)}" class="card-btn">Подробнее</a>
             </div>
@@ -1436,8 +1448,15 @@
       
       clubsData.forEach(club => {
         (club.tags || []).forEach(tag => tagSet.add(tag.toLowerCase()));
-        const priceCents = club.price_cents || 0;
-        const priceRub = Math.round(priceCents / 100);
+
+        const priceCents = club.price_cents != null
+          ? Number(club.price_cents)
+          : (club.price_rub != null ? Number(club.price_rub) * 100 : 0);
+
+        const priceRub = club.price_rub != null
+          ? Number(club.price_rub)
+          : Math.round(priceCents / 100);
+
         if (priceRub > maxPrice) maxPrice = priceRub;
       });
       
@@ -1597,6 +1616,16 @@
             img = origin + img;
           }
           
+          let priceCents = c.price_cents;
+          let priceRub = c.price_rub;
+
+          if ((priceCents == null || Number(priceCents) === 0) && priceRub != null) {
+            priceCents = Math.round(Number(priceRub) * 100);
+          }
+          if (priceRub == null && priceCents != null) {
+            priceRub = Math.round(Number(priceCents) / 100);
+          }
+
           return {
             id: c.id,
             name: c.name || '',
@@ -1606,10 +1635,10 @@
             location: c.location || '',
             isFavorite: c.isFavorite || false,
             tags: c.tags || [],
-            price_cents: c.price_cents != null ? c.price_cents : (c.price_rub != null ? c.price_rub * 100 : 0),
-            price_rub:  c.price_rub != null ? c.price_rub : (c.price_cents != null ? Math.round(c.price_cents / 100) : 0)
-
+            price_cents: priceCents || 0,
+            price_rub: priceRub || 0
           };
+
         });
         
         return normalizedClubs;
