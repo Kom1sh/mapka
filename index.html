@@ -1372,16 +1372,24 @@
       }
     })();
 
-    function formatPrice(priceCents) {
-      if (priceCents === null || priceCents === undefined || priceCents === 0) {
+    function formatPrice(raw) {
+      const priceCents = Number(raw || 0);
+
+      if (!priceCents) {
         return { text: 'Бесплатно', isFree: true };
       }
+
       const priceRub = Math.round(priceCents / 100);
       return { text: `${priceRub.toLocaleString('ru-RU')} ₽`, isFree: false };
     }
 
     function createCardHTML(club) {
-      const price = formatPrice(club.price_cents);
+      const price = formatPrice(
+        club.price_cents != null
+          ? club.price_cents
+          : (club.price_rub != null ? club.price_rub * 100 : 0)
+      );
+
       return `
         <div class="club-card sectionCard" data-tags="${(club.tags || []).join(',').toLowerCase()}" data-price="${club.price_cents || 0}">
           <div class="card-top">
@@ -1598,7 +1606,9 @@
             location: c.location || '',
             isFavorite: c.isFavorite || false,
             tags: c.tags || [],
-            price_cents: c.price_cents || null
+            price_cents: c.price_cents != null ? c.price_cents : (c.price_rub != null ? c.price_rub * 100 : 0),
+            price_rub:  c.price_rub != null ? c.price_rub : (c.price_cents != null ? Math.round(c.price_cents / 100) : 0)
+
           };
         });
         
