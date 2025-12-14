@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mapka - Страница кружка</title>
-  <link rel="canonical" href="https://xn--80aa3agq.xn--p1ai/">
   <!-- Подключаем Яндекс.Карты API -->
   <script src="https://api-maps.yandex.ru/v3/?apikey=58c38b72-57f7-4946-bc13-a256d341281a&lang=ru_RU"></script>
   <style>
@@ -702,13 +701,26 @@
     let slug = url.searchParams.get('slug');
 
     if (!slug) {
-      // убираем ведущие/хвостовые слэши: "/happy-swim/" -> "happy-swim"
-      const path = url.pathname.replace(/^\/+|\/+$/g, '');
-      // игнорируем сам файл club.html или index.html
-      if (path && path !== 'club.html' && path !== 'index.html') {
+      // "/happy-swim/" -> "happy-swim"
+      const path = url.pathname.replace(/^\/+|\/+$/g, "");
+      // игнорируем служебные файлы
+      if (path && path !== "club.html" && path !== "index.html") {
         slug = path;
       }
     }
+
+    // --- canonical для SEO: https://домен/{slug} ---
+    (function updateCanonical(currentSlug) {
+      if (!currentSlug) return;
+      const href = `${location.origin}/${currentSlug}`;
+      let link = document.querySelector('link[rel="canonical"]');
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'canonical';
+        document.head.appendChild(link);
+      }
+      link.href = href;
+    })(slug);
 
     // модель клуба, будет заполнена из API
     let club = null;

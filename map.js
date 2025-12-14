@@ -208,7 +208,7 @@
               <span class="cardLocationText">${"${club.location}"}</span>
             </div>
             <div class="card-buttons">
-              <a href="${API_ORIGIN}/club/${encodeURIComponent(c.slug || c.id)}" class="btn btn-primary" target="_blank" rel="noopener">
+              <a href="/${encodeURIComponent(club.slug)}" ...>Подробнее</a>
               <button class="card-btn">Написать</button>
             </div>
           </div>
