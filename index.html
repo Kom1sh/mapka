@@ -576,17 +576,24 @@
     }
 
     .card-price {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
       background: var(--bg-input);
-      border-radius: 12px;
-      padding: 6px 12px;
+      border-radius: 999px;
+      padding: 6px 14px;
       font-size: 12px;
-      font-weight: 500;
+      font-weight: 600;
       color: var(--text-primary);
+
+      white-space: nowrap;
     }
 
     .card-price.free {
       background: #4ade80;
-      color: white;
+      color: #ffffff;
     }
 
     /* Mobile Layout */
@@ -1076,20 +1083,28 @@
 
       .card-bottom {
         flex-direction: row;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 8px;
+        align-items: wrap;
+        flex-wrap: center;
+        gap: 8px 12px;
       }
 
       /* порядок: цена → кнопка → адрес */
       .card-price {
         order: 0;
         font-size: 14px;
-        padding: 8px 16px;
       }
 
       .card-buttons {
         order: 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .card-btn {
+        padding: 8px 18px;
+        border-radius: 999px;
+        font-size: 16px;
       }
 
       .card-location {
