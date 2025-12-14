@@ -696,9 +696,19 @@
       }
     })();
 
-    // получаем slug из URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const slug = urlParams.get('slug') || 'karate-tigr';
+    // --- получаем slug из URL ---
+    // поддерживаем оба варианта: ?slug=... и /{slug}
+    const url = new URL(window.location.href);
+    let slug = url.searchParams.get('slug');
+
+    if (!slug) {
+      // убираем ведущие/хвостовые слэши: "/happy-swim/" -> "happy-swim"
+      const path = url.pathname.replace(/^\/+|\/+$/g, '');
+      // игнорируем сам файл club.html или index.html
+      if (path && path !== 'club.html' && path !== 'index.html') {
+        slug = path;
+      }
+    }
 
     // модель клуба, будет заполнена из API
     let club = null;
