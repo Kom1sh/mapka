@@ -9,9 +9,11 @@
   <link rel="icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
-  <!-- Подключаем Яндекс Карты API v3 -->
+
+  <!-- Яндекс Карты API v3 -->
   <script src="https://api-maps.yandex.ru/v3/?apikey=58c38b72-57f7-4946-bc13-a256d341281a&lang=ru_RU"></script>
   <script src="map.js" defer></script>
+
   <style>
     * {
       margin: 0;
@@ -19,7 +21,6 @@
       box-sizing: border-box;
     }
 
-    /* removed dark theme variables, keeping only light theme */
     :root {
       --bg-primary: #f5f5f5;
       --bg-secondary: white;
@@ -56,12 +57,14 @@
       gap: 16px;
     }
 
-    .logo {
+    .logoContainer {
+      display: flex;
+      align-items: center;
+    }
+
+    .mainLogo {
       height: 32px;
-      font-size: 24px;
-      font-weight: bold;
-      color: white;
-      text-decoration: none;
+      display: block;
     }
 
     .nav-desktop {
@@ -69,12 +72,14 @@
       align-items: center;
       gap: 20px;
       margin-right: auto;
+      margin-left: 24px;
     }
 
     .nav-desktop a {
       color: white;
       text-decoration: none;
       transition: opacity 0.2s;
+      font-size: 14px;
     }
 
     .nav-desktop a:hover {
@@ -93,6 +98,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      font-size: 14px;
     }
 
     .header-right-mobile {
@@ -112,6 +118,16 @@
     .icon-btn svg {
       width: 24px;
       height: 24px;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #888;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     /* Mobile Menu */
@@ -163,16 +179,6 @@
       margin-bottom: 24px;
     }
 
-    .avatar {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: #888;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
     .mobile-menu nav {
       display: flex;
       flex-direction: column;
@@ -202,7 +208,7 @@
       height: 100%;
     }
 
-    /* updated left-panel to support collapsing */
+    /* Left panel (desktop) */
     .left-panel {
       position: absolute;
       left: 0;
@@ -222,45 +228,51 @@
       transform: translateX(calc(-100% + 24px));
     }
 
-    /* added cards-container styling with border and rounded corners */
+    /* Внешний контейнер с рамкой и скруглением */
     .cards-container {
       flex: 1;
       background: var(--bg-secondary);
       border-radius: 24px;
-      overflow-y: auto;
-      padding: 16px;
       border: 2px solid #1a1a1a;
       position: relative;
+      overflow: hidden; /* обрезаем скролл по радиусу */
     }
 
-    /* Add custom scrollbar styling for desktop cards container */
-    .cards-container::-webkit-scrollbar {
-      width: 12px;
+    /* Внутренний блок, который реально скроллится */
+    .cards-scroll {
+      height: 100%;
+      padding: 16px;
+      overflow-y: auto;
     }
 
-    .cards-container::-webkit-scrollbar-track {
+    /* Кастомный скроллбар для desktop */
+    .cards-scroll::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    .cards-scroll::-webkit-scrollbar-track {
       background: var(--bg-primary);
       border-radius: 12px;
       margin: 8px;
     }
 
-    .cards-container::-webkit-scrollbar-thumb {
+    .cards-scroll::-webkit-scrollbar-thumb {
       background: #69AFDF;
       border-radius: 12px;
       border: 3px solid var(--bg-secondary);
     }
 
-    .cards-container::-webkit-scrollbar-thumb:hover {
+    .cards-scroll::-webkit-scrollbar-thumb:hover {
       background: #5a9fcf;
     }
 
-    /* Firefox scrollbar styling */
-    .cards-container {
+    /* Firefox */
+    .cards-scroll {
       scrollbar-width: thin;
       scrollbar-color: #69AFDF var(--bg-primary);
     }
 
-    /* added desktop panel handle for collapsing */
+    /* Ручка сворачивания панели на десктопе */
     .desktop-panel-handle {
       position: absolute;
       right: -24px;
@@ -326,7 +338,6 @@
       transform: scale(1.02);
     }
 
-    /* Mobile filter button - icon only */
     .filter-btn .filter-text {
       display: none;
     }
@@ -452,6 +463,8 @@
       padding: 8px 12px;
       font-size: 14px;
       font-weight: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
     }
 
     .card-description {
@@ -512,6 +525,11 @@
       flex-shrink: 0;
     }
 
+    .cardLocationText {
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
     .card-buttons {
       display: flex;
       gap: 8px;
@@ -540,6 +558,7 @@
       font-size: 12px;
       font-weight: 500;
       color: var(--text-primary);
+      align-self: flex-start;
     }
 
     .card-price.free {
@@ -566,7 +585,7 @@
       height: 100%;
     }
 
-    /* updated Bottom Sheet with black border */
+    /* Bottom Sheet */
     .bottom-sheet {
       position: fixed;
       left: 0;
@@ -609,7 +628,6 @@
       border-radius: 2px;
     }
 
-    /* Sheet header for filter/search buttons */
     .sheet-header {
       display: flex;
       gap: 8px;
@@ -635,7 +653,7 @@
       margin-top: 16px;
     }
 
-    /* Filter Panel Styles */
+    /* Filter Panel */
     .filter-panel {
       display: none;
       position: fixed;
@@ -686,7 +704,6 @@
       color: var(--text-secondary);
     }
 
-    /* Tag search input with autocomplete */
     .tag-search-container {
       position: relative;
       margin-bottom: 12px;
@@ -738,12 +755,6 @@
       background: var(--bg-card);
     }
 
-    .tag-suggestion-item.selected {
-      background: #69AFDF;
-      color: white;
-    }
-
-    /* Tags container with expand/collapse */
     .filter-tags-wrapper {
       position: relative;
     }
@@ -761,7 +772,6 @@
       max-height: 2000px;
     }
 
-    /* updated filter-tag to have same hover effect as card tags */
     .filter-tag {
       background: var(--bg-input);
       color: var(--text-primary);
@@ -817,7 +827,7 @@
       transform: rotate(180deg);
     }
 
-    /* Price Slider Styles */
+    /* Price slider */
     .price-slider-container {
       padding: 8px 0;
     }
@@ -904,7 +914,6 @@
       cursor: pointer;
     }
 
-    /* Active filters indicator */
     .active-filters {
       display: flex;
       flex-wrap: wrap;
@@ -933,14 +942,14 @@
       align-items: center;
     }
 
-    /* Desktop styles */
+    /* Desktop */
     @media (min-width: 768px) {
       .header-inner {
         padding: 0 40px;
         height: 64px;
       }
 
-      .logo {
+      .mainLogo {
         height: 40px;
       }
 
@@ -973,7 +982,6 @@
         font-size: 20px;
       }
 
-      /* Show filter text on desktop */
       .filter-btn .filter-text {
         display: inline;
       }
@@ -1000,7 +1008,6 @@
         display: none;
       }
 
-      /* Desktop: image on side, not above */
       .card-top {
         flex-direction: row;
       }
@@ -1063,7 +1070,6 @@
         padding: 8px 16px;
       }
 
-      /* Desktop filter panel */
       .filter-panel {
         position: absolute;
         left: 16px;
@@ -1078,16 +1084,17 @@
       }
     }
   </style>
+
   <!-- Yandex.Metrika counter -->
   <script type="text/javascript">
-      (function(m,e,t,r,i,k,a){
-          m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-          m[i].l=1*new Date();
-          for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-          k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-      })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=105798797', 'ym');
-  
-      ym(105798797, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
+    (function(m,e,t,r,i,k,a){
+        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+        m[i].l=1*new Date();
+        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=105798797', 'ym');
+
+    ym(105798797, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
   </script>
   <noscript><div><img src="https://mc.yandex.ru/watch/105798797" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
   <!-- /Yandex.Metrika counter -->
@@ -1097,7 +1104,7 @@
   <header class="header">
     <div class="header-inner">
       <div class="logoContainer">
-         <img src="logo.png" alt="Мапка" class="mainLogo">
+        <img src="logo.png" alt="Мапка" class="mainLogo">
       </div>
 
       <nav class="nav-desktop">
@@ -1107,7 +1114,6 @@
       </nav>
 
       <div class="header-right-desktop">
-        <!-- removed theme toggle button from desktop header -->
         <button class="icon-btn" aria-label="Избранное">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
@@ -1131,7 +1137,6 @@
       </div>
 
       <div class="header-right-mobile">
-        <!-- removed theme toggle button from mobile header -->
         <button class="icon-btn" aria-label="Избранное">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
@@ -1146,7 +1151,7 @@
     </div>
   </header>
 
-  <!-- Mobile Menu Overlay -->
+  <!-- Mobile Menu -->
   <div class="mobile-menu-overlay" id="menuOverlay"></div>
   <div class="mobile-menu" id="mobileMenu">
     <div class="mobile-menu-header">
@@ -1190,16 +1195,12 @@
     <div class="filter-panel-content">
       <div class="filter-section">
         <h3>Теги</h3>
-        <!-- Tag search input with autocomplete -->
         <div class="tag-search-container">
           <input type="text" class="tag-search-input" id="tagSearchInput" placeholder="Введите название тега...">
           <div class="tag-suggestions" id="tagSuggestions"></div>
         </div>
-        <!-- Tags with expand/collapse functionality -->
         <div class="filter-tags-wrapper">
-          <div class="filter-tags" id="filterTags">
-            <!-- Tags will be populated dynamically -->
-          </div>
+          <div class="filter-tags" id="filterTags"></div>
           <button class="tags-expand-btn" id="tagsExpandBtn">
             <span class="expand-text">Показать все</span>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -1258,8 +1259,11 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
         </svg>
       </div>
+
       <div class="cards-container">
-        <div class="cards-list" id="desktopCards"></div>
+        <div class="cards-scroll">
+          <div class="cards-list" id="desktopCards"></div>
+        </div>
       </div>
     </div>
   </main>
@@ -1274,7 +1278,6 @@
       <div class="sheet-handle" id="sheetHandle">
         <div class="handle-bar"></div>
       </div>
-      <!-- Sheet header with filter and search buttons -->
       <div class="sheet-header">
         <div class="search-filter">
           <button class="filter-btn" id="mobileFilterBtn">
@@ -1312,17 +1315,7 @@
     let tagsExpanded = false;
     let desktopPanelCollapsed = false;
 
-   const API_BASE = 'https://mapkarostov.ru/api';
-    //const API_BASE = (function(){
-    //   try {
-    //    if (location.hostname === "mapkarostov.ru" || location.hostname === "127.0.0.1") {
-    //      return "http://mapkarostov.ru/api";
-    //    }
-    //    return `${location.protocol}//${location.host}/api`;
-    //  } catch(e) {
-    //    return "http://mapkarostov.ru/api";
-    //  }
-    //})();
+    const API_BASE = 'https://mapkarostov.ru/api';
 
     function formatPrice(priceCents) {
       if (priceCents === null || priceCents === undefined || priceCents === 0) {
@@ -1354,17 +1347,16 @@
             ${(club.tags || []).map(tag => `<button class="tag-btn" data-tag="${tag.toLowerCase()}">${tag}</button>`).join('')}
           </div>
           <div class="card-bottom">
+            <span class="card-price ${price.isFree ? 'free' : ''}">${price.text}</span>
+            <div class="card-buttons">
+              <a href="/${encodeURIComponent(club.slug)}" class="card-btn">Подробнее</a>
+            </div>
             <div class="card-location">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
               </svg>
               <span class="cardLocationText">${club.location}</span>
-            </div>
-            <span class="card-price ${price.isFree ? 'free' : ''}">${price.text}</span>
-            <div class="card-buttons">
-              <a href="club.html?slug=${club.slug}" class="card-btn">Подробнее</a>
-              <button class="card-btn">Написать</button>
             </div>
           </div>
         </div>
@@ -1375,35 +1367,36 @@
 
     function initFilters(clubsData) {
       allClubs = clubsData;
-      
+
       const tagSet = new Set();
       let maxPrice = 0;
-      
+
       clubsData.forEach(club => {
         (club.tags || []).forEach(tag => tagSet.add(tag.toLowerCase()));
         const priceCents = club.price_cents || 0;
         const priceRub = Math.round(priceCents / 100);
         if (priceRub > maxPrice) maxPrice = priceRub;
       });
-      
+
       allTags = Array.from(tagSet).sort();
       maxPriceFromDB = maxPrice > 0 ? maxPrice : 5000;
-      
+
       const priceSlider = document.getElementById('priceSlider');
       const maxPriceLabel = document.getElementById('maxPriceLabel');
       const currentPriceValue = document.getElementById('currentPriceValue');
-      
-      priceSlider.max = maxPriceFromDB;
-      priceSlider.value = maxPriceFromDB;
-      filterState.maxPrice = maxPriceFromDB;
-      maxPriceLabel.textContent = `${maxPriceFromDB.toLocaleString('ru-RU')} ₽`;
-      currentPriceValue.textContent = maxPriceFromDB.toLocaleString('ru-RU');
-      updateSliderBackground(priceSlider);
-      
+
+      if (priceSlider && maxPriceLabel && currentPriceValue) {
+        priceSlider.max = maxPriceFromDB;
+        priceSlider.value = maxPriceFromDB;
+        filterState.maxPrice = maxPriceFromDB;
+        maxPriceLabel.textContent = `${maxPriceFromDB.toLocaleString('ru-RU')} ₽`;
+        currentPriceValue.textContent = maxPriceFromDB.toLocaleString('ru-RU');
+        updateSliderBackground(priceSlider);
+      }
+
       renderFilterTags();
     }
 
-    // Fetch clubs data from API
     async function fetchClubs(query = '', tags = [], maxPrice = null) {
       let url = `${API_BASE}/clubs/`;
       const params = [];
@@ -1421,22 +1414,42 @@
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        return data;
+
+        // Нормализация: следим, чтобы были поля image, tags, price_cents
+        return data.map(c => {
+          let img = c.image || c.main_image_url || '';
+          if (img && img.startsWith('/')) {
+            const origin = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+              ? 'http://localhost:8000'
+              : `${location.protocol}//${location.host}`;
+            img = origin + img;
+          }
+
+          return {
+            id: c.id,
+            name: c.name || '',
+            slug: c.slug || c.id,
+            description: c.description || '',
+            image: img || 'https://via.placeholder.com/400x400?text=No+image',
+            location: c.location || c.address_text || '',
+            isFavorite: c.isFavorite || false,
+            tags: c.tags || [],
+            price_cents: c.price_cents || 0
+          };
+        });
       } catch (error) {
         console.error("Error fetching clubs:", error);
         return [];
       }
     }
 
-    async function loadClubsAndInitFilters() {
-      const clubs = await fetchClubs();
-      initFilters(clubs);
-      renderCards(clubs);
-    }
-
     function renderCards(clubsData) {
-      document.getElementById('desktopCards').innerHTML = clubsData.map(createCardHTML).join('');
-      document.getElementById('mobileCards').innerHTML = clubsData.map(createCardHTML).join('');
+      const desktop = document.getElementById('desktopCards');
+      const mobile = document.getElementById('mobileCards');
+
+      const html = clubsData.map(createCardHTML).join('');
+      if (desktop) desktop.innerHTML = html;
+      if (mobile) mobile.innerHTML = html;
     }
 
     window.initFilters = initFilters;
@@ -1446,39 +1459,37 @@
       slider.style.setProperty('--slider-percent', percent + '%');
     }
 
-       // ПОЛНЫЙ список (меняется ТОЛЬКО при первой загрузке)
-let filteredClubs = [];  // ОТОБРАЖАЕМЫЙ список
+    // ПОЛНЫЙ список и applyFilters по allClubs
+    let filteredClubs = [];
 
-function applyFilters() {
-  const query = filterState.searchQuery.toLowerCase();
-  const tags = filterState.selectedTags;
-  const maxPrice = filterState.maxPrice * 100;
+    function applyFilters() {
+      const query = filterState.searchQuery.toLowerCase();
+      const tags = filterState.selectedTags;
+      const maxPriceCents = filterState.maxPrice * 100;
 
-  const result = allClubs.filter(club => {
-    // поиск
-    if (query && !club.name.toLowerCase().includes(query)) {
-      return false;
+      const result = allClubs.filter(club => {
+        if (query && !club.name.toLowerCase().includes(query)) {
+          return false;
+        }
+
+        if (club.price_cents && club.price_cents > maxPriceCents) {
+          return false;
+        }
+
+        if (tags.length > 0) {
+          const clubTags = (club.tags || []).map(t => t.toLowerCase());
+          if (!tags.every(t => clubTags.includes(t))) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+
+      filteredClubs = result;
+      renderCards(result);
+      updateActiveFiltersDisplay();
     }
-
-    // цена
-    if (club.price_cents && club.price_cents > maxPrice) {
-      return false;
-    }
-
-    // теги
-    if (tags.length > 0) {
-      const clubTags = (club.tags || []).map(t => t.toLowerCase());
-      if (!tags.every(t => clubTags.includes(t))) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-
-  renderCards(result);
-  updateActiveFiltersDisplay();
-}
 
     function updateActiveFiltersDisplay() {
       ['desktopActiveFilters', 'mobileActiveFilters'].forEach(containerId => {
@@ -1530,84 +1541,46 @@ function applyFilters() {
       filterState.maxPrice = maxPriceFromDB;
       const priceSlider = document.getElementById('priceSlider');
       const currentPriceValue = document.getElementById('currentPriceValue');
-      priceSlider.value = maxPriceFromDB;
-      currentPriceValue.textContent = maxPriceFromDB.toLocaleString('ru-RU');
-      updateSliderBackground(priceSlider);
+      if (priceSlider && currentPriceValue) {
+        priceSlider.value = maxPriceFromDB;
+        currentPriceValue.textContent = maxPriceFromDB.toLocaleString('ru-RU');
+        updateSliderBackground(priceSlider);
+      }
       applyFilters();
     }
     window.removePriceFilter = removePriceFilter;
 
-    // Old static render removed:
-    // document.getElementById('desktopCards').innerHTML = clubs.map(createCardHTML).join('');
-    // document.getElementById('mobileCards').innerHTML = clubs.map(createCardHTML).join('');
-    // initFilters(clubs);
+    // init page: грузим один раз полный список и инициалим фильтры
+    (async function initPage() {
+      const containers = ['desktopCards', 'mobileCards']
+        .map(id => document.getElementById(id))
+        .filter(Boolean);
 
-    async function loadClubsFromAPI() {
+      containers.forEach(c => {
+        c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">Загрузка кружков...</div>';
+      });
+
       try {
-        const res = await fetch(`${API_BASE}/clubs`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const clubsData = await res.json();
-        
-        // Normalize data from API to match expected format
-        const normalizedClubs = clubsData.map(c => {
-          // Handle image URL - make absolute if relative
-          let img = c.image || c.main_image_url || '';
-          if (img && img.startsWith('/')) {
-            const origin = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
-              ? 'http://localhost:8000'
-              : `${location.protocol}//${location.host}`;
-            img = origin + img;
-          }
-          
-          return {
-            id: c.id,
-            name: c.name || '',
-            slug: c.slug || c.id,
-            description: c.description || '',
-            image: img || 'https://via.placeholder.com/400x400?text=No+image',
-            location: c.location || '',
-            isFavorite: c.isFavorite || false,
-            tags: c.tags || [],
-            price_cents: c.price_cents || null
-          };
+        allClubs = await fetchClubs();
+        if (!allClubs.length) {
+          containers.forEach(c => {
+            c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">Кружки не найдены или ошибка загрузки</div>';
+          });
+          return;
+        }
+
+        initFilters(allClubs);
+        filteredClubs = [...allClubs];
+        renderCards(filteredClubs);
+      } catch (e) {
+        console.error(e);
+        containers.forEach(c => {
+          c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">Ошибка загрузки</div>';
         });
-        
-        return normalizedClubs;
-      } catch (err) {
-        console.error('Failed to load clubs from API:', err);
-        return [];
       }
-    }
+    })();
 
-   (async function initPage() {
-  const containers = ['desktopCards', 'mobileCards']
-    .map(id => document.getElementById(id))
-    .filter(Boolean);
-
-  containers.forEach(c => {
-    c.innerHTML = '<div style="padding:20px;text-align:center;">Загрузка кружков...</div>';
-  });
-
-  try {
-    // 1. Загружаем ПОЛНЫЙ список один раз
-    allClubs = await fetchClubs();
-
-    // 2. Инициализация фильтров только по полному списку
-    initFilters(allClubs);
-
-    // 3. Первый рендер — всё
-    filteredClubs = [...allClubs];
-    renderCards(filteredClubs);
-
-  } catch (e) {
-    console.error(e);
-    containers.forEach(c => {
-      c.innerHTML = '<div style="padding:20px;text-align:center;">Ошибка загрузки</div>';
-    });
-  }
-})();
-
-    // Mobile menu toggle
+    // Mobile menu
     const menuBtn = document.getElementById('menuBtn');
     const closeMenuBtn = document.getElementById('closeMenuBtn');
     const menuOverlay = document.getElementById('menuOverlay');
@@ -1623,9 +1596,9 @@ function applyFilters() {
       mobileMenu.classList.remove('active');
     }
 
-    menuBtn.addEventListener('click', openMenu);
-    closeMenuBtn.addEventListener('click', closeMenu);
-    menuOverlay.addEventListener('click', closeMenu);
+    menuBtn?.addEventListener('click', openMenu);
+    closeMenuBtn?.addEventListener('click', closeMenu);
+    menuOverlay?.addEventListener('click', closeMenu);
 
     const filterPanel = document.getElementById('filterPanel');
     const closeFilterBtn = document.getElementById('closeFilterBtn');
@@ -1636,13 +1609,12 @@ function applyFilters() {
 
     function openFilterPanel() {
       filterPanel.classList.add('active');
-      // Ensure filter panel content is scrollable if needed
-      document.body.style.overflow = 'hidden'; // Prevent background scrolling
+      document.body.style.overflow = 'hidden';
     }
 
     function closeFilterPanel() {
       filterPanel.classList.remove('active');
-      document.body.style.overflow = ''; // Restore background scrolling
+      document.body.style.overflow = '';
     }
 
     desktopFilterBtn?.addEventListener('click', openFilterPanel);
@@ -1654,13 +1626,13 @@ function applyFilters() {
 
     tagSearchInput?.addEventListener('input', (e) => {
       const query = e.target.value.toLowerCase().trim();
-      
+
       if (!query) {
         tagSuggestions.classList.remove('active');
         return;
       }
 
-      const matchingTags = allTags.filter(tag => 
+      const matchingTags = allTags.filter(tag =>
         tag.includes(query) && !filterState.selectedTags.includes(tag)
       );
 
@@ -1669,14 +1641,13 @@ function applyFilters() {
         return;
       }
 
-      tagSuggestions.innerHTML = matchingTags.slice(0, 10).map(tag => 
+      tagSuggestions.innerHTML = matchingTags.slice(0, 10).map(tag =>
         `<div class="tag-suggestion-item" data-tag="${tag}">${tag}</div>`
       ).join('');
       tagSuggestions.classList.add('active');
     });
 
     tagSearchInput?.addEventListener('blur', () => {
-      // Delay hiding to allow click on suggestion
       setTimeout(() => {
         tagSuggestions.classList.remove('active');
       }, 200);
@@ -1696,7 +1667,6 @@ function applyFilters() {
 
       tagSearchInput.value = '';
       tagSuggestions.classList.remove('active');
-      // Apply filter immediately after selecting a tag from suggestions
       applyFilters();
     });
 
@@ -1704,7 +1674,8 @@ function applyFilters() {
     const filterTagsContainer = document.getElementById('filterTags');
 
     function renderFilterTags() {
-      filterTagsContainer.innerHTML = allTags.map(tag => 
+      if (!filterTagsContainer) return;
+      filterTagsContainer.innerHTML = allTags.map(tag =>
         `<button class="filter-tag" data-tag="${tag}">${tag}</button>`
       ).join('');
     }
@@ -1717,23 +1688,21 @@ function applyFilters() {
     });
 
     document.getElementById('filterTags')?.addEventListener('click', (e) => {
-  const btn = e.target.closest('.filter-tag');
-  if (!btn) return;
+      const btn = e.target.closest('.filter-tag');
+      if (!btn) return;
 
-  const tag = btn.dataset.tag; // ОРИГИНАЛЬНЫЙ регистр
-  console.log('Выбран тег:', tag); // DEBUG
-  
-  btn.classList.toggle('active');
+      const tag = btn.dataset.tag;
+      btn.classList.toggle('active');
 
-  if (btn.classList.contains('active')) {
-    if (!filterState.selectedTags.includes(tag)) {
-      filterState.selectedTags.push(tag);
-    }
-  } else {
-    filterState.selectedTags = filterState.selectedTags.filter(t => t !== tag);
-  }
-  applyFilters();
-});
+      if (btn.classList.contains('active')) {
+        if (!filterState.selectedTags.includes(tag)) {
+          filterState.selectedTags.push(tag);
+        }
+      } else {
+        filterState.selectedTags = filterState.selectedTags.filter(t => t !== tag);
+      }
+      applyFilters();
+    });
 
     const priceSlider = document.getElementById('priceSlider');
     const currentPriceValue = document.getElementById('currentPriceValue');
@@ -1746,20 +1715,21 @@ function applyFilters() {
     });
 
     priceSlider?.addEventListener('change', () => {
-      // Apply filter when the slider value is finalized (on release)
       applyFilters();
     });
 
     filterResetBtn?.addEventListener('click', () => {
       filterState.selectedTags = [];
       filterState.maxPrice = maxPriceFromDB;
-      
+
       document.querySelectorAll('.filter-tag').forEach(btn => btn.classList.remove('active'));
-      priceSlider.value = maxPriceFromDB;
-      currentPriceValue.textContent = maxPriceFromDB.toLocaleString('ru-RU');
-      updateSliderBackground(priceSlider);
-      tagSearchInput.value = '';
-      
+      if (priceSlider && currentPriceValue) {
+        priceSlider.value = maxPriceFromDB;
+        currentPriceValue.textContent = maxPriceFromDB.toLocaleString('ru-RU');
+        updateSliderBackground(priceSlider);
+      }
+      if (tagSearchInput) tagSearchInput.value = '';
+
       applyFilters();
     });
 
@@ -1771,8 +1741,8 @@ function applyFilters() {
     function handleSearch() {
       const desktopInput = document.getElementById('desktopSearchInput');
       const mobileInput = document.getElementById('mobileSearchInput');
-      
-      filterState.searchQuery = desktopInput?.value || mobileInput?.value || '';
+
+      filterState.searchQuery = (desktopInput?.value || mobileInput?.value || '').trim();
       applyFilters();
     }
 
@@ -1800,8 +1770,7 @@ function applyFilters() {
       }
     });
 
-    // Bottom sheet drag
-   // Bottom sheet drag (мобильная шторка)
+    // Bottom sheet drag (мобильная шторка)
     const bottomSheet = document.getElementById('bottomSheet');
     const sheetHandle = document.getElementById('sheetHandle');
 
@@ -1829,20 +1798,17 @@ function applyFilters() {
 
         const endY = (e.changedTouches && e.changedTouches[0].clientY) || startY;
         const deltaY = endY - startY;
-        const threshold = 30; // минимальный свайп
+        const threshold = 30;
 
         if (deltaY < -threshold && currentState < states.length - 1) {
-          // свайп вверх
           currentState++;
         } else if (deltaY > threshold && currentState > 0) {
-          // свайп вниз
           currentState--;
         }
 
         applySheetState();
       });
 
-      // Клик по ручке: просто циклично переключаем состояние
       sheetHandle.addEventListener('click', () => {
         if (dragging) return;
         currentState = (currentState + 1) % states.length;
@@ -1852,29 +1818,27 @@ function applyFilters() {
       applySheetState();
     }
 
-
     // Favorite toggle
     document.addEventListener('click', (e) => {
       const btn = e.target.closest('.favorite-btn');
       if (btn) {
         btn.classList.toggle('active');
         const id = btn.dataset.id;
-        // In a real app, you would update this state on the server via API
         const clubIndex = allClubs.findIndex(c => c.id == id);
-          if (clubIndex !== -1) {
-            allClubs[clubIndex].isFavorite = !allClubs[clubIndex].isFavorite;
-          }
+        if (clubIndex !== -1) {
+          allClubs[clubIndex].isFavorite = !allClubs[clubIndex].isFavorite;
         }
+      }
     });
 
+    // Desktop panel collapse drag
     const leftPanel = document.getElementById('leftPanel');
     const desktopPanelHandle = document.getElementById('desktopPanelHandle');
-    
-    // Click to toggle
+
     desktopPanelHandle?.addEventListener('click', () => {
       desktopPanelCollapsed = !desktopPanelCollapsed;
       leftPanel.classList.toggle('collapsed', desktopPanelCollapsed);
-      desktopPanelHandle.style.transition = 'transform 0.3s ease'; // Add transition to handle itself
+      desktopPanelHandle.style.transition = 'transform 0.3s ease';
     });
 
     let desktopDragStartX = 0;
@@ -1884,17 +1848,16 @@ function applyFilters() {
       desktopDragStartX = e.clientX;
       isDesktopDragging = true;
       e.preventDefault();
-      leftPanel.style.transition = 'transform 0s'; // Disable transition during drag
+      leftPanel.style.transition = 'transform 0s';
     });
 
-    //drag to toggle
     document.addEventListener('mousemove', (e) => {
       if (!isDesktopDragging) return;
       const deltaX = e.clientX - desktopDragStartX;
       const panelWidth = leftPanel.offsetWidth;
-      const collapseThreshold = panelWidth * 0.3; // Collapse if dragged more than 30% to the left
+      const collapseThreshold = panelWidth * 0.3;
 
-      if (Math.abs(deltaX) > 50) { // Only act after a significant drag
+      if (Math.abs(deltaX) > 50) {
         if (deltaX < -collapseThreshold && !desktopPanelCollapsed) {
           desktopPanelCollapsed = true;
           leftPanel.classList.add('collapsed');
@@ -1902,68 +1865,45 @@ function applyFilters() {
           desktopPanelCollapsed = false;
           leftPanel.classList.remove('collapsed');
         }
-        isDesktopDragging = false; // Reset after a decision
-        leftPanel.style.transition = 'transform 0.3s ease'; // Re-enable transition
+        isDesktopDragging = false;
+        leftPanel.style.transition = 'transform 0.3s ease';
       }
     });
 
     document.addEventListener('mouseup', () => {
-      if (isDesktopDragging) { // If mouseup happens without significant drag
+      if (isDesktopDragging) {
         isDesktopDragging = false;
-        leftPanel.style.transition = 'transform 0.3s ease'; // Re-enable transition
+        leftPanel.style.transition = 'transform 0.3s ease';
       }
     });
 
-    
-
-    // Initialize map (placeholder, actual map logic would be here)
+    // Map placeholders
     function initializeMap() {
-      // This is a placeholder. In a real application, you would initialize
-      // Yandex Maps here, potentially centering it on the user's location
-      // or a default area, and then add markers based on fetched clubs.
       console.log("Map initialization placeholder.");
-      // Example:
-      // if (typeof ymaps !== 'undefined') {
-      //   const mapInstance = new ymaps.Map("map", {
-      //     center: [55.751574, 37.573856], // Moscow center as default
-      //     zoom: 9
-      //   });
-      //   // Add markers from clubs data
-      //   // clubs.forEach(club => {
-      //   //   mapInstance.geoObjects.add(new ymaps.Placemark([lat, lon], { ... }));
-      //   // });
-      // }
     }
 
-    // Call map initialization after DOM is ready and potentially after clubs are loaded
-    // document.addEventListener('DOMContentLoaded', initializeMap); // Might need to be called after clubs load
-    // Moved initialization to after clubs load or after DOMContentLoaded in this example
     document.addEventListener('DOMContentLoaded', () => {
-      // Ensure map containers exist before trying to initialize
       if (document.getElementById('map') && typeof ymaps !== 'undefined') {
-        initializeMap(); // Initial call for desktop map
+        initializeMap();
       }
       if (document.getElementById('mobileMap') && typeof ymaps !== 'undefined') {
-        // You might want a separate initialization for mobile map, or reuse the desktop one
-        // For simplicity, calling it once here.
         console.log("Mobile map initialization placeholder.");
       }
     });
-      function handleLiveSearch(value) {
-  filterState.searchQuery = value.trim();
-  applyFilters();
-}
 
-// Desktop — поиск при вводе
-document.getElementById('desktopSearchInput')?.addEventListener('input', (e) => {
-  handleLiveSearch(e.target.value);
-});
+    // Live search on input
+    function handleLiveSearch(value) {
+      filterState.searchQuery = value.trim();
+      applyFilters();
+    }
 
-// Mobile — поиск при вводе
-document.getElementById('mobileSearchInput')?.addEventListener('input', (e) => {
-  handleLiveSearch(e.target.value);
-});
+    document.getElementById('desktopSearchInput')?.addEventListener('input', (e) => {
+      handleLiveSearch(e.target.value);
+    });
 
+    document.getElementById('mobileSearchInput')?.addEventListener('input', (e) => {
+      handleLiveSearch(e.target.value);
+    });
   </script>
 </body>
 </html>
