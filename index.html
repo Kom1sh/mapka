@@ -511,6 +511,13 @@
       gap: 8px;
     }
 
+    .card-main-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap; /* чтобы на узких экранах не ломалось */
+    }
+
     .card-location {
       display: flex;
       align-items: center;
@@ -1347,8 +1354,8 @@
             ${(club.tags || []).map(tag => `<button class="tag-btn" data-tag="${tag.toLowerCase()}">${tag}</button>`).join('')}
           </div>
           <div class="card-bottom">
-            <span class="card-price ${price.isFree ? 'free' : ''}">${price.text}</span>
-            <div class="card-buttons">
+            <div class="card-main-row">
+              <span class="card-price ${price.isFree ? 'free' : ''}">${price.text}</span>
               <a href="/${encodeURIComponent(club.slug)}" class="card-btn">Подробнее</a>
             </div>
             <div class="card-location">
