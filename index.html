@@ -1777,52 +1777,115 @@
       }
     });
 
-    // Bottom sheet drag (мобильная шторка)
+    // Bottom sheet drag (мобильная шторка, следит за пальцем)
     const bottomSheet = document.getElementById('bottomSheet');
     const sheetHandle = document.getElementById('sheetHandle');
-
+    
     if (bottomSheet && sheetHandle) {
-      const states = ['peek', 'split', 'full'];
-      let currentState = 1; // стартуем в split
-      let startY = 0;
+      const STATE_ORDER = ['peek', 'split', 'full']; // низ / середина / только список
+      let currentStateIndex = 1; // стартуем с "нейтрального" (split)
       let dragging = false;
-
-      function applySheetState() {
-        bottomSheet.className = `bottom-sheet ${states[currentState]}`;
+      let startY = 0;
+      let startTranslateY = 0;
+      let lastTranslateY = 0;
+    
+      const stateOffsets = {
+        peek: 0,
+        split: 0,
+        full: 0,
+      };
+    
+      function recomputeStateOffsets() {
+        const h = bottomSheet.getBoundingClientRect().height;
+        // full = сверху, список на весь экран
+        stateOffsets.full = 0;
+        // peek = снизу торчит только шторка (84px)
+        stateOffsets.peek = Math.max(0, h - 84);
+        // split = серединка
+        stateOffsets.split = Math.round(h / 2);
       }
-
+    
+      function applyState(index) {
+        currentStateIndex = Math.min(Math.max(index, 0), STATE_ORDER.length - 1);
+        const key = STATE_ORDER[currentStateIndex];
+        const y = stateOffsets[key];
+    
+        lastTranslateY = y;
+        bottomSheet.style.transition = 'transform 0.25s ease-out';
+        bottomSheet.style.transform = `translateY(${y}px)`;
+    
+        // поддерживаем классы для читабельности
+        bottomSheet.classList.remove('peek', 'split', 'full');
+        bottomSheet.classList.add(key);
+      }
+    
+      // инициализация позиций
+      recomputeStateOffsets();
+      applyState(currentStateIndex);
+    
+      // при ресайзе/повороте экрана пересчитать
+      window.addEventListener('resize', () => {
+        recomputeStateOffsets();
+        applyState(currentStateIndex);
+      });
+    
       sheetHandle.addEventListener('touchstart', (e) => {
         if (e.touches.length !== 1) return;
-        startY = e.touches[0].clientY;
         dragging = true;
+        startY = e.touches[0].clientY;
+        startTranslateY = lastTranslateY; // всегда знаем, где были
         bottomSheet.style.transition = 'none';
-      });
-
-      document.addEventListener('touchend', (e) => {
+      }, { passive: true });
+    
+      document.addEventListener('touchmove', (e) => {
+        if (!dragging) return;
+        const touch = e.touches[0];
+        const deltaY = touch.clientY - startY;
+    
+        const h = bottomSheet.getBoundingClientRect().height;
+        const minY = stateOffsets.full; // 0
+        const maxY = stateOffsets.peek; // самый низ
+    
+        let nextY = startTranslateY + deltaY;
+        if (nextY < minY) nextY = minY;
+        if (nextY > maxY) nextY = maxY;
+    
+        lastTranslateY = nextY;
+        bottomSheet.style.transform = `translateY(${nextY}px)`;
+    
+        // чтобы страница не скроллилась, пока тянем шторку
+        e.preventDefault();
+      }, { passive: false });
+    
+      document.addEventListener('touchend', () => {
         if (!dragging) return;
         dragging = false;
-        bottomSheet.style.transition = '';
-
-        const endY = (e.changedTouches && e.changedTouches[0].clientY) || startY;
-        const deltaY = endY - startY;
-        const threshold = 30;
-
-        if (deltaY < -threshold && currentState < states.length - 1) {
-          currentState++;
-        } else if (deltaY > threshold && currentState > 0) {
-          currentState--;
-        }
-
-        applySheetState();
+        bottomSheet.style.transition = 'transform 0.25s ease-out';
+    
+        // на всякий заапдейтим актуальные позиции (мог поменяться размер)
+        recomputeStateOffsets();
+    
+        // выбираем ближайшее состояние к последней позиции пальца
+        let nearestIndex = 0;
+        let nearestDist = Infinity;
+    
+        STATE_ORDER.forEach((key, idx) => {
+          const d = Math.abs(lastTranslateY - stateOffsets[key]);
+          if (d < nearestDist) {
+            nearestDist = d;
+            nearestIndex = idx;
+          }
+        });
+    
+        applyState(nearestIndex);
       });
-
+    
+      // Клик по ручке — по-прежнему циклически переключает состояния
       sheetHandle.addEventListener('click', () => {
         if (dragging) return;
-        currentState = (currentState + 1) % states.length;
-        applySheetState();
+        const nextIndex = (currentStateIndex + 1) % STATE_ORDER.length;
+        applyState(nextIndex);
       });
-
-      applySheetState();
     }
 
     // Favorite toggle
