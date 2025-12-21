@@ -23,13 +23,13 @@
 
     :root {
       --bg-primary: #f5f5f5;
-      --bg-secondary: white;
+      --bg-secondary: #ffffff;
       --bg-card: #f0f2f5;
-      --bg-input: white;
-      --text-primary: #1a1a1a;
-      --text-secondary: #565555;
-      --border-color: #e5e5e5;
-      --handle-color: #d1d1d1;
+      --bg-input: #ffffff;
+      --text-primary: #0f172a;
+      --text-secondary: #6b7280;
+      --border-color: #e5e7eb;
+      --handle-color: #d1d5db;
       --accent-color: #69AFDF;
     }
 
@@ -38,20 +38,23 @@
       background: var(--bg-primary);
       color: var(--text-primary);
       min-height: 100vh;
-      overflow: hidden; /* Важно для поведения "как приложение" */
+      overflow: hidden;
     }
 
-    /* Header */
+    /* ================= HEADER ================= */
+
     .header {
       position: relative;
       z-index: 50;
-      background: #565555;
+      background: radial-gradient(circle at 0% 0%, #60a5fa 0, #2563eb 35%, #0f172a 80%);
       color: white;
       height: 64px;
-      flex-shrink: 0;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.45);
     }
 
     .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -63,11 +66,13 @@
     .logoContainer {
       display: flex;
       align-items: center;
+      gap: 10px;
     }
 
     .mainLogo {
       height: 32px;
       display: block;
+      filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.8));
     }
 
     .nav-desktop {
@@ -79,29 +84,38 @@
     }
 
     .nav-desktop a {
-      color: white;
+      color: rgba(255,255,255,0.9);
       text-decoration: none;
-      transition: opacity 0.2s;
       font-size: 14px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      transition: background 0.2s, color 0.2s, transform 0.15s;
     }
 
     .nav-desktop a:hover {
-      opacity: 0.8;
+      background: rgba(15, 23, 42, 0.35);
+      color: #ffffff;
+      transform: translateY(-1px);
     }
 
     .header-right-desktop {
       display: none;
       align-items: center;
-      gap: 24px;
+      gap: 18px;
     }
 
-    .header-right-desktop a {
-      color: white;
+    .header-right-desktop a,
+    .header-right-desktop button.icon-btn {
+      color: rgba(255,255,255,0.95);
       text-decoration: none;
       display: flex;
       align-items: center;
       gap: 8px;
       font-size: 14px;
+    }
+
+    .header-right-desktop a span {
+      white-space: nowrap;
     }
 
     .header-right-mobile {
@@ -113,7 +127,7 @@
     .icon-btn {
       background: none;
       border: none;
-      color: white;
+      color: inherit;
       cursor: pointer;
       padding: 4px;
     }
@@ -126,14 +140,39 @@
     .avatar {
       width: 32px;
       height: 32px;
-      border-radius: 50%;
-      background: #888;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.7);
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.6);
     }
 
-    /* Mobile Menu */
+    .add-club-btn {
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #f97316, #fb923c);
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(248, 148, 66, 0.5);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+    }
+
+    .add-club-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(248, 148, 66, 0.7);
+      filter: brightness(1.03);
+    }
+
+    /* =============== MOBILE MENU =============== */
+
     .mobile-menu-overlay {
       display: none;
       position: fixed;
@@ -152,11 +191,12 @@
       top: 0;
       height: 100%;
       width: 288px;
-      background: #565555;
+      background: #111827;
       color: white;
       z-index: 101;
       transform: translateX(100%);
       transition: transform 0.3s;
+      box-shadow: -10px 0 30px rgba(0,0,0,0.6);
     }
 
     .mobile-menu.active {
@@ -178,7 +218,7 @@
       align-items: center;
       gap: 12px;
       padding-bottom: 16px;
-      border-bottom: 1px solid rgba(255,255,255,0.2);
+      border-bottom: 1px solid rgba(255,255,255,0.15);
       margin-bottom: 24px;
     }
 
@@ -189,11 +229,17 @@
     }
 
     .mobile-menu nav a {
-      color: white;
+      color: rgba(255,255,255,0.9);
       text-decoration: none;
+      font-size: 15px;
     }
 
-    /* Main Layout */
+    .mobile-menu nav a:hover {
+      color: #ffffff;
+    }
+
+    /* =============== MAIN LAYOUT =============== */
+
     .main-desktop {
       display: none;
       position: relative;
@@ -214,42 +260,36 @@
       height: 100%;
     }
 
-    /* --- ЛЕВАЯ ПАНЕЛЬ (Avito Style) --- */
+    /* ---- LEFT PANEL (desktop list) ---- */
+
     .left-panel {
       position: absolute;
       left: 0;
       top: 0;
       bottom: 0;
-      /* Фиксированная ширина, не зависит от зума и экрана */
-      width: 480px; 
-      max-width: 100%; /* На случай супер-узких экранов */
+      width: 520px;           /* немного шире для читаемости */
+      max-width: 100%;
       display: flex;
       flex-direction: column;
       padding: 16px;
-      gap: 16px;
+      gap: 12px;
       z-index: 20;
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      /* Чтобы клики проходили сквозь отступы (padding), 
-         но работали на содержимом */
-      pointer-events: none; 
+      pointer-events: none;
     }
 
-    /* При сворачивании уезжает влево на 100% своей ширины */
     .left-panel.collapsed {
       transform: translateX(-100%);
     }
 
-    /* Включаем клики внутри элементов панели обратно */
     .left-panel > * {
       pointer-events: auto;
     }
 
-    /* Контейнер списка */
     .cards-container {
       flex: 1;
       background: var(--bg-secondary);
       border-radius: 20px;
-      /* Красивая тень вместо рамки */
       box-shadow: 0 4px 24px rgba(0,0,0,0.12);
       border: 1px solid rgba(0,0,0,0.05);
       position: relative;
@@ -260,11 +300,10 @@
 
     .cards-scroll {
       flex: 1;
-      padding: 16px;
+      padding: 12px 16px 16px;
       overflow-y: auto;
     }
 
-    /* Скроллбар */
     .cards-scroll::-webkit-scrollbar {
       width: 8px;
     }
@@ -283,26 +322,25 @@
       scrollbar-color: #d1d5db transparent;
     }
 
-    /* --- ЯЗЫЧОК / ПЕТЕЛЬКА --- */
+    /* handle теперь крепится к самому контейнеру с карточками */
     .desktop-panel-handle {
       position: absolute;
-      /* Выносим его справа от панели */
-      right: -32px; 
+      right: -32px;
       top: 50%;
       transform: translateY(-50%);
       width: 32px;
       height: 64px;
       background: var(--bg-secondary);
       border: 1px solid rgba(0,0,0,0.1);
-      border-left: none; /* Сливаем с панелью если прижат */
+      border-left: none;
       border-radius: 0 12px 12px 0;
-      box-shadow: 4px 2px 12px rgba(0,0,0,0.08);
+      box-shadow: 4px 2px 12px rgba(0,0,0,0.12);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 21;
-      pointer-events: auto; /* Кликабелен всегда */
+      pointer-events: auto;
       transition: background 0.2s;
     }
 
@@ -317,7 +355,6 @@
       transition: transform 0.3s;
     }
 
-    /* Когда панель скрыта, стрелка поворачивается */
     .left-panel.collapsed .desktop-panel-handle svg {
       transform: rotate(180deg);
     }
@@ -328,7 +365,8 @@
       gap: 16px;
     }
 
-    /* Search Filter */
+    /* search + filters */
+
     .search-filter {
       display: flex;
       gap: 12px;
@@ -367,12 +405,12 @@
       border: 1px solid transparent;
       box-shadow: 0 2px 12px rgba(0,0,0,0.08);
       padding: 4px;
-      transition: box-shadow 0.2s;
+      transition: box-shadow 0.2s, border-color 0.2s;
     }
-    
+
     .search-box:focus-within {
-        box-shadow: 0 4px 16px rgba(105, 175, 223, 0.25);
-        border-color: var(--accent-color);
+      box-shadow: 0 4px 16px rgba(105, 175, 223, 0.25);
+      border-color: var(--accent-color);
     }
 
     .search-box input {
@@ -413,7 +451,8 @@
       display: none;
     }
 
-    /* Club Card */
+    /* карточка клуба */
+
     .club-card {
       background: var(--bg-card);
       border-radius: 16px;
@@ -424,9 +463,9 @@
       transition: background 0.2s;
       border: 1px solid transparent;
     }
-    
+
     .club-card:hover {
-        background: #e8eaed;
+      background: #e8eaed;
     }
 
     .sectionCard {
@@ -473,9 +512,9 @@
       justify-content: center;
       transition: background 0.2s;
     }
-    
+
     .favorite-btn:hover {
-        background: rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.6);
     }
 
     .favorite-btn svg {
@@ -505,11 +544,11 @@
     }
 
     .card-description {
-      font-size: 13px;
+      font-size: 14px;
       color: var(--text-secondary);
-      line-height: 1.4;
+      line-height: 1.45;
       display: -webkit-box;
-      -webkit-line-clamp: 3;
+      -webkit-line-clamp: 4;   /* больше строк, легче читать */
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
@@ -590,6 +629,7 @@
       cursor: pointer;
       transition: opacity 0.2s;
       text-decoration: none;
+      white-space: nowrap;
     }
 
     .card-btn:hover {
@@ -606,7 +646,8 @@
       color: #22c55e;
     }
 
-    /* Mobile Layout */
+    /* =============== MOBILE LAYOUT =============== */
+
     .main-mobile {
       display: block;
     }
@@ -625,7 +666,6 @@
       height: 100%;
     }
 
-    /* Bottom Sheet */
     .bottom-sheet {
       position: fixed;
       left: 0;
@@ -692,7 +732,8 @@
       margin-top: 16px;
     }
 
-    /* Filter Panel */
+    /* =============== FILTER PANEL =============== */
+
     .filter-panel {
       display: none;
       position: fixed;
@@ -866,7 +907,6 @@
       transform: rotate(180deg);
     }
 
-    /* Price slider */
     .price-slider-container {
       padding: 8px 0;
     }
@@ -957,8 +997,8 @@
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-top: 8px;
-      margin-bottom: 8px;
+      margin-top: 4px;
+      margin-bottom: 4px;
       flex-shrink: 0;
     }
 
@@ -983,8 +1023,9 @@
       align-items: center;
     }
 
-    /* Desktop */
-    @media (min-width: 768px) {
+    /* ============== DESKTOP OVERRIDES (по pointer, а не по ширине) ============== */
+
+    @media (min-width: 768px), (hover: hover) and (pointer: fine) {
       .header-inner {
         padding: 0 40px;
         height: 64px;
@@ -1014,10 +1055,9 @@
         display: none;
       }
 
-      /* Desktop Filter Modal */
       .filter-panel {
         position: absolute;
-        left: 500px; /* Позиция правее фиксированной панели */
+        left: 540px;
         top: 80px;
         width: 360px;
         max-height: 80vh;
@@ -1032,7 +1072,7 @@
         padding: 0 16px;
         font-size: 14px;
       }
-      
+
       .filter-btn .filter-text {
         display: inline;
       }
@@ -1125,6 +1165,9 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
           </svg>
           <span>Ростов-на-Дону</span>
+        </a>
+        <a href="#" class="add-club-btn">
+          <span>Добавить кружок</span>
         </a>
       </div>
 
@@ -1225,7 +1268,6 @@
       <div id="map"></div>
     </div>
 
-    <!-- Обновленная левая панель -->
     <div class="left-panel" id="leftPanel">
       <div class="search-filter">
         <button class="filter-btn" id="desktopFilterBtn">
@@ -1247,14 +1289,12 @@
 
       <div class="active-filters" id="desktopActiveFilters"></div>
 
-      <!-- Кнопка-язычок теперь снаружи и справа -->
-      <div class="desktop-panel-handle" id="desktopPanelHandle">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-        </svg>
-      </div>
-
       <div class="cards-container">
+        <div class="desktop-panel-handle" id="desktopPanelHandle">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </div>
         <div class="cards-scroll">
           <div class="cards-list" id="desktopCards">
             <!--SSR_DESKTOP_CARDS-->
@@ -1315,11 +1355,21 @@
 
     const API_BASE = 'https://mapkarostov.ru/api';
 
-    function formatPrice(priceCents) {
-      if (priceCents === null || priceCents === undefined || priceCents === 0) {
+    function formatPrice(priceCentsRaw) {
+      if (priceCentsRaw === null || priceCentsRaw === undefined) {
         return { text: 'Бесплатно', isFree: true };
       }
-      const priceRub = Math.round(priceCents / 100);
+
+      const cents = Number(priceCentsRaw);
+      if (!Number.isFinite(cents) || cents <= 0) {
+        return { text: 'Бесплатно', isFree: true };
+      }
+
+      const priceRub = Math.round(cents / 100);
+      if (priceRub <= 0) {
+        return { text: 'Бесплатно', isFree: true };
+      }
+
       return { text: `${priceRub.toLocaleString('ru-RU')} ₽`, isFree: false };
     }
 
@@ -1363,6 +1413,37 @@
 
     window.createCardHTML = createCardHTML;
 
+    function normalizeClub(c) {
+      let img = c.image || c.main_image_url || '';
+      if (img && img.startsWith('/')) {
+        const origin = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+          ? 'http://localhost:8000'
+          : `${location.protocol}//${location.host}`;
+        img = origin + img;
+      }
+
+      const rawPrice =
+        c.price_cents ??
+        c.price_per_class_cents ??
+        c.price_per_lesson_cents ??
+        c.price_per_lesson ??
+        0;
+
+      const price_cents = Number(rawPrice) || 0;
+
+      return {
+        id: c.id,
+        name: c.name || '',
+        slug: c.slug || c.id,
+        description: c.description || '',
+        image: img || 'https://via.placeholder.com/400x400?text=No+image',
+        location: c.location || c.address_text || '',
+        isFavorite: c.isFavorite || false,
+        tags: c.tags || c.categories || [],
+        price_cents
+      };
+    }
+
     function initFilters(clubsData) {
       allClubs = clubsData;
 
@@ -1371,8 +1452,7 @@
 
       clubsData.forEach(club => {
         (club.tags || []).forEach(tag => tagSet.add(tag.toLowerCase()));
-        const priceCents = club.price_cents || 0;
-        const priceRub = Math.round(priceCents / 100);
+        const priceRub = Math.round((club.price_cents || 0) / 100);
         if (priceRub > maxPrice) maxPrice = priceRub;
       });
 
@@ -1412,29 +1492,7 @@
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-
-        // Нормализация: следим, чтобы были поля image, tags, price_cents
-        return data.map(c => {
-          let img = c.image || c.main_image_url || '';
-          if (img && img.startsWith('/')) {
-            const origin = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
-              ? 'http://localhost:8000'
-              : `${location.protocol}//${location.host}`;
-            img = origin + img;
-          }
-
-          return {
-            id: c.id,
-            name: c.name || '',
-            slug: c.slug || c.id,
-            description: c.description || '',
-            image: img || 'https://via.placeholder.com/400x400?text=No+image',
-            location: c.location || c.address_text || '',
-            isFavorite: c.isFavorite || false,
-            tags: c.tags || [],
-            price_cents: c.price_cents || 0
-          };
-        });
+        return data.map(normalizeClub);
       } catch (error) {
         console.error("Error fetching clubs:", error);
         return [];
@@ -1444,7 +1502,6 @@
     function renderCards(clubsData) {
       const desktop = document.getElementById('desktopCards');
       const mobile = document.getElementById('mobileCards');
-
       const html = clubsData.map(createCardHTML).join('');
       if (desktop) desktop.innerHTML = html;
       if (mobile) mobile.innerHTML = html;
@@ -1457,7 +1514,6 @@
       slider.style.setProperty('--slider-percent', percent + '%');
     }
 
-    // ПОЛНЫЙ список и applyFilters по allClubs
     let filteredClubs = [];
 
     function applyFilters() {
@@ -1548,7 +1604,6 @@
     }
     window.removePriceFilter = removePriceFilter;
 
-    // Берём данные, которые сервер положил в window.initialClubs (если есть)
     const ssrClubs =
       (typeof window !== 'undefined' &&
       Array.isArray(window.initialClubs) &&
@@ -1571,16 +1626,15 @@
 
         if (ssrClubs) {
           console.log('Используем клубы из SSR:', ssrClubs);
-          clubs = ssrClubs;
+          clubs = ssrClubs.map(normalizeClub);
         } else {
           console.log('SSR нет, тянем клубы из API');
-          clubs = await fetchClubs();      // fetchClubs у тебя уже определён выше
+          clubs = await fetchClubs();
         }
 
         allClubs = clubs;
         filteredClubs = [...allClubs];
 
-        // Инициализируем фильтры и рендерим карточки
         initFilters(allClubs);
         renderCards(filteredClubs);
       } catch (e) {
@@ -1782,98 +1836,85 @@
       }
     });
 
-    // Bottom sheet drag (мобильная шторка, следит за пальцем)
+    // bottom sheet drag
     const bottomSheet = document.getElementById('bottomSheet');
     const sheetHandle = document.getElementById('sheetHandle');
-    
+
     if (bottomSheet && sheetHandle) {
-      const STATE_ORDER = ['peek', 'split', 'full']; // низ / середина / только список
-      let currentStateIndex = 1; // стартуем с "нейтрального" (split)
+      const STATE_ORDER = ['peek', 'split', 'full'];
+      let currentStateIndex = 1;
       let dragging = false;
       let startY = 0;
       let startTranslateY = 0;
       let lastTranslateY = 0;
-    
-      const stateOffsets = {
-        peek: 0,
-        split: 0,
-        full: 0,
-      };
-    
+
+      const stateOffsets = { peek: 0, split: 0, full: 0 };
+
       function recomputeStateOffsets() {
         const h = bottomSheet.getBoundingClientRect().height;
-        // full = сверху, список на весь экран
         stateOffsets.full = 0;
-        // peek = снизу торчит только шторка (84px)
         stateOffsets.peek = Math.max(0, h - 84);
-        // split = серединка
         stateOffsets.split = Math.round(h / 2);
       }
-    
+
       function applyState(index) {
         currentStateIndex = Math.min(Math.max(index, 0), STATE_ORDER.length - 1);
         const key = STATE_ORDER[currentStateIndex];
         const y = stateOffsets[key];
-    
+
         lastTranslateY = y;
         bottomSheet.style.transition = 'transform 0.25s ease-out';
         bottomSheet.style.transform = `translateY(${y}px)`;
-    
-        // поддерживаем классы для читабельности
+
         bottomSheet.classList.remove('peek', 'split', 'full');
         bottomSheet.classList.add(key);
       }
-    
-      // инициализация позиций
+
       recomputeStateOffsets();
       applyState(currentStateIndex);
-    
-      // при ресайзе/повороте экрана пересчитать
+
       window.addEventListener('resize', () => {
         recomputeStateOffsets();
         applyState(currentStateIndex);
       });
-    
+
       sheetHandle.addEventListener('touchstart', (e) => {
         if (e.touches.length !== 1) return;
         dragging = true;
         startY = e.touches[0].clientY;
-        startTranslateY = lastTranslateY; // всегда знаем, где были
+        startTranslateY = lastTranslateY;
         bottomSheet.style.transition = 'none';
       }, { passive: true });
-    
+
       document.addEventListener('touchmove', (e) => {
         if (!dragging) return;
         const touch = e.touches[0];
         const deltaY = touch.clientY - startY;
-    
+
         const h = bottomSheet.getBoundingClientRect().height;
-        const minY = stateOffsets.full; // 0
-        const maxY = stateOffsets.peek; // самый низ
-    
+        const minY = stateOffsets.full;
+        const maxY = stateOffsets.peek;
+
         let nextY = startTranslateY + deltaY;
         if (nextY < minY) nextY = minY;
         if (nextY > maxY) nextY = maxY;
-    
+
         lastTranslateY = nextY;
         bottomSheet.style.transform = `translateY(${nextY}px)`;
-    
-        // чтобы страница не скроллилась, пока тянем шторку
+
         e.preventDefault();
       }, { passive: false });
-    
+
       document.addEventListener('touchend', () => {
         if (!dragging) return;
         dragging = false;
         bottomSheet.style.transition = 'transform 0.25s ease-out';
-    
-        // на всякий заапдейтим актуальные позиции (мог поменяться размер)
+
         recomputeStateOffsets();
-    
-        // выбираем ближайшее состояние к последней позиции пальца
+
         let nearestIndex = 0;
         let nearestDist = Infinity;
-    
+
         STATE_ORDER.forEach((key, idx) => {
           const d = Math.abs(lastTranslateY - stateOffsets[key]);
           if (d < nearestDist) {
@@ -1881,11 +1922,10 @@
             nearestIndex = idx;
           }
         });
-    
+
         applyState(nearestIndex);
       });
-    
-      // Клик по ручке — по-прежнему циклически переключает состояния
+
       sheetHandle.addEventListener('click', () => {
         if (dragging) return;
         const nextIndex = (currentStateIndex + 1) % STATE_ORDER.length;
@@ -1893,7 +1933,7 @@
       });
     }
 
-    // Favorite toggle
+    // favourites
     document.addEventListener('click', (e) => {
       const btn = e.target.closest('.favorite-btn');
       if (btn) {
@@ -1906,16 +1946,12 @@
       }
     });
 
-    // ----------------------------------------------------------------------------------
-    // ОБНОВЛЕННАЯ ЛОГИКА ДЛЯ ДЕСКТОП ПАНЕЛИ
-    // ----------------------------------------------------------------------------------
+    // desktop panel toggle
     const leftPanel = document.getElementById('leftPanel');
     const desktopPanelHandle = document.getElementById('desktopPanelHandle');
 
-    // Просто переключаем класс .collapsed по клику на язычок
     desktopPanelHandle?.addEventListener('click', () => {
       desktopPanelCollapsed = !desktopPanelCollapsed;
-      
       if (desktopPanelCollapsed) {
         leftPanel.classList.add('collapsed');
       } else {
@@ -1923,20 +1959,7 @@
       }
     });
 
-    // Map placeholders (для отладки, если map.js не подгрузился)
-    function initializeMap() {
-      console.log("Map initialization placeholder.");
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      // Инициализация карты обычно происходит в map.js,
-      // но если у тебя есть логика тут - оставляем
-      if (document.getElementById('map') && typeof ymaps !== 'undefined') {
-        initializeMap();
-      }
-    });
-
-    // Live search on input
+    // live search
     function handleLiveSearch(value) {
       filterState.searchQuery = value.trim();
       applyFilters();
