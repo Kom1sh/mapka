@@ -1561,41 +1561,49 @@
     }
     window.removePriceFilter = removePriceFilter;
 
-    // init page: грузим один раз полный список и инициалим фильтры
+    // Берём данные, которые сервер положил в window.initialClubs (если есть)
+    const ssrClubs =
+      (typeof window !== 'undefined' &&
+      Array.isArray(window.initialClubs) &&
+      window.initialClubs.length > 0)
+        ? window.initialClubs
+        : null;
+
     (async function initPage() {
       const containers = ['desktopCards', 'mobileCards']
         .map(id => document.getElementById(id))
         .filter(Boolean);
 
-      // Если сервер уже положил данные — используем их
-      if (Array.isArray(window.__INITIAL_CLUBS__) && window.__INITIAL_CLUBS__.length) {
-        allClubs = window.__INITIAL_CLUBS__;
-        initFilters(allClubs);
-        filteredClubs = [...allClubs];
-        // перерисуем, чтобы привязать слушатели событий и т.п.
-        renderCards(filteredClubs);
-        return;
-      }
-
-      // Если SSR нет (локальная разработка и т.п.) — старое поведение
       containers.forEach(c => {
+        if (!c) return;
         c.innerHTML = '<div style="padding:20px;text-align:center;">Загрузка кружков...</div>';
       });
 
       try {
-        const clubs = await loadClubsFromAPI();
+        let clubs;
+
+        if (ssrClubs) {
+          console.log('Используем клубы из SSR:', ssrClubs);
+          clubs = ssrClubs;
+        } else {
+          console.log('SSR нет, тянем клубы из API');
+          clubs = await fetchClubs();      // fetchClubs у тебя уже определён выше
+        }
+
         allClubs = clubs;
-        initFilters(clubs);
         filteredClubs = [...allClubs];
+
+        // Инициализируем фильтры и рендерим карточки
+        initFilters(allClubs);
         renderCards(filteredClubs);
       } catch (e) {
-        console.error(e);
+        console.error('initPage error:', e);
         containers.forEach(c => {
+          if (!c) return;
           c.innerHTML = '<div style="padding:20px;text-align:center;">Ошибка загрузки</div>';
         });
       }
     })();
-
 
     // Mobile menu
     const menuBtn = document.getElementById('menuBtn');
