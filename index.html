@@ -1269,7 +1269,9 @@
 
       <div class="cards-container">
         <div class="cards-scroll">
-          <div class="cards-list" id="desktopCards"></div>
+          <div class="cards-list" id="desktopCards">
+            <!--SSR_DESKTOP_CARDS-->
+          </div>
         </div>
       </div>
     </div>
@@ -1304,7 +1306,9 @@
       </div>
       <div class="sheet-content">
         <div class="active-filters" id="mobileActiveFilters"></div>
-        <div class="sheet-cards" id="mobileCards"></div>
+        <div class="sheet-cards" id="mobileCards">
+          <!--SSR_MOBILE_CARDS-->
+        </div>
       </div>
     </div>
   </main>
@@ -1563,29 +1567,35 @@
         .map(id => document.getElementById(id))
         .filter(Boolean);
 
+      // Если сервер уже положил данные — используем их
+      if (Array.isArray(window.__INITIAL_CLUBS__) && window.__INITIAL_CLUBS__.length) {
+        allClubs = window.__INITIAL_CLUBS__;
+        initFilters(allClubs);
+        filteredClubs = [...allClubs];
+        // перерисуем, чтобы привязать слушатели событий и т.п.
+        renderCards(filteredClubs);
+        return;
+      }
+
+      // Если SSR нет (локальная разработка и т.п.) — старое поведение
       containers.forEach(c => {
-        c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">Загрузка кружков...</div>';
+        c.innerHTML = '<div style="padding:20px;text-align:center;">Загрузка кружков...</div>';
       });
 
       try {
-        allClubs = await fetchClubs();
-        if (!allClubs.length) {
-          containers.forEach(c => {
-            c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">Кружки не найдены или ошибка загрузки</div>';
-          });
-          return;
-        }
-
-        initFilters(allClubs);
+        const clubs = await loadClubsFromAPI();
+        allClubs = clubs;
+        initFilters(clubs);
         filteredClubs = [...allClubs];
         renderCards(filteredClubs);
       } catch (e) {
         console.error(e);
         containers.forEach(c => {
-          c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">Ошибка загрузки</div>';
+          c.innerHTML = '<div style="padding:20px;text-align:center;">Ошибка загрузки</div>';
         });
       }
     })();
+
 
     // Mobile menu
     const menuBtn = document.getElementById('menuBtn');
