@@ -125,7 +125,10 @@ async function renderIndex() {
   // Прокидываем данные на клиент, чтобы не было повторного fetch
   const dataScript =
     `<script>window.__INITIAL_CLUBS__ = ${JSON.stringify(clubs)};</script>`;
-  html = html.replace('</body>', `${dataScript}\n</body>`);
+
+  // Вставляем данные *до* основного скрипта (в <head>), чтобы
+  // index.html уже видел window.__INITIAL_CLUBS__ во время запуска
+  html = html.replace('</head>', `${dataScript}\n</head>`);
 
   return html;
 }
