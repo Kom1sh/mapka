@@ -25,39 +25,48 @@
       --bg-primary: #f5f5f5;
       --bg-secondary: white;
       --bg-card: #f0f2f5;
-      --bg-input: white;
-      --text-primary: #1a1a1a;
-      --text-secondary: #565555;
-      --border-color: #e5e5e5;
-      --handle-color: #d1d1d1;
+      --bg-input: #f3f4f6;
+      --text-primary: #111827;
+      --text-secondary: #6b7280;
+      --border-color: #e5e7eb;
+      --handle-color: #d1d5db;
       --accent-color: #69AFDF;
+      --accent-hover: #5b9bc5;
+      --header-height: 72px;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       background: var(--bg-primary);
       color: var(--text-primary);
       min-height: 100vh;
       overflow: hidden; /* Важно для поведения "как приложение" */
     }
 
-    /* Header */
+    /* --- MODERN HEADER --- */
     .header {
       position: relative;
       z-index: 50;
-      background: #565555;
-      color: white;
-      height: 64px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      height: var(--header-height);
       flex-shrink: 0;
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+      box-shadow: var(--shadow-sm);
     }
 
     .header-inner {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 16px;
+      padding: 0 24px;
       height: 100%;
       gap: 16px;
+      max-width: 1920px;
+      margin: 0 auto;
     }
 
     .logoContainer {
@@ -66,42 +75,52 @@
     }
 
     .mainLogo {
-      height: 32px;
+      height: 36px;
       display: block;
+      object-fit: contain;
     }
 
     .nav-desktop {
       display: none;
       align-items: center;
-      gap: 20px;
+      gap: 32px;
+      margin-left: 48px;
       margin-right: auto;
-      margin-left: 24px;
     }
 
     .nav-desktop a {
-      color: white;
+      color: var(--text-primary);
       text-decoration: none;
-      transition: opacity 0.2s;
-      font-size: 14px;
+      transition: color 0.2s;
+      font-size: 15px;
+      font-weight: 500;
     }
 
     .nav-desktop a:hover {
-      opacity: 0.8;
+      color: var(--accent-color);
     }
 
     .header-right-desktop {
       display: none;
       align-items: center;
-      gap: 24px;
+      gap: 20px;
     }
 
     .header-right-desktop a {
-      color: white;
+      color: var(--text-primary);
       text-decoration: none;
       display: flex;
       align-items: center;
       gap: 8px;
       font-size: 14px;
+      font-weight: 500;
+      transition: opacity 0.2s;
+      padding: 6px 12px;
+      border-radius: 8px;
+    }
+    
+    .header-right-desktop a:hover {
+        background: var(--bg-primary);
     }
 
     .header-right-mobile {
@@ -113,9 +132,18 @@
     .icon-btn {
       background: none;
       border: none;
-      color: white;
+      color: var(--text-primary);
       cursor: pointer;
-      padding: 4px;
+      padding: 8px;
+      border-radius: 8px;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .icon-btn:hover {
+        background: var(--bg-primary);
     }
 
     .icon-btn svg {
@@ -124,13 +152,15 @@
     }
 
     .avatar {
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
-      background: #888;
+      background: #e0e0e0;
+      color: var(--text-secondary);
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
     }
 
     /* Mobile Menu */
@@ -140,6 +170,7 @@
       inset: 0;
       background: rgba(0,0,0,0.5);
       z-index: 100;
+      backdrop-filter: blur(2px);
     }
 
     .mobile-menu-overlay.active {
@@ -152,11 +183,12 @@
       top: 0;
       height: 100%;
       width: 288px;
-      background: #565555;
-      color: white;
+      background: white;
+      color: var(--text-primary);
       z-index: 101;
       transform: translateX(100%);
-      transition: transform 0.3s;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: -4px 0 24px rgba(0,0,0,0.1);
     }
 
     .mobile-menu.active {
@@ -170,15 +202,15 @@
     }
 
     .mobile-menu-content {
-      padding: 24px;
+      padding: 0 24px 24px;
     }
 
     .mobile-menu-profile {
       display: flex;
       align-items: center;
       gap: 12px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid rgba(255,255,255,0.2);
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
       margin-bottom: 24px;
     }
 
@@ -189,15 +221,17 @@
     }
 
     .mobile-menu nav a {
-      color: white;
+      color: var(--text-primary);
       text-decoration: none;
+      font-size: 16px;
+      font-weight: 500;
     }
 
     /* Main Layout */
     .main-desktop {
-      display: none;
+      display: none; /* Controlled by media query below */
       position: relative;
-      height: calc(100vh - 64px);
+      height: calc(100vh - var(--header-height));
       width: 100%;
       overflow: hidden;
     }
@@ -214,43 +248,36 @@
       height: 100%;
     }
 
-    /* --- ЛЕВАЯ ПАНЕЛЬ (Avito Style) --- */
+    /* --- ЛЕВАЯ ПАНЕЛЬ --- */
     .left-panel {
       position: absolute;
       left: 0;
       top: 0;
       bottom: 0;
-      /* Фиксированная ширина, не зависит от зума и экрана */
       width: 480px; 
-      max-width: 100%; /* На случай супер-узких экранов */
+      max-width: 100%;
       display: flex;
       flex-direction: column;
-      padding: 16px;
-      gap: 16px;
+      padding: 16px; /* Внешний отступ от краев экрана */
       z-index: 20;
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      /* Чтобы клики проходили сквозь отступы (padding), 
-         но работали на содержимом */
       pointer-events: none; 
     }
 
-    /* При сворачивании уезжает влево на 100% своей ширины */
     .left-panel.collapsed {
-      transform: translateX(-100%);
+      transform: translateX(-110%); /* Скрываем полностью */
     }
 
-    /* Включаем клики внутри элементов панели обратно */
     .left-panel > * {
       pointer-events: auto;
     }
 
-    /* Контейнер списка */
+    /* Контейнер списка + поиска */
     .cards-container {
       flex: 1;
       background: var(--bg-secondary);
-      border-radius: 20px;
-      /* Красивая тень вместо рамки */
-      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+      border-radius: 16px;
+      box-shadow: var(--shadow-lg);
       border: 1px solid rgba(0,0,0,0.05);
       position: relative;
       overflow: hidden;
@@ -258,121 +285,72 @@
       flex-direction: column;
     }
 
-    .cards-scroll {
-      flex: 1;
-      padding: 16px;
-      overflow-y: auto;
+    /* Верхняя часть панели (Поиск и фильтры) внутри белого блока */
+    .panel-header-area {
+        padding: 16px 16px 8px 16px;
+        background: white;
+        border-bottom: 1px solid transparent;
+        flex-shrink: 0;
+        z-index: 2;
+    }
+    
+    .panel-header-area.scrolled {
+        border-color: var(--border-color);
+        box-shadow: var(--shadow-sm);
     }
 
-    /* Скроллбар */
-    .cards-scroll::-webkit-scrollbar {
-      width: 8px;
-    }
-    .cards-scroll::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .cards-scroll::-webkit-scrollbar-thumb {
-      background: #d1d5db;
-      border-radius: 4px;
-    }
-    .cards-scroll::-webkit-scrollbar-thumb:hover {
-      background: #9ca3af;
-    }
-    .cards-scroll {
-      scrollbar-width: thin;
-      scrollbar-color: #d1d5db transparent;
-    }
-
-    /* --- ЯЗЫЧОК / ПЕТЕЛЬКА --- */
-    .desktop-panel-handle {
-      position: absolute;
-      /* Выносим его справа от панели */
-      right: -32px; 
-      top: 50%;
-      transform: translateY(-50%);
-      width: 32px;
-      height: 64px;
-      background: var(--bg-secondary);
-      border: 1px solid rgba(0,0,0,0.1);
-      border-left: none; /* Сливаем с панелью если прижат */
-      border-radius: 0 12px 12px 0;
-      box-shadow: 4px 2px 12px rgba(0,0,0,0.08);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 21;
-      pointer-events: auto; /* Кликабелен всегда */
-      transition: background 0.2s;
-    }
-
-    .desktop-panel-handle:hover {
-      background: #f9fafb;
-    }
-
-    .desktop-panel-handle svg {
-      width: 16px;
-      height: 16px;
-      color: var(--text-secondary);
-      transition: transform 0.3s;
-    }
-
-    /* Когда панель скрыта, стрелка поворачивается */
-    .left-panel.collapsed .desktop-panel-handle svg {
-      transform: rotate(180deg);
-    }
-
-    .cards-list {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    /* Search Filter */
     .search-filter {
       display: flex;
       gap: 12px;
-      height: 48px;
-      flex-shrink: 0;
+      height: 44px;
     }
 
     .filter-btn {
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
-      padding: 0 16px;
-      background: var(--accent-color);
-      color: white;
-      border: none;
-      border-radius: 14px;
+      padding: 0 14px;
+      background: var(--bg-input); /* Более нейтральный фон */
+      color: var(--text-primary);
+      border: 1px solid transparent;
+      border-radius: 12px;
       font-size: 14px;
+      font-weight: 500;
       cursor: pointer;
-      transition: transform 0.2s, opacity 0.2s;
-      box-shadow: 0 2px 8px rgba(105, 175, 223, 0.3);
+      transition: all 0.2s;
     }
 
     .filter-btn:hover {
-      opacity: 0.9;
+      background: #e5e7eb;
     }
 
     .filter-btn .filter-text {
-      display: none;
+        display: none;
     }
 
     .search-box {
       flex: 1;
       display: flex;
-      background: white;
-      border-radius: 14px;
+      align-items: center;
+      background: var(--bg-input);
+      border-radius: 12px;
       border: 1px solid transparent;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
       padding: 4px;
-      transition: box-shadow 0.2s;
+      transition: all 0.2s;
     }
     
     .search-box:focus-within {
-        box-shadow: 0 4px 16px rgba(105, 175, 223, 0.25);
-        border-color: var(--accent-color);
+        background: white;
+        box-shadow: 0 0 0 2px var(--accent-color);
+        border-color: transparent;
+    }
+    
+    .search-icon-wrapper {
+        padding-left: 12px;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
     }
 
     .search-box input {
@@ -384,73 +362,149 @@
       padding: 0 12px;
       font-size: 15px;
       outline: none;
+      height: 100%;
     }
 
     .search-box button {
-      padding: 0 16px;
+      padding: 6px 16px;
       background: var(--accent-color);
-      border-radius: 10px;
+      border-radius: 8px;
       border: none;
       color: white;
       font-size: 14px;
       cursor: pointer;
       font-weight: 500;
+      height: 32px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .search-box button:hover {
+        background: var(--accent-hover);
     }
 
     .search-box .search-btn-mobile {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 12px;
-    }
-
-    .search-box .search-btn-mobile svg {
-      width: 20px;
-      height: 20px;
+      padding: 6px;
     }
 
     .search-box .search-btn-text {
       display: none;
     }
 
-    /* Club Card */
-    .club-card {
-      background: var(--bg-card);
-      border-radius: 16px;
-      padding: 12px;
+    .active-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      min-height: 0;
+      transition: margin 0.2s;
+    }
+    
+    .active-filters:empty {
+        margin-top: 0;
+    }
+
+    .cards-scroll {
+      flex: 1;
+      padding: 0 16px 16px 16px;
+      overflow-y: auto;
+    }
+
+    /* Скроллбар */
+    .cards-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .cards-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .cards-scroll::-webkit-scrollbar-thumb {
+      background: #d1d5db;
+      border-radius: 3px;
+    }
+    .cards-scroll::-webkit-scrollbar-thumb:hover {
+      background: #9ca3af;
+    }
+
+    /* --- ЯЗЫЧОК / ПЕТЕЛЬКА (Привязан к белому блоку) --- */
+    .desktop-panel-handle {
+      position: absolute;
+      right: -24px; /* Торчит из родителя (.cards-container) */
+      top: 50%;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 48px;
+      background: white;
+      border: 1px solid rgba(0,0,0,0.05);
+      border-left: 1px solid white; /* Скрываем стык */
+      border-radius: 0 8px 8px 0;
+      box-shadow: 4px 0 12px rgba(0,0,0,0.05);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 21;
+      pointer-events: auto;
+      transition: background 0.2s;
+    }
+    
+    .desktop-panel-handle:hover {
+        background: #f9fafb;
+    }
+
+    .desktop-panel-handle svg {
+      width: 14px;
+      height: 14px;
+      color: var(--text-secondary);
+      transition: transform 0.3s;
+    }
+
+    .left-panel.collapsed .desktop-panel-handle svg {
+      transform: rotate(180deg);
+    }
+
+    .cards-list {
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      transition: background 0.2s;
-      border: 1px solid transparent;
+      gap: 16px;
+      padding-top: 8px; /* Небольшой отступ от хедера панели */
+    }
+
+    /* Club Card */
+    .club-card {
+      background: white;
+      border-radius: 16px;
+      padding: 16px; /* Увеличил паддинг для простора */
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      transition: all 0.2s;
+      border: 1px solid var(--border-color);
+      position: relative;
     }
     
     .club-card:hover {
-        background: #e8eaed;
-    }
-
-    .sectionCard {
-      transition: box-shadow 0.3s;
+        border-color: var(--accent-color);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     }
 
     .sectionCard.highlight-temp {
-      box-shadow: 0 0 0 3px #69AFDF;
+      box-shadow: 0 0 0 2px var(--accent-color);
     }
 
     .card-top {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 12px;
     }
 
     .card-image {
       position: relative;
       width: 100%;
       height: 180px;
-      border-radius: 16px;
+      border-radius: 12px;
       overflow: hidden;
       flex-shrink: 0;
-      background: #ccc;
+      background: #e5e7eb;
     }
 
     .card-image img {
@@ -461,9 +515,10 @@
 
     .favorite-btn {
       position: absolute;
-      top: 8px;
-      left: 8px;
-      background: rgba(0,0,0,0.4);
+      top: 10px;
+      right: 10px; /* Справа удобнее на фото */
+      left: auto;
+      background: rgba(255,255,255,0.9);
       border-radius: 50%;
       padding: 6px;
       border: none;
@@ -471,17 +526,19 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.2s;
+      transition: all 0.2s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .favorite-btn:hover {
-        background: rgba(0,0,0,0.6);
+        background: white;
+        transform: scale(1.05);
     }
 
     .favorite-btn svg {
       width: 20px;
       height: 20px;
-      color: white;
+      color: #9ca3af;
     }
 
     .favorite-btn.active svg {
@@ -493,21 +550,21 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
       min-width: 0;
     }
 
     .card-title {
       font-size: 18px;
-      font-weight: 600;
+      font-weight: 700;
       line-height: 1.3;
       color: var(--text-primary);
     }
 
     .card-description {
-      font-size: 13px;
+      font-size: 14px; /* Увеличил читаемость */
       color: var(--text-secondary);
-      line-height: 1.4;
+      line-height: 1.5; /* Больше воздуха */
       display: -webkit-box;
       -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
@@ -521,31 +578,32 @@
     }
 
     .tag-btn {
-      background: white;
+      background: var(--bg-primary);
       color: var(--text-secondary);
       font-size: 12px;
-      padding: 4px 10px;
-      border-radius: 8px;
-      border: 1px solid #e0e0e0;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 100px; /* Полностью круглые */
+      border: 1px solid transparent;
       cursor: pointer;
       transition: all 0.2s;
     }
 
     .tag-btn:hover {
-      border-color: var(--accent-color);
-      color: var(--accent-color);
+      background: #e5e7eb;
+      color: var(--text-primary);
     }
 
     .tag-btn.active {
       background: var(--accent-color);
       color: white;
-      border-color: var(--accent-color);
     }
 
     .card-bottom {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 12px;
+      padding-top: 4px;
     }
 
     .card-main-row {
@@ -557,21 +615,19 @@
 
     .card-location {
       display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 12px;
+      align-items: flex-start;
+      gap: 6px;
+      font-size: 13px;
       color: var(--text-secondary);
-      margin-top: 4px;
+      line-height: 1.4;
     }
 
     .card-location svg {
       width: 16px;
       height: 16px;
       flex-shrink: 0;
-    }
-
-    .cardLocationText {
-      word-break: break-word;
+      margin-top: 2px;
+      color: #9ca3af;
     }
 
     .card-buttons {
@@ -582,42 +638,44 @@
     .card-btn {
       background: var(--accent-color);
       color: white;
-      padding: 8px 16px;
+      padding: 10px 20px;
       border-radius: 10px;
       border: none;
       font-size: 14px;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
-      transition: opacity 0.2s;
+      transition: background 0.2s;
       text-decoration: none;
+      text-align: center;
     }
 
     .card-btn:hover {
-      opacity: 0.9;
+      background: var(--accent-hover);
     }
 
     .card-price {
-      font-size: 16px;
+      font-size: 18px;
       font-weight: 700;
       color: var(--text-primary);
+      /* FIX: Чтобы знак рубля и цена не разрывались */
+      white-space: nowrap; 
     }
 
     .card-price.free {
-      color: #22c55e;
+      color: #10b981;
     }
 
     /* Mobile Layout */
     .main-mobile {
-      display: block;
+      display: block; /* По умолчанию мобильный, но перебиваем медиа-запросом */
     }
 
     .mobile-map {
       position: fixed;
       inset: 0;
-      top: 56px;
+      top: var(--header-height);
       z-index: 0;
       background: #e5e5e5;
-      transition: height 0.3s;
     }
 
     #mobileMap {
@@ -633,24 +691,14 @@
       bottom: 0;
       background: var(--bg-secondary);
       border-radius: 24px 24px 0 0;
-      box-shadow: 0 -2px 20px rgba(0,0,0,0.1);
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
       z-index: 30;
       touch-action: none;
-      transition: transform 0.3s ease-out;
-      max-height: calc(100vh - 56px);
-      top: 56px;
-    }
-
-    .bottom-sheet.peek {
-      transform: translateY(calc(100% - 84px));
-    }
-
-    .bottom-sheet.split {
-      transform: translateY(50%);
-    }
-
-    .bottom-sheet.full {
-      transform: translateY(0);
+      transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+      max-height: calc(100vh - var(--header-height));
+      top: var(--header-height);
+      display: flex;
+      flex-direction: column;
     }
 
     .sheet-handle {
@@ -658,37 +706,32 @@
       justify-content: center;
       padding: 12px;
       cursor: grab;
+      flex-shrink: 0;
     }
 
     .handle-bar {
-      width: 48px;
+      width: 40px;
       height: 4px;
       background: var(--handle-color);
       border-radius: 2px;
     }
 
     .sheet-header {
-      display: flex;
-      gap: 8px;
       padding: 0 16px 12px;
       border-bottom: 1px solid var(--border-color);
-      margin-bottom: 12px;
-    }
-
-    .sheet-header .search-filter {
-      flex: 1;
+      flex-shrink: 0;
     }
 
     .sheet-content {
       padding: 0 16px 24px;
       overflow-y: auto;
-      max-height: calc(100vh - 56px - 40px - 80px);
+      flex: 1;
     }
 
     .sheet-cards {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
       margin-top: 16px;
     }
 
@@ -697,7 +740,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      top: 56px;
+      top: var(--header-height);
       background: var(--bg-secondary);
       z-index: 40;
       flex-direction: column;
@@ -712,55 +755,58 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px;
+      padding: 16px 24px;
       border-bottom: 1px solid var(--border-color);
       position: sticky;
       top: 0;
-      background: var(--bg-secondary);
-      z-index: 1;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
+      z-index: 10;
     }
 
     .filter-panel-header h2 {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 600;
       color: var(--text-primary);
     }
 
     .filter-panel-content {
-      padding: 16px;
+      padding: 24px;
       flex: 1;
       overflow-y: auto;
     }
 
     .filter-section {
-      margin-bottom: 24px;
+      margin-bottom: 32px;
     }
 
     .filter-section h3 {
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 600;
-      margin-bottom: 12px;
-      color: var(--text-secondary);
+      margin-bottom: 16px;
+      color: var(--text-primary);
     }
 
     .tag-search-container {
       position: relative;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
     }
 
     .tag-search-input {
       width: 100%;
-      padding: 10px 16px;
+      padding: 12px 16px;
       border: 1px solid var(--border-color);
       border-radius: 12px;
-      font-size: 14px;
+      font-size: 15px;
       background: var(--bg-input);
       color: var(--text-primary);
       outline: none;
+      transition: border-color 0.2s;
     }
 
     .tag-search-input:focus {
-      border-color: #69AFDF;
+      border-color: var(--accent-color);
+      background: white;
     }
 
     .tag-suggestions {
@@ -772,11 +818,11 @@
       border: 1px solid var(--border-color);
       border-radius: 12px;
       margin-top: 4px;
-      max-height: 200px;
+      max-height: 240px;
       overflow-y: auto;
       z-index: 10;
       display: none;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: var(--shadow-lg);
     }
 
     .tag-suggestions.active {
@@ -784,18 +830,19 @@
     }
 
     .tag-suggestion-item {
-      padding: 10px 16px;
+      padding: 12px 16px;
       cursor: pointer;
       transition: background 0.2s;
       color: var(--text-primary);
+      border-bottom: 1px solid rgba(0,0,0,0.03);
+    }
+
+    .tag-suggestion-item:last-child {
+      border-bottom: none;
     }
 
     .tag-suggestion-item:hover {
       background: var(--bg-card);
-    }
-
-    .filter-tags-wrapper {
-      position: relative;
     }
 
     .filter-tags {
@@ -803,7 +850,7 @@
       flex-wrap: wrap;
       gap: 8px;
       overflow: hidden;
-      max-height: 120px;
+      max-height: 130px;
       transition: max-height 0.3s ease;
     }
 
@@ -812,26 +859,25 @@
     }
 
     .filter-tag {
-      background: var(--bg-input);
+      background: white;
       color: var(--text-primary);
       font-size: 14px;
       padding: 8px 16px;
-      border-radius: 24px;
-      border: 1px solid #1a1a1a;
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
       cursor: pointer;
       transition: all 0.2s;
     }
 
     .filter-tag:hover {
-      background: #69AFDF;
-      color: white;
-      border-color: #69AFDF;
+      border-color: var(--accent-color);
+      color: var(--accent-color);
     }
 
     .filter-tag.active {
-      background: #69AFDF;
+      background: var(--accent-color);
       color: white;
-      border-color: #69AFDF;
+      border-color: var(--accent-color);
     }
 
     .tags-expand-btn {
@@ -839,10 +885,10 @@
       align-items: center;
       justify-content: center;
       gap: 6px;
-      margin-top: 12px;
-      padding: 8px 16px;
+      margin-top: 16px;
+      padding: 10px 16px;
       background: transparent;
-      border: 1px solid var(--border-color);
+      border: 1px dashed var(--border-color);
       border-radius: 12px;
       color: var(--text-secondary);
       font-size: 14px;
@@ -852,8 +898,9 @@
     }
 
     .tags-expand-btn:hover {
-      border-color: #69AFDF;
-      color: #69AFDF;
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+      background: rgba(105, 175, 223, 0.05);
     }
 
     .tags-expand-btn svg {
@@ -874,7 +921,7 @@
     .price-range-labels {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
       font-size: 14px;
       color: var(--text-secondary);
     }
@@ -884,7 +931,7 @@
       height: 6px;
       -webkit-appearance: none;
       appearance: none;
-      background: linear-gradient(to right, #69AFDF 0%, #69AFDF var(--slider-percent, 50%), var(--border-color) var(--slider-percent, 50%), var(--border-color) 100%);
+      background: linear-gradient(to right, var(--accent-color) 0%, var(--accent-color) var(--slider-percent, 50%), #e5e7eb var(--slider-percent, 50%), #e5e7eb 100%);
       border-radius: 3px;
       outline: none;
       cursor: pointer;
@@ -896,98 +943,116 @@
       width: 24px;
       height: 24px;
       border-radius: 50%;
-      background: #69AFDF;
+      background: white;
       cursor: pointer;
-      border: 3px solid white;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      border: 2px solid var(--accent-color);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      transition: transform 0.1s;
+    }
+    
+    .price-slider::-webkit-slider-thumb:active {
+        transform: scale(1.1);
     }
 
     .price-slider::-moz-range-thumb {
       width: 24px;
       height: 24px;
       border-radius: 50%;
-      background: #69AFDF;
+      background: white;
       cursor: pointer;
-      border: 3px solid white;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      border: 2px solid var(--accent-color);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
     .price-current {
       text-align: center;
-      margin-top: 12px;
-      font-size: 16px;
-      font-weight: 500;
+      margin-top: 16px;
+      font-size: 18px;
+      font-weight: 600;
       color: var(--text-primary);
     }
 
     .filter-panel-footer {
-      padding: 16px;
+      padding: 24px;
       border-top: 1px solid var(--border-color);
       display: flex;
-      gap: 12px;
+      gap: 16px;
       position: sticky;
       bottom: 0;
-      background: var(--bg-secondary);
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
     }
 
     .filter-reset-btn {
       flex: 1;
-      padding: 12px;
-      background: var(--bg-primary);
+      padding: 14px;
+      background: var(--bg-input);
       color: var(--text-primary);
       border: none;
       border-radius: 12px;
-      font-size: 14px;
+      font-size: 15px;
+      font-weight: 500;
       cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .filter-reset-btn:hover {
+        background: #e5e7eb;
     }
 
     .filter-apply-btn {
       flex: 2;
-      padding: 12px;
-      background: #69AFDF;
+      padding: 14px;
+      background: var(--accent-color);
       color: white;
       border: none;
       border-radius: 12px;
-      font-size: 14px;
-      font-weight: 500;
+      font-size: 15px;
+      font-weight: 600;
       cursor: pointer;
+      box-shadow: 0 4px 12px rgba(105, 175, 223, 0.3);
+      transition: opacity 0.2s;
     }
 
-    .active-filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 8px;
-      margin-bottom: 8px;
-      flex-shrink: 0;
+    .filter-apply-btn:hover {
+      opacity: 0.9;
     }
 
     .active-filter-chip {
       display: flex;
       align-items: center;
-      gap: 4px;
-      background: #69AFDF;
-      color: white;
-      font-size: 12px;
-      padding: 4px 8px;
-      border-radius: 16px;
+      gap: 6px;
+      background: rgba(105, 175, 223, 0.1);
+      color: var(--accent-color);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(105, 175, 223, 0.2);
     }
 
     .active-filter-chip button {
       background: none;
       border: none;
-      color: white;
+      color: var(--accent-color);
       cursor: pointer;
       padding: 0;
       display: flex;
       align-items: center;
     }
+    
+    .active-filter-chip button:hover {
+        color: var(--text-primary);
+    }
 
-    /* Desktop */
-    @media (min-width: 768px) {
+    /* --- RESPONSIVE LOGIC FIX --- */
+    /* Мы переключаемся на "Desktop" вид (карта + панель) уже с 550px.
+       Меньше 550px - это действительно мобильный вид (шторка).
+       Это позволяет сохранять десктопный вид при уменьшении окна на ПК до разумных пределов.
+    */
+    @media (min-width: 550px) {
       .header-inner {
         padding: 0 40px;
-        height: 64px;
       }
 
       .mainLogo {
@@ -1017,36 +1082,23 @@
       /* Desktop Filter Modal */
       .filter-panel {
         position: absolute;
-        left: 500px; /* Позиция правее фиксированной панели */
-        top: 80px;
-        width: 360px;
-        max-height: 80vh;
+        left: 520px; /* Отступаем от панели, если она 480px + отступ */
+        top: 20px;
+        width: 380px;
+        max-height: calc(100vh - var(--header-height) - 40px);
         border-radius: 20px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        box-shadow: var(--shadow-lg);
         right: auto;
         bottom: auto;
         border: 1px solid rgba(0,0,0,0.05);
       }
 
-      .filter-btn {
-        padding: 0 16px;
-        font-size: 14px;
-      }
-      
       .filter-btn .filter-text {
         display: inline;
       }
 
-      .search-box {
-        padding: 4px;
-      }
-
       .search-box input {
-        font-size: 16px;
-      }
-
-      .search-box button {
-        padding: 0 20px;
+        font-size: 15px;
       }
 
       .search-box .search-btn-text {
@@ -1062,8 +1114,14 @@
       }
 
       .card-image {
-        width: 140px;
-        height: 140px;
+        width: 160px; /* Чуть крупнее */
+        height: 160px;
+      }
+      
+      .favorite-btn {
+        right: auto;
+        left: 8px;
+        top: 8px;
       }
 
       .card-title {
@@ -1071,7 +1129,7 @@
       }
 
       .card-description {
-        font-size: 14px;
+        font-size: 15px;
       }
 
       .card-bottom {
@@ -1081,7 +1139,7 @@
       }
 
       .card-location {
-        font-size: 13px;
+        font-size: 14px;
         order: 2;
       }
 
@@ -1096,7 +1154,8 @@
   <header class="header">
     <div class="header-inner">
       <div class="logoContainer">
-        <img src="logo.png" alt="Мапка" class="mainLogo">
+        <!-- Замените logo.png на актуальный путь -->
+        <img src="logo.png" alt="Мапка" class="mainLogo" onerror="this.src='https://via.placeholder.com/120x40?text=MAPKA'">
       </div>
 
       <nav class="nav-desktop">
@@ -1107,35 +1166,35 @@
 
       <div class="header-right-desktop">
         <button class="icon-btn" aria-label="Избранное">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
           </svg>
         </button>
         <a href="#">
-          <span>Профиль</span>
-          <div class="avatar">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="24" height="24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-            </svg>
-          </div>
-        </a>
-        <a href="#">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="20" height="20">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="20" height="20">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
           </svg>
           <span>Ростов-на-Дону</span>
         </a>
+        <a href="#" style="background: var(--bg-primary); padding: 8px 16px; border-radius: 20px;">
+          <span>Войти</span>
+          <div class="avatar" style="width: 24px; height: 24px; margin-left: 8px; background: #d1d5db;">
+             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+                <path fill-rule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clip-rule="evenodd" />
+              </svg>
+          </div>
+        </a>
       </div>
 
       <div class="header-right-mobile">
         <button class="icon-btn" aria-label="Избранное">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
           </svg>
         </button>
         <button class="icon-btn" id="menuBtn" aria-label="Меню">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
           </svg>
         </button>
@@ -1148,7 +1207,7 @@
   <div class="mobile-menu" id="mobileMenu">
     <div class="mobile-menu-header">
       <button class="icon-btn" id="closeMenuBtn">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
         </svg>
       </button>
@@ -1156,13 +1215,13 @@
     <div class="mobile-menu-content">
       <div class="mobile-menu-profile">
         <div class="avatar">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="32" height="32">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="24" height="24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
           </svg>
         </div>
         <div>
-          <p style="font-weight: 500;">Профиль</p>
-          <p style="font-size: 14px; opacity: 0.8;">Ростов-на-Дону</p>
+          <p style="font-weight: 600;">Гость</p>
+          <p style="font-size: 14px; color: var(--text-secondary);">Ростов-на-Дону</p>
         </div>
       </div>
       <nav>
@@ -1178,8 +1237,8 @@
   <div class="filter-panel" id="filterPanel">
     <div class="filter-panel-header">
       <h2>Фильтры</h2>
-      <button class="icon-btn" id="closeFilterBtn" style="color: var(--text-primary);">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+      <button class="icon-btn" id="closeFilterBtn">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
         </svg>
       </button>
@@ -1188,7 +1247,7 @@
       <div class="filter-section">
         <h3>Теги</h3>
         <div class="tag-search-container">
-          <input type="text" class="tag-search-input" id="tagSearchInput" placeholder="Введите название тега...">
+          <input type="text" class="tag-search-input" id="tagSearchInput" placeholder="Поиск тегов...">
           <div class="tag-suggestions" id="tagSuggestions"></div>
         </div>
         <div class="filter-tags-wrapper">
@@ -1205,7 +1264,7 @@
         <h3>Цена за занятие</h3>
         <div class="price-slider-container">
           <div class="price-range-labels">
-            <span>Бесплатно</span>
+            <span>0 ₽</span>
             <span id="maxPriceLabel">5000 ₽</span>
           </div>
           <input type="range" class="price-slider" id="priceSlider" min="0" max="5000" value="5000" step="100">
@@ -1215,7 +1274,7 @@
     </div>
     <div class="filter-panel-footer">
       <button class="filter-reset-btn" id="filterResetBtn">Сбросить</button>
-      <button class="filter-apply-btn" id="filterApplyBtn">Применить</button>
+      <button class="filter-apply-btn" id="filterApplyBtn">Показать результаты</button>
     </div>
   </div>
 
@@ -1227,35 +1286,41 @@
 
     <!-- Обновленная левая панель -->
     <div class="left-panel" id="leftPanel">
-      <div class="search-filter">
-        <button class="filter-btn" id="desktopFilterBtn">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="24" height="24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
-          </svg>
-          <span class="filter-text">Фильтры</span>
-        </button>
-        <div class="search-box">
-          <input type="search" placeholder="поиск кружка!" id="desktopSearchInput">
-          <button type="submit" class="search-btn-text" id="desktopSearchBtn">Найти</button>
-          <button type="submit" class="search-btn-mobile" id="desktopSearchBtnMobile">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <div class="active-filters" id="desktopActiveFilters"></div>
-
-      <!-- Кнопка-язычок теперь снаружи и справа -->
-      <div class="desktop-panel-handle" id="desktopPanelHandle">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-        </svg>
-      </div>
-
+      <!-- 
+           Мы перенесли поиск внутрь .cards-container, 
+           чтобы убрать визуальный разрыв между поиском и списком 
+      -->
       <div class="cards-container">
-        <div class="cards-scroll">
+        
+        <!-- Верхняя часть внутри белого блока -->
+        <div class="panel-header-area" id="panelHeaderArea">
+          <div class="search-filter">
+            <button class="filter-btn" id="desktopFilterBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+              </svg>
+              <span class="filter-text">Фильтры</span>
+            </button>
+            <div class="search-box">
+              <div class="search-icon-wrapper">
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                 </svg>
+              </div>
+              <input type="search" placeholder="Поиск кружков..." id="desktopSearchInput">
+            </div>
+          </div>
+          <div class="active-filters" id="desktopActiveFilters"></div>
+        </div>
+
+        <!-- Кнопка-язычок теперь ВНУТРИ .cards-container, но позиционирована абсолютно справа -->
+        <div class="desktop-panel-handle" id="desktopPanelHandle">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </div>
+
+        <div class="cards-scroll" id="cardsScrollContainer">
           <div class="cards-list" id="desktopCards">
             <!--SSR_DESKTOP_CARDS-->
           </div>
@@ -1277,17 +1342,17 @@
       <div class="sheet-header">
         <div class="search-filter">
           <button class="filter-btn" id="mobileFilterBtn">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="16" height="16">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="20" height="20">
               <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
             </svg>
           </button>
           <div class="search-box">
-            <input type="search" placeholder="поиск кружка!" id="mobileSearchInput">
-            <button type="submit" class="search-btn-mobile" id="mobileSearchBtn">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-              </svg>
-            </button>
+             <div class="search-icon-wrapper" style="padding-left: 8px;">
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                 </svg>
+              </div>
+            <input type="search" placeholder="Поиск..." id="mobileSearchInput">
           </div>
         </div>
       </div>
@@ -1329,32 +1394,36 @@
         <div class="club-card sectionCard" data-tags="${(club.tags || []).join(',').toLowerCase()}" data-price="${club.price_cents || 0}">
           <div class="card-top">
             <div class="card-image">
-              <img src="${club.image}" alt="${club.name}">
-              <button class="favorite-btn ${club.isFavorite ? 'active' : ''}" data-id="${club.id}">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+              <img src="${club.image}" alt="${club.name}" loading="lazy">
+              <button class="favorite-btn ${club.isFavorite ? 'active' : ''}" data-id="${club.id}" aria-label="В избранное">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0 1 12 5.052 5.5 5.5 0 0 1 16.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
                 </svg>
               </button>
             </div>
             <div class="card-content">
               <h2 class="card-title">${club.name}</h2>
               <div class="card-description">${club.description}</div>
+              <div class="card-tags">
+                ${(club.tags || []).slice(0, 3).map(tag => `<button class="tag-btn" data-tag="${tag.toLowerCase()}">${tag}</button>`).join('')}
+                ${(club.tags || []).length > 3 ? `<span class="tag-btn" style="background:none; border:none; color:var(--text-secondary);">+${club.tags.length - 3}</span>` : ''}
+              </div>
             </div>
           </div>
-          <div class="card-tags">
-            ${(club.tags || []).map(tag => `<button class="tag-btn" data-tag="${tag.toLowerCase()}">${tag}</button>`).join('')}
-          </div>
+          
           <div class="card-bottom">
             <div class="card-main-row">
-              <span class="card-price ${price.isFree ? 'free' : ''}">${price.text}</span>
-              <a href="/${encodeURIComponent(club.slug)}" class="card-btn">Подробнее</a>
+              <div class="card-location">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                </svg>
+                <span class="cardLocationText">${club.location}</span>
+              </div>
             </div>
-            <div class="card-location">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-              </svg>
-              <span class="cardLocationText">${club.location}</span>
+             <div class="card-buttons" style="justify-content: space-between; align-items: center; width: 100%;">
+                <span class="card-price ${price.isFree ? 'free' : ''}">${price.text}</span>
+                <a href="/${encodeURIComponent(club.slug)}" class="card-btn">Подробнее</a>
             </div>
           </div>
         </div>
@@ -1563,24 +1632,21 @@
 
       containers.forEach(c => {
         if (!c) return;
-        c.innerHTML = '<div style="padding:20px;text-align:center;">Загрузка кружков...</div>';
+        c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">Загрузка...</div>';
       });
 
       try {
         let clubs;
 
         if (ssrClubs) {
-          console.log('Используем клубы из SSR:', ssrClubs);
           clubs = ssrClubs;
         } else {
-          console.log('SSR нет, тянем клубы из API');
-          clubs = await fetchClubs();      // fetchClubs у тебя уже определён выше
+          clubs = await fetchClubs();
         }
 
         allClubs = clubs;
         filteredClubs = [...allClubs];
 
-        // Инициализируем фильтры и рендерим карточки
         initFilters(allClubs);
         renderCards(filteredClubs);
       } catch (e) {
@@ -1758,14 +1824,20 @@
       applyFilters();
     }
 
-    document.getElementById('desktopSearchBtn')?.addEventListener('click', handleSearch);
-    document.getElementById('desktopSearchBtnMobile')?.addEventListener('click', handleSearch);
-    document.getElementById('mobileSearchBtn')?.addEventListener('click', handleSearch);
+    // Слушаем Enter в инпутах
     document.getElementById('desktopSearchInput')?.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') handleSearch();
     });
     document.getElementById('mobileSearchInput')?.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') handleSearch();
+    });
+
+    // Живой поиск
+    document.getElementById('desktopSearchInput')?.addEventListener('input', (e) => {
+        handleSearch();
+    });
+    document.getElementById('mobileSearchInput')?.addEventListener('input', (e) => {
+        handleSearch();
     });
 
     document.addEventListener('click', (e) => {
@@ -1782,13 +1854,13 @@
       }
     });
 
-    // Bottom sheet drag (мобильная шторка, следит за пальцем)
+    // Bottom sheet drag (мобильная шторка)
     const bottomSheet = document.getElementById('bottomSheet');
     const sheetHandle = document.getElementById('sheetHandle');
     
     if (bottomSheet && sheetHandle) {
-      const STATE_ORDER = ['peek', 'split', 'full']; // низ / середина / только список
-      let currentStateIndex = 1; // стартуем с "нейтрального" (split)
+      const STATE_ORDER = ['peek', 'split', 'full'];
+      let currentStateIndex = 1;
       let dragging = false;
       let startY = 0;
       let startTranslateY = 0;
@@ -1801,12 +1873,10 @@
       };
     
       function recomputeStateOffsets() {
+        if (!bottomSheet) return;
         const h = bottomSheet.getBoundingClientRect().height;
-        // full = сверху, список на весь экран
         stateOffsets.full = 0;
-        // peek = снизу торчит только шторка (84px)
         stateOffsets.peek = Math.max(0, h - 84);
-        // split = серединка
         stateOffsets.split = Math.round(h / 2);
       }
     
@@ -1819,16 +1889,13 @@
         bottomSheet.style.transition = 'transform 0.25s ease-out';
         bottomSheet.style.transform = `translateY(${y}px)`;
     
-        // поддерживаем классы для читабельности
         bottomSheet.classList.remove('peek', 'split', 'full');
         bottomSheet.classList.add(key);
       }
     
-      // инициализация позиций
       recomputeStateOffsets();
       applyState(currentStateIndex);
     
-      // при ресайзе/повороте экрана пересчитать
       window.addEventListener('resize', () => {
         recomputeStateOffsets();
         applyState(currentStateIndex);
@@ -1838,7 +1905,7 @@
         if (e.touches.length !== 1) return;
         dragging = true;
         startY = e.touches[0].clientY;
-        startTranslateY = lastTranslateY; // всегда знаем, где были
+        startTranslateY = lastTranslateY;
         bottomSheet.style.transition = 'none';
       }, { passive: true });
     
@@ -1847,9 +1914,8 @@
         const touch = e.touches[0];
         const deltaY = touch.clientY - startY;
     
-        const h = bottomSheet.getBoundingClientRect().height;
-        const minY = stateOffsets.full; // 0
-        const maxY = stateOffsets.peek; // самый низ
+        const minY = stateOffsets.full;
+        const maxY = stateOffsets.peek;
     
         let nextY = startTranslateY + deltaY;
         if (nextY < minY) nextY = minY;
@@ -1857,8 +1923,6 @@
     
         lastTranslateY = nextY;
         bottomSheet.style.transform = `translateY(${nextY}px)`;
-    
-        // чтобы страница не скроллилась, пока тянем шторку
         e.preventDefault();
       }, { passive: false });
     
@@ -1866,14 +1930,9 @@
         if (!dragging) return;
         dragging = false;
         bottomSheet.style.transition = 'transform 0.25s ease-out';
-    
-        // на всякий заапдейтим актуальные позиции (мог поменяться размер)
         recomputeStateOffsets();
-    
-        // выбираем ближайшее состояние к последней позиции пальца
         let nearestIndex = 0;
         let nearestDist = Infinity;
-    
         STATE_ORDER.forEach((key, idx) => {
           const d = Math.abs(lastTranslateY - stateOffsets[key]);
           if (d < nearestDist) {
@@ -1881,11 +1940,9 @@
             nearestIndex = idx;
           }
         });
-    
         applyState(nearestIndex);
       });
     
-      // Клик по ручке — по-прежнему циклически переключает состояния
       sheetHandle.addEventListener('click', () => {
         if (dragging) return;
         const nextIndex = (currentStateIndex + 1) % STATE_ORDER.length;
@@ -1906,16 +1963,12 @@
       }
     });
 
-    // ----------------------------------------------------------------------------------
-    // ОБНОВЛЕННАЯ ЛОГИКА ДЛЯ ДЕСКТОП ПАНЕЛИ
-    // ----------------------------------------------------------------------------------
+    // Панель (сворачивание)
     const leftPanel = document.getElementById('leftPanel');
     const desktopPanelHandle = document.getElementById('desktopPanelHandle');
 
-    // Просто переключаем класс .collapsed по клику на язычок
     desktopPanelHandle?.addEventListener('click', () => {
       desktopPanelCollapsed = !desktopPanelCollapsed;
-      
       if (desktopPanelCollapsed) {
         leftPanel.classList.add('collapsed');
       } else {
@@ -1923,31 +1976,28 @@
       }
     });
 
-    // Map placeholders (для отладки, если map.js не подгрузился)
+    // Скролл тень
+    const cardsScrollContainer = document.getElementById('cardsScrollContainer');
+    const panelHeaderArea = document.getElementById('panelHeaderArea');
+    
+    if (cardsScrollContainer && panelHeaderArea) {
+        cardsScrollContainer.addEventListener('scroll', () => {
+            if (cardsScrollContainer.scrollTop > 0) {
+                panelHeaderArea.classList.add('scrolled');
+            } else {
+                panelHeaderArea.classList.remove('scrolled');
+            }
+        });
+    }
+
     function initializeMap() {
       console.log("Map initialization placeholder.");
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      // Инициализация карты обычно происходит в map.js,
-      // но если у тебя есть логика тут - оставляем
       if (document.getElementById('map') && typeof ymaps !== 'undefined') {
         initializeMap();
       }
-    });
-
-    // Live search on input
-    function handleLiveSearch(value) {
-      filterState.searchQuery = value.trim();
-      applyFilters();
-    }
-
-    document.getElementById('desktopSearchInput')?.addEventListener('input', (e) => {
-      handleLiveSearch(e.target.value);
-    });
-
-    document.getElementById('mobileSearchInput')?.addEventListener('input', (e) => {
-      handleLiveSearch(e.target.value);
     });
   </script>
 </body>
