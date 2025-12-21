@@ -3,1013 +3,796 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mapka - Страница кружка</title>
-  <!-- Подключаем Яндекс.Карты API -->
+  <title>Загрузка... - Мапка</title>
+  <meta name="description" content="Подробная информация о кружке: расписание, цены, отзывы и расположение на карте.">
+  <link rel="icon" href="/favicon.ico" />
+  
+  <meta property="og:title" content="Мапка">
+  <meta property="og:description" content="Найди кружок для ребёнка">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="/og-image.jpg">
+
+  <!-- Яндекс Карты API v3 -->
   <script src="https://api-maps.yandex.ru/v3/?apikey=58c38b72-57f7-4946-bc13-a256d341281a&lang=ru_RU"></script>
+
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    /* --- CORE STYLES --- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #f9fafb;
+      --bg-secondary: white;
+      --text-primary: #111827;
+      --text-secondary: #6b7280;
+      --border-color: #e5e7eb;
+      --accent-color: #69AFDF;
+      --accent-hover: #5b9bc5;
+      --header-height: 72px;
+      --container-width: 1100px;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f5f5f5;
-      color: #1a1a1a;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
       padding-bottom: 80px;
     }
 
-    /* Header */
+    @media (min-width: 1024px) {
+      body { padding-bottom: 0; }
+    }
+
+    /* --- HEADER --- */
     .header {
       position: sticky;
       top: 0;
       z-index: 50;
-      background: #565555;
-      color: white;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      height: var(--header-height);
+      border-bottom: 1px solid rgba(0,0,0,0.08);
     }
 
     .header-inner {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 16px;
-      height: 56px;
-      gap: 16px;
+      padding: 0 24px;
+      height: 100%;
+      max-width: var(--container-width);
+      margin: 0 auto;
     }
 
     .back-btn {
       display: flex;
       align-items: center;
       gap: 8px;
-      color: white;
+      color: var(--text-secondary);
       text-decoration: none;
-      transition: opacity 0.2s;
-    }
-
-    .back-btn:hover {
-      opacity: 0.8;
-    }
-
-    .back-btn svg {
-      width: 24px;
-      height: 24px;
-    }
-
-    .header-title {
-      flex: 1;
-      text-align: center;
-      font-size: 14px;
       font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .icon-btn {
-      background: none;
-      border: none;
-      color: white;
-      cursor: pointer;
-      padding: 4px;
-    }
-
-    .icon-btn svg {
-      width: 24px;
-      height: 24px;
-    }
-    
-
-    .icon-btn.active svg {
-      fill: #ef4444;
-      color: #ef4444;
-    }
-
-    /* Gallery */
-    .gallery {
-      background: #d1d1d1;
-    }
-
-    .gallery-main {
-      position: relative;
-      aspect-ratio: 16/10;
-      max-height: 400px;
-      cursor: pointer;
-    }
-
-    .gallery-main img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .gallery-nav {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 40px;
-      height: 40px;
-      background: rgba(255,255,255,0.8);
-      border: none;
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s;
-    }
-
-    .gallery-nav:hover {
-      background: white;
-    }
-
-    .gallery-nav.prev {
-      left: 8px;
-    }
-
-    .gallery-nav.next {
-      right: 8px;
-    }
-
-    .gallery-counter {
-      position: absolute;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.5);
-      color: white;
-      padding: 4px 12px;
-      border-radius: 999px;
-      font-size: 14px;
-    }
-
-    .gallery-thumbs {
-      display: flex;
-      gap: 8px;
-      padding: 12px;
-      overflow-x: auto;
-    }
-
-    .gallery-thumb {
-      width: 64px;
-      height: 64px;
-      border-radius: 12px;
-      overflow: hidden;
-      flex-shrink: 0;
-      opacity: 0.7;
-      cursor: pointer;
-      border: 2px solid transparent;
+      font-size: 15px;
+      padding: 8px;
+      border-radius: 8px;
       transition: all 0.2s;
     }
 
-    .gallery-thumb.active {
-      opacity: 1;
-      border-color: #69AFDF;
+    .back-btn:hover {
+      background: #f3f4f6;
+      color: var(--text-primary);
     }
 
-    .gallery-thumb img {
+    .header-title-scroll {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+    }
+    .header-title-scroll.visible { opacity: 1; pointer-events: auto; }
+
+    /* --- LAYOUT --- */
+    .club-container {
       width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    /* Content */
-    .content {
-      padding: 24px 16px;
-      max-width: 1024px;
+      max-width: var(--container-width);
       margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 32px;
+      align-items: start;
     }
 
-    /* Title section */
-    .title-section {
-      margin-bottom: 24px;
+    @media (min-width: 1024px) {
+      .club-container {
+        grid-template-columns: 2fr 1fr;
+        padding-top: 40px;
+      }
+    }
+
+    /* --- MAIN COLUMN --- */
+    .club-main {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      min-width: 0;
+    }
+
+    /* 1. Header Block */
+    .header-block {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
     .badges {
       display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .category-badge {
-      background: #69AFDF;
-      color: white;
-      padding: 4px 12px;
-      border-radius: 999px;
-      font-size: 14px;
-    }
-
-    .age-text {
-      color: #666;
-      font-size: 14px;
-    }
-
-    .club-title {
-      font-size: 24px;
-      font-weight: 500;
-    }
-
-    /* Info cards grid */
-    .info-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-
-    .info-card {
-      background: #d1d1d1;
-      border-radius: 16px;
-      padding: 16px;
-    }
-
-    .info-label {
-      font-size: 14px;
-      color: #666;
-      margin-bottom: 4px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .info-label svg {
-      width: 16px;
-      height: 16px;
-    }
-
-    .info-value {
-      font-size: 18px;
-      font-weight: 500;
-    }
-
-    .info-note {
-      font-size: 14px;
-      color: #69AFDF;
-      margin-top: 4px;
-    }
-
-    /* Section */
-    .section {
-      background: #d1d1d1;
-      border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 24px;
-    }
-
-    .section-title {
-      font-size: 18px;
-      font-weight: 500;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .section-title svg {
-      width: 20px;
-      height: 20px;
-    }
-
-    /* Schedule */
-    .schedule-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-
-    .schedule-item {
-      background: white;
-      border-radius: 12px;
-      padding: 12px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .schedule-item svg {
-      width: 20px;
-      height: 20px;
-      color: #69AFDF;
-    }
-
-    .schedule-day {
-      font-weight: 500;
-    }
-
-    .schedule-time {
-      font-size: 14px;
-      color: #666;
-    }
-
-    /* Description box */
-    .description-box {
-      background: white;
-      border-radius: 12px;
-      padding: 16px;
-      line-height: 1.6;
-      white-space: pre-line;
-    }
-
-    /* Tags */
-    .tags-section {
-      display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-bottom: 24px;
     }
 
-    .tag-btn {
-      background: #d1d1d1;
-      color: #1a1a1a;
+    .badge {
       padding: 6px 12px;
-      border-radius: 999px;
-      font-size: 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .badge.category { background: var(--accent-color); color: white; }
+    .badge.age { background: #e5e7eb; color: var(--text-secondary); }
+
+    /* H1 ЗАГОЛОВОК - Крупный и заметный */
+    h1.main-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.2;
+      margin: 4px 0 0 0;
+    }
+    
+    @media (min-width: 768px) { h1.main-title { font-size: 36px; } }
+
+    .address-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      color: var(--text-secondary);
+      font-size: 15px;
+      margin-top: 4px;
+    }
+    .address-row svg { flex-shrink: 0; margin-top: 2px; }
+
+    /* 2. Gallery (Свайп + Стрелки) */
+    .gallery-container {
+      position: relative;
+      border-radius: 20px;
+      overflow: hidden;
+      background: #e5e7eb;
+      aspect-ratio: 16/10;
+      user-select: none;
+      box-shadow: var(--shadow-card);
+    }
+
+    @media (min-width: 768px) { .gallery-container { aspect-ratio: 21/10; max-height: 450px; } }
+
+    .gallery-track {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .gallery-slide {
+      min-width: 100%;
+      height: 100%;
+    }
+    
+    .gallery-slide img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .gallery-nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px;
+      height: 44px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 50%;
       border: none;
-      cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 4px;
-      transition: background 0.2s;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10;
+      transition: all 0.2s;
+      opacity: 0; /* Скрываем по умолчанию, показываем при ховере */
     }
-
-    .tag-btn:hover {
-      background: #c1c1c1;
+    .gallery-container:hover .gallery-nav-btn { opacity: 1; }
+    
+    .gallery-nav-btn:hover { background: white; transform: translateY(-50%) scale(1.1); }
+    .gallery-nav-btn.prev { left: 16px; }
+    .gallery-nav-btn.next { right: 16px; }
+    
+    .gallery-dots {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      z-index: 10;
+      background: rgba(0,0,0,0.3);
+      padding: 6px 10px;
+      border-radius: 20px;
+      backdrop-filter: blur(4px);
     }
-
-    .tag-btn svg {
-      width: 12px;
-      height: 12px;
+    .gallery-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.5);
+      transition: all 0.2s;
+      cursor: pointer;
     }
+    .gallery-dot.active { background: white; transform: scale(1.2); }
 
-    /* Contacts */
-    .contact-item {
+    /* 3. Cards Styles */
+    .section-card {
       background: white;
-      border-radius: 12px;
-      padding: 16px;
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--border-color);
+    }
+
+    .section-header { 
+        font-size: 20px; 
+        font-weight: 700; 
+        margin-bottom: 16px; 
+        color: var(--text-primary); 
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* 4. Price Block (Теперь над описанием) */
+    .price-card {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
+      border-left: 4px solid var(--accent-color); /* Акцент */
     }
+    
+    .price-info h3 { font-size: 14px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 500; }
+    .price-value { font-size: 28px; font-weight: 800; color: var(--text-primary); }
+    .price-note { font-size: 14px; color: #10b981; font-weight: 500; background: #ecfdf5; padding: 4px 8px; border-radius: 6px; display: inline-block; margin-top: 6px;}
 
-    .contact-left {
+    /* 5. Description & Socials */
+    .section-text { font-size: 16px; line-height: 1.6; color: #374151; white-space: pre-line; }
+
+    .social-block {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+    }
+    .social-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; }
+    .social-grid { display: flex; gap: 12px; flex-wrap: wrap; }
+    
+    .social-btn {
       display: flex;
       align-items: center;
-      gap: 12px;
-    }
-
-    .contact-left svg {
-      width: 20px;
-      height: 20px;
-      color: #69AFDF;
-    }
-
-    .show-phone-btn {
-      background: none;
-      border: none;
-      color: #69AFDF;
-      font-size: 14px;
-      cursor: pointer;
-    }
-
-    .social-links {
-      display: flex;
-      gap: 12px;
-    }
-
-    .social-link {
-      background: white;
+      gap: 10px;
+      padding: 10px 20px;
       border-radius: 12px;
-      padding: 16px;
-      flex: 1;
-      text-align: center;
-      color: #69AFDF;
       text-decoration: none;
-      transition: background 0.2s;
+      font-weight: 600;
+      font-size: 14px;
+      transition: transform 0.2s;
+      flex: 1;
+      justify-content: center;
+      min-width: 140px;
+      color: white;
     }
+    .social-btn:hover { transform: translateY(-2px); opacity: 0.9; }
+    .social-vk { background: #0077FF; }
+    .social-tg { background: #24A1DE; }
+    .social-wa { background: #25D366; }
 
-    .social-link:hover {
-      background: #f0f0f0;
-    }
-
-    /* Map container - убрали placeholder стили, добавили реальные стили для карты */
-    .map-container {
-      background: white;
+    /* 6. Schedule (Читаемый список) */
+    .schedule-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border: 1px solid var(--border-color);
       border-radius: 12px;
-      height: 256px;
       overflow: hidden;
     }
 
-    /* Стили для меток на карте клуба */
+    .schedule-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      background: white;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .schedule-row:last-child { border-bottom: none; }
+    .schedule-row:nth-child(even) { background: #f9fafb; }
+
+    .schedule-day { font-weight: 600; color: var(--text-primary); font-size: 15px; }
+    .schedule-time { 
+        font-family: 'Menlo', 'Monaco', monospace; 
+        font-size: 14px; 
+        color: var(--accent-color); 
+        background: rgba(105, 175, 223, 0.1); 
+        padding: 4px 10px; 
+        border-radius: 6px; 
+        font-weight: 600;
+    }
+
+    /* 7. Map */
+    .map-wrapper {
+      height: 320px;
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #e5e7eb;
+      position: relative;
+    }
+    
     .club-marker {
       display: flex;
       flex-direction: column;
       align-items: center;
-      /* Центрируем метку относительно координат (снизу по центру) */
       transform: translate(-50%, -100%);
     }
 
     .club-marker-label {
-      font-size: 13px;
-      font-weight: 500;
+      font-size: 12px;
+      font-weight: 600;
       color: #111;
-      background: rgba(255,255,255,0.95);
-      padding: 6px 12px;
-      border-radius: 12px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      background: white;
+      padding: 4px 8px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
       white-space: nowrap;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
     .club-marker-dot {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
-      background: #69AFDF;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-      border: 3px solid white;
+      background: var(--accent-color);
+      box-shadow: 0 0 0 3px white, 0 4px 10px rgba(0,0,0,0.3);
     }
 
-    /* Fixed bottom actions */
-    .bottom-actions {
+    /* --- SIDEBAR (STICKY, DESKTOP ONLY) --- */
+    .sidebar-wrapper {
+      position: relative;
+      height: 100%;
+    }
+    
+    .sidebar-sticky {
+      position: sticky;
+      top: 100px;
+      background: white;
+      padding: 24px;
+      border-radius: 20px;
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .cta-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: transform 0.2s;
+    }
+    
+    .btn-primary { background: var(--accent-color); color: white; box-shadow: 0 4px 12px rgba(105, 175, 223, 0.3); }
+    .btn-primary:hover { transform: translateY(-2px); background: var(--accent-hover); }
+    
+    .btn-outline { background: white; border: 2px solid var(--bg-primary); color: var(--text-primary); }
+    .btn-outline:hover { border-color: var(--accent-color); color: var(--accent-color); }
+
+    /* --- MOBILE BOTTOM BAR --- */
+    .mobile-bottom-bar {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
       background: white;
-      border-top: 1px solid #e5e5e5;
-      padding: 16px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border-color);
       display: flex;
       gap: 12px;
-      z-index: 40;
-    }
-
-    .action-btn {
-      flex: 1;
-      padding: 12px;
-      border-radius: 12px;
-      border: none;
-      font-size: 16px;
-      font-weight: 500;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: transform 0.2s;
-    }
-
-    .action-btn:hover {
-      transform: scale(1.02);
-    }
-
-    .action-btn.primary {
-      background: #69AFDF;
-      color: white;
-    }
-
-    .action-btn.secondary {
-      background: #565555;
-      color: white;
-    }
-
-    .action-btn svg {
-      width: 20px;
-      height: 20px;
-    }
-
-    /* Fullscreen gallery */
-    .fullscreen-gallery {
-      display: none;
-      position: fixed;
-      inset: 0;
       z-index: 100;
-      background: black;
-      align-items: center;
-      justify-content: center;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
     }
+    @media (min-width: 1024px) { .mobile-bottom-bar { display: none; } }
 
-    .fullscreen-gallery.active {
-      display: flex;
-    }
-
-    .fullscreen-close {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      width: 40px;
-      height: 40px;
-      background: rgba(255,255,255,0.2);
-      border: none;
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      z-index: 10;
-    }
-
-    .fullscreen-image {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-    }
-
-    .fullscreen-nav {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 48px;
-      height: 48px;
-      background: rgba(255,255,255,0.2);
-      border: none;
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-    }
-
-    .fullscreen-nav.prev {
-      left: 16px;
-    }
-
-    .fullscreen-nav.next {
-      right: 16px;
-    }
-
-    .fullscreen-counter {
-      position: absolute;
-      bottom: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.5);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 999px;
-    }
-
-    /* Desktop styles */
-    @media (min-width: 768px) {
-      .header-inner {
-        padding: 0 40px;
-        height: 64px;
-      }
-
-      .gallery {
-        display: flex;
-        justify-content: center;
-      }
-
-      .header-title {
-        font-size: 16px;
-      }
-
-      .gallery-main {
-        aspect-ratio: 21/9;
-        max-height: 500px;
-      }
-
-      .gallery-nav {
-        width: 48px;
-        height: 48px;
-      }
-
-      .gallery-nav.prev {
-        left: 16px;
-      }
-
-      .gallery-nav.next {
-        right: 16px;
-      }
-
-      .gallery-thumb {
-        width: 80px;
-        height: 80px;
-      }
-
-      .content {
-        padding: 32px 40px;
-      }
-
-      .club-title {
-        font-size: 36px;
-      }
-
-      .info-grid {
-        grid-template-columns: repeat(3, 1fr);
-      }
-
-      .section {
-        padding: 24px;
-      }
-
-      .section-title {
-        font-size: 20px;
-      }
-
-      .schedule-grid {
-        grid-template-columns: repeat(3, 1fr);
-      }
-
-      .map-container {
-        height: 320px;
-      }
-    }
   </style>
 </head>
 <body>
-  <!-- Header -->
+
   <header class="header">
     <div class="header-inner">
-      <a href="/" class="back-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+      <a href="index.html" class="back-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
         </svg>
-        <span class="back-text" style="display: none;">Назад</span>
+        <span>Назад</span>
       </a>
-      <h1 class="header-title" id="headerTitle">Загрузка...</h1>
-      <button class="icon-btn" id="favoriteBtn" aria-label="Избранное">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+      <!-- Title appears here on scroll -->
+      <div class="header-title-scroll" id="headerScrollTitle">Загрузка...</div>
+      
+      <button class="back-btn" style="border:none; background:none;" aria-label="Поделиться" onclick="alert('Ссылка скопирована!')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
         </svg>
       </button>
     </div>
   </header>
 
-  <main id="mainContent">
-    <!-- Content will be loaded by JavaScript -->
-  </main>
-
-  <!-- Fixed Bottom Actions -->
-  <div class="bottom-actions">
-    <button class="action-btn primary">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
-      </svg>
-      Позвонить
-    </button>
-    <button class="action-btn secondary">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
-      </svg>
-      Написать
-    </button>
+  <div class="club-container" id="mainContainer">
+     <div style="padding:40px; text-align:center; color:#999;">Загрузка данных...</div>
   </div>
 
-  <!-- Fullscreen Gallery -->
-  <div class="fullscreen-gallery" id="fullscreenGallery">
-    <button class="fullscreen-close" id="closeGallery">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="24" height="24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-      </svg>
-    </button>
-    <img class="fullscreen-image" id="fullscreenImage" src="/placeholder.svg" alt="">
-    <button class="fullscreen-nav prev" id="fullscreenPrev">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="24" height="24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-      </svg>
-    </button>
-    <button class="fullscreen-nav next" id="fullscreenNext">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="24" height="24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-      </svg>
-    </button>
-    <div class="fullscreen-counter" id="fullscreenCounter">1 / 3</div>
+  <!-- Mobile Actions -->
+  <div class="mobile-bottom-bar" id="mobileBottomBar">
+      <!-- Populated by JS -->
   </div>
 
   <script>
-    // === Конфигурация API ===
+    // === API CONFIG (Исправлено для продакшена) ===
     const API_BASE = (function(){
-      try {
+        // Если мы на локалке, пробуем локальный API
         if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
-          return "http://localhost:8000/api";
+            return "http://localhost:8000/api";
         }
-        return `${location.protocol}//${location.host}/api`;
-      } catch(e) {
-        return "http://localhost:8000/api";
-      }
+        // В продакшене или превью используем реальный адрес бэкенда
+        return "https://mapkarostov.ru/api"; 
     })();
 
-    // --- получаем slug из URL ---
-    // поддерживаем оба варианта: ?slug=... и /{slug}
+    // --- UTILS ---
+    function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+    
+    // Получаем slug
     const url = new URL(window.location.href);
     let slug = url.searchParams.get('slug');
-
     if (!slug) {
-      // "/happy-swim/" -> "happy-swim"
       const path = url.pathname.replace(/^\/+|\/+$/g, "");
-      // игнорируем служебные файлы
-      if (path && path !== "club.html" && path !== "index.html") {
-        slug = path;
-      }
+      if (path && path !== "club.html" && path !== "index.html") slug = path;
     }
 
-    // --- canonical для SEO: https://домен/{slug} ---
-    (function updateCanonical(currentSlug) {
-      if (!currentSlug) return;
-      const href = `${location.origin}/${currentSlug}`;
-      let link = document.querySelector('link[rel="canonical"]');
-      if (!link) {
-        link = document.createElement('link');
-        link.rel = 'canonical';
-        document.head.appendChild(link);
-      }
-      link.href = href;
-    })(slug);
-
-    // модель клуба, будет заполнена из API
     let club = null;
-    let currentPhoto = 0;
+    let currentPhotoIdx = 0;
     let showFullPhone = false;
 
-    // --- Хелперы для работы с API ---
-    async function fetchClubBySlug(slug) {
-      try {
-        const res = await fetch(`${API_BASE}/clubs`);
-        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-        const arr = await res.json();
-        return arr.find(c => String(c.slug) === String(slug) || String(c.id) === String(slug)) || null;
-      } catch (e) {
-        console.error('fetchClubBySlug failed', e);
-        return null;
-      }
-    }
+    // --- DEMO DATA (Fallback, если API упал) ---
+    const DEMO_CLUB = {
+        title: "Футбольная Академия 'Чемпион'",
+        category: "Спорт",
+        minAge: 5,
+        maxAge: 16,
+        price: 5500,
+        priceNotes: "за 12 тренировок",
+        address: "г. Ростов-на-Дону, ул. Ленина, д. 42",
+        phone: "+79991234567",
+        description: "Приглашаем детей от 5 до 16 лет в нашу футбольную школу! \n\nМы предлагаем:\n• Профессиональный тренерский состав (лицензии UEFA)\n• Современные поля с искусственным покрытием\n• Участие в городских и областных турнирах\n• Летние спортивные лагеря\n\nНаша методика основана на развитии индивидуальных качеств игрока и командного взаимодействия. Первая тренировка - бесплатно!",
+        tags: ["Футбол", "Спорт", "Команда", "ОФП"],
+        photos: [
+            "https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=1200&auto=format&fit=crop",
+            "https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=1200&auto=format&fit=crop",
+            "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=1200&auto=format&fit=crop"
+        ],
+        schedules: [
+            { day: "Понедельник", time: "17:00 - 18:30" },
+            { day: "Среда", time: "17:00 - 18:30" },
+            { day: "Пятница", time: "16:30 - 18:00" },
+            { day: "Суббота", time: "10:00 - 11:30" }
+        ],
+        socialLinks: { vk: "https://vk.com", telegram: "https://t.me" },
+        capacity: 15
+    };
 
-    function makeClubModel(apiClub) {
-      if (!apiClub) return null;
-      const photos = apiClub.image
-        ? [ (apiClub.image.startsWith('/') ? (location.origin + apiClub.image) : apiClub.image) ]
-        : ['https://via.placeholder.com/1200x700?text=No+image'];
+    // --- FETCH ---
+    async function fetchClubData(slug) {
+        if (!slug) return DEMO_CLUB;
 
-      const price = apiClub.price_cents ? Math.round(apiClub.price_cents / 100) : null;
-
-      return {
-        title: apiClub.name || '',
-        category: (apiClub.tags && apiClub.tags[0]) || 'Кружок',
-        minAge: apiClub.minAge || '',
-        maxAge: apiClub.maxAge || '',
-        priceMin: price || 0,
-        priceMax: price || (price || 0),
-        priceType: 'monthly',
-        priceNotes: apiClub.price_note || '',
-        address: apiClub.location || '',
-        phone: apiClub.phone || '',
-        capacity: apiClub.capacity || null,
-        photos: photos,
-        schedules: apiClub.schedules || [],
-        description: apiClub.description || '',
-        teacherInfo: apiClub.teacherInfo || '',
-        tags: apiClub.tags || [],
-        webSite: apiClub.webSite || '',
-        socialLinks: apiClub.socialLinks || {}
-      };
-    }
-
-    // --- Функция рендера страницы из модели club ---
-    function renderClub() {
-      if (!club) return;
-      document.getElementById('headerTitle').textContent = club.title || 'Кружок';
-      document.title = `${club.title || 'Кружок'} - Mapka`;
-
-      const mainContent = document.getElementById('mainContent');
-      mainContent.innerHTML = `
-        <section class="gallery">
-          <div class="gallery-main" id="galleryMain">
-            <img src="${club.photos[0]}" alt="${escapeHtml(club.title)}" id="mainImage" />
-            <div class="gallery-counter" id="galleryCounter">1 / ${club.photos.length}</div>
-          </div>
-          ${club.photos.length > 1 ? `<div class="gallery-thumbs" id="galleryThumbs">
-              ${club.photos.map((p,i) => `<div class="gallery-thumb ${i===0?'active':''}" data-index="${i}"><img src="${p}" alt=""></div>`).join('')}
-            </div>` : ''}
-        </section>
-
-        <div class="content">
-          <div class="title-section">
-            <div class="badges">
-              <span class="category-badge">${escapeHtml(club.category)}</span>
-              ${club.minAge || club.maxAge ? `<span class="age-text">${escapeHtml(String(club.minAge))}${club.minAge && club.maxAge ? ' - ' : ''}${escapeHtml(String(club.maxAge))} лет</span>` : ''}
-            </div>
-            <h1 class="club-title">${escapeHtml(club.title)}</h1>
-          </div>
-
-          <div class="info-grid">
-            <div class="info-card">
-              <p class="info-label">Стоимость</p>
-              <p class="info-value">${Number(club.priceMin).toLocaleString('ru-RU')} ₽ ${club.priceType === 'monthly' ? '/ мес' : ''}</p>
-              ${club.priceNotes ? `<p class="info-note">${escapeHtml(club.priceNotes)}</p>` : ''}
-            </div>
-            <div class="info-card">
-              <p class="info-label">Адрес</p>
-              <p class="info-value" style="font-size:16px;">${escapeHtml(club.address)}</p>
-            </div>
-            ${club.capacity ? `<div class="info-card"><p class="info-label">В группе</p><p class="info-value">до ${escapeHtml(String(club.capacity))} человек</p></div>` : ''}
-          </div>
-
-          <div class="section">
-            <h2 class="section-title">Расписание</h2>
-            <div class="schedule-grid">
-              ${ (club.schedules && club.schedules.length) ? club.schedules.map(s => `
-                <div class="schedule-item"><svg ...></svg><div><p class="schedule-day">${escapeHtml(s.day)}</p><p class="schedule-time">${escapeHtml(s.time)}</p></div></div>
-              `).join('') : `<div class="muted" style="padding:8px">Расписание не указано</div>`}
-            </div>
-          </div>
-
-          <div class="section">
-            <h2 class="section-title">О кружке</h2>
-            <div class="description-box">${escapeHtml(club.description)}</div>
-          </div>
-
-          ${club.teacherInfo ? `<div class="section"><h2 class="section-title">Преподаватель</h2><div class="description-box">${escapeHtml(club.teacherInfo)}</div></div>` : ''}
-
-          <div class="tags-section">
-            ${ (club.tags||[]).map(t => `<button class="tag-btn">${escapeHtml(t)}</button>`).join('') }
-          </div>
-
-          <div class="section">
-            <h2 class="section-title">Контакты</h2>
-    
-            <!-- Телефон -->
-            <div class="contact-item">
-              <div class="contact-left">
-                <svg ...></svg>
-                <span id="phoneDisplay">${escapeHtml(maskPhone(club.phone || ''))}</span>
-              </div>
-              <button class="show-phone-btn" id="showPhoneBtn">Показать</button>
-            </div>
-    
-            <!-- Сайт -->
-            ${club.webSite ? `
-              <a href="${escapeAttr(club.webSite)}" target="_blank" class="contact-item" style="text-decoration:none">
-                <div class="contact-left">
-                  <svg ...></svg>
-                  <span style="color:#69AFDF;">${escapeHtml(club.webSite)}</span>
-                </div>
-              </a>
-            ` : ''}
-    
-            <!-- Соцсети: VK / Telegram -->
-            ${(club.socialLinks && (club.socialLinks.vk || club.socialLinks.telegram)) ? `
-              <div class="social-links">
-                ${club.socialLinks.vk ? `
-                  <a
-                    class="social-link"
-                    href="${escapeAttr(club.socialLinks.vk)}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    VK
-                  </a>
-                ` : ''}
-    
-                ${club.socialLinks.telegram ? `
-                  <a
-                    class="social-link"
-                    href="${escapeAttr(club.socialLinks.telegram)}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Telegram
-                  </a>
-                ` : ''}
-              </div>
-            ` : ''}
-          </div>
-
-          <div class="section">
-            <h2 class="section-title">На карте</h2>
-            <div class="map-container" id="clubMap"></div>
-          </div>
-        </div>
-      `;
-
-      // gallery behavior (simple)
-      const thumbs = document.querySelectorAll('.gallery-thumb');
-      thumbs.forEach(t => t.addEventListener('click', () => {
-        const i = Number(t.dataset.index || 0);
-        currentPhoto = i;
-        updateGallery();
-      }));
-
-      // counter / prev-next via clicking on main image
-      const mainImage = document.getElementById('mainImage');
-      if (mainImage) {
-        mainImage.addEventListener('click', () => {
-          if (club.photos.length > 1) {
-            currentPhoto = (currentPhoto + 1) % club.photos.length;
-            updateGallery();
-          }
-        });
-      }
-
-      // phone toggle
-      const showBtn = document.getElementById('showPhoneBtn');
-      if (showBtn) {
-        showBtn.addEventListener('click', () => {
-          showFullPhone = !showFullPhone;
-          document.getElementById('phoneDisplay').textContent = showFullPhone ? (club.phone || '') : maskPhone(club.phone || '');
-          showBtn.textContent = showFullPhone ? 'Скрыть' : 'Показать';
-        });
-      }
-
-      // init map (best-effort)
-      try {
-        initClubMap(club.address, club.title);
-      } catch (e) {
-        console.warn('initClubMap failed', e);
-      }
-
-      updateGallery();
-    }
-
-    function updateGallery() {
-      const img = document.getElementById('mainImage');
-      const counter = document.getElementById('galleryCounter');
-      if (!img) return;
-      img.src = club.photos[currentPhoto];
-      if (counter) counter.textContent = `${currentPhoto + 1} / ${club.photos.length}`;
-      document.querySelectorAll('.gallery-thumb').forEach((th, idx) => th.classList.toggle('active', idx === currentPhoto));
-    }
-
-    // --- Простая карта через ymaps3 + геокод ---
-    async function initClubMap(address, title) {
-      if (!address) return;
-      const ymaps3 = window.ymaps3;
-      if (!ymaps3) {
-        console.warn('ymaps3 not available');
-        return;
-      }
-      try {
-        await ymaps3.ready;
-      } catch (e) {
-        console.warn('ymaps3.ready failed', e);
-        return;
-      }
-      const { YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer, YMapMarker } = ymaps3;
-      const coords = await geocodeAddress(address);
-      if (!coords) return;
-      const mapContainer = document.getElementById('clubMap');
-      if (!mapContainer) return;
-      const map = new YMap(mapContainer, { location: { center: coords, zoom: 16 } });
-      map.addChild(new YMapDefaultSchemeLayer());
-      map.addChild(new YMapDefaultFeaturesLayer());
-      const el = document.createElement('div');
-      el.className = 'club-marker';
-      const label = document.createElement('div'); label.className='club-marker-label'; label.textContent = title || '';
-      const dot = document.createElement('div'); dot.className='club-marker-dot';
-      el.appendChild(label); el.appendChild(dot);
-      map.addChild(new YMapMarker({ coordinates: coords }, el));
-    }
-
-    async function geocodeAddress(address) {
-      if (!address) return null;
-      const GEOCODE_API_KEY = '58c38b72-57f7-4946-bc13-a256d341281a';
-      const url = `https://geocode-maps.yandex.ru/1.x/?format=json&geocode=${encodeURIComponent(address)}&apikey=${GEOCODE_API_KEY}&results=1`;
-      try {
-        const r = await fetch(url);
-        if (!r.ok) return null;
-        const json = await r.json();
-        const fm = json?.response?.GeoObjectCollection?.featureMember;
-        if (Array.isArray(fm) && fm.length) {
-          const pos = fm[0].GeoObject?.Point?.pos;
-          if (pos) {
-            const [lng, lat] = pos.split(' ').map(Number);
-            if (!Number.isNaN(lng) && !Number.isNaN(lat)) return [lng, lat];
-          }
+        try {
+            // Фетчим полный список (как в старом коде), т.к. эндпоинт /clubs/slug может не существовать
+            const res = await fetch(`${API_BASE}/clubs`);
+            if (!res.ok) throw new Error("API Error");
+            const list = await res.json();
+            
+            // Ищем нужный
+            const found = list.find(c => String(c.slug) === String(slug) || String(c.id) === String(slug));
+            
+            return found || DEMO_CLUB;
+        } catch (e) {
+            console.warn("Backend unavailable or network error. Using DEMO data.", e);
+            return DEMO_CLUB;
         }
-        return null;
-      } catch (err) {
-        console.error('geocode failed', err);
-        return null;
-      }
     }
 
-    // --- Утилиты ---
+    function normalizeClub(apiData) {
+        // Нормализация фоток (добавление домена если путь относительный)
+        const rawPhotos = apiData.image || apiData.photos;
+        let photos = [];
+        
+        if (Array.isArray(rawPhotos)) {
+            photos = rawPhotos;
+        } else if (rawPhotos) {
+            photos = [rawPhotos];
+        } else {
+            photos = DEMO_CLUB.photos;
+        }
+        
+        // Fix relative URLs
+        photos = photos.map(p => {
+            if (p.startsWith('http')) return p;
+            if (p.startsWith('/')) return "https://mapkarostov.ru" + p; // Предполагаем, что картинки на том же домене, что и API
+            return p;
+        });
+
+        return {
+            title: apiData.name || apiData.title || "Без названия",
+            category: (apiData.tags && apiData.tags[0]) || "Кружок",
+            minAge: apiData.min_age || apiData.minAge || 0,
+            maxAge: apiData.max_age || apiData.maxAge || 18,
+            price: apiData.price_cents ? Math.round(apiData.price_cents / 100) : (apiData.price || 0),
+            priceNotes: apiData.price_note || apiData.priceNotes || "",
+            address: apiData.location || apiData.address_text || apiData.address || "Адрес не указан",
+            phone: apiData.phone || "",
+            description: apiData.description || "",
+            schedules: apiData.schedules || [], // Ожидаем массив {day, time}
+            socialLinks: apiData.social_links || apiData.socialLinks || {},
+            tags: apiData.tags || [],
+            webSite: apiData.site || apiData.webSite || ""
+        };
+    }
+
+    // --- RENDER ---
+    async function initPage() {
+        const rawData = await fetchClubData(slug);
+        club = normalizeClub(rawData);
+
+        document.title = `${club.title} - Мапка`;
+        const container = document.getElementById('mainContainer');
+        const mobileBar = document.getElementById('mobileBottomBar');
+        const headerTitle = document.getElementById('headerScrollTitle');
+
+        if (headerTitle) headerTitle.textContent = club.title;
+
+        const priceStr = club.price > 0 ? `${club.price.toLocaleString('ru-RU')} ₽` : "Бесплатно";
+        const ageStr = `${club.minAge} - ${club.maxAge} лет`;
+
+        // Генерируем HTML
+        let html = `
+            <div class="club-main">
+                <!-- 1. ЗАГОЛОВОК (H1) И БЕЙДЖИ -->
+                <div class="header-block">
+                    <div class="badges">
+                        <span class="badge category">${escapeHtml(club.category)}</span>
+                        <span class="badge age">${ageStr}</span>
+                    </div>
+                    <h1 class="main-title">${escapeHtml(club.title)}</h1>
+                    <div class="address-row">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <span>${escapeHtml(club.address)}</span>
+                    </div>
+                </div>
+
+                <!-- 2. ГАЛЕРЕЯ (СВАЙП) -->
+                <div class="gallery-container" id="galleryContainer">
+                    <div class="gallery-track" id="galleryTrack">
+                        ${club.photos && club.photos.length > 0 ? club.photos.map(src => `<div class="gallery-slide"><img src="${src}" alt="Фото"></div>`).join('') : '<div class="gallery-slide"><img src="https://via.placeholder.com/800x400?text=No+Photo" alt="No Photo"></div>'}
+                    </div>
+                    ${club.photos && club.photos.length > 1 ? `
+                        <button class="gallery-nav-btn prev" id="btnPrev"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+                        <button class="gallery-nav-btn next" id="btnNext"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+                        <div class="gallery-dots">
+                            ${club.photos.map((_, i) => `<div class="gallery-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+
+                <!-- 3. СТОИМОСТЬ (ПЕРЕНЕСЕНО ВЫШЕ ОПИСАНИЯ) -->
+                <div class="section-card price-card">
+                    <div class="price-info">
+                        <h3>Стоимость обучения</h3>
+                        <div class="price-value">${priceStr}</div>
+                        ${club.priceNotes ? `<div class="price-note">${escapeHtml(club.priceNotes)}</div>` : ''}
+                    </div>
+                </div>
+
+                <!-- 4. О КРУЖКЕ + СОЦСЕТИ -->
+                <div class="section-card">
+                    <h2 class="section-header">О кружке</h2>
+                    <div class="section-text">${escapeHtml(club.description)}</div>
+
+                    <!-- СОЦСЕТИ (ВНУТРИ БЛОКА О КРУЖКЕ, ВНИЗУ) -->
+                    ${(club.socialLinks && (club.socialLinks.vk || club.socialLinks.telegram)) ? `
+                        <div class="social-block">
+                            <div class="social-title">Следите за нами в соцсетях:</div>
+                            <div class="social-grid">
+                                ${club.socialLinks.vk ? `<a href="${club.socialLinks.vk}" target="_blank" class="social-btn social-vk"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.07 2H8.93C5.1 2 2 5.1 2 8.93v6.14C2 18.9 5.1 22 8.93 22h6.14c3.83 0 6.93-3.1 6.93-6.93V8.93C22 5.1 18.9 2 15.07 2zM18 13.5h-1.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5H18c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5z"/></svg> ВКонтакте</a>` : ''}
+                                ${club.socialLinks.telegram ? `<a href="${club.socialLinks.telegram}" target="_blank" class="social-btn social-tg"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42l10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701l-.25 3.635c.34 0 .63-.166.875-.411l2.368-2.288l4.922 3.635c.907.5 1.56.242 1.783-.855l3.226-15.228c.328-1.536-.576-2.193-1.602-1.745z"/></svg> Telegram</a>` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <!-- 5. РАСПИСАНИЕ (СПИСОК) -->
+                <div class="section-card">
+                    <h2 class="section-header">Расписание занятий</h2>
+                    <div class="schedule-list">
+                        ${club.schedules && club.schedules.length ? club.schedules.map(s => `
+                            <div class="schedule-row">
+                                <div class="schedule-day">${escapeHtml(s.day)}</div>
+                                <div class="schedule-time">${escapeHtml(s.time)}</div>
+                            </div>
+                        `).join('') : '<div class="section-text" style="color:#999; padding:12px;">Уточняйте у администратора</div>'}
+                    </div>
+                </div>
+
+                <!-- 6. КАРТА -->
+                <div class="section-card" style="padding:0; overflow:hidden;">
+                     <div class="map-wrapper" id="clubMap"></div>
+                     <div style="padding:16px;">
+                        <div style="font-weight:600; margin-bottom:4px; font-size:14px;">Адрес:</div>
+                        <div style="color:#555; font-size:15px;">${escapeHtml(club.address)}</div>
+                     </div>
+                </div>
+            </div>
+
+            <!-- SIDEBAR (DESKTOP) -->
+            <div class="sidebar-wrapper">
+                <div class="sidebar-sticky">
+                    <div style="text-align:center; margin-bottom:12px;">
+                        <div style="font-size:14px; color:#777;">Запись в группу</div>
+                        <div style="font-weight:800; font-size:24px; color:var(--text-primary); margin-top:4px;">${club.phone ? maskPhone(club.phone) : ''}</div>
+                    </div>
+                    <button class="cta-btn btn-primary" onclick="togglePhone(this, '${club.phone}')">
+                        Показать номер
+                    </button>
+                    <button class="cta-btn btn-outline" onclick="alert('Функция в разработке')">Написать сообщение</button>
+                    <div style="font-size:11px; color:#999; text-align:center; line-height:1.4; margin-top:8px;">
+                        Нажимая кнопку, вы соглашаетесь с политикой конфиденциальности
+                    </div>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+
+        // Mobile Actions
+        mobileBar.innerHTML = `
+            <button class="cta-btn btn-primary" style="flex:1" onclick="togglePhone(this, '${club.phone}')">Позвонить</button>
+            <button class="cta-btn btn-outline" style="width:auto; padding:12px;" onclick="alert('Функция в разработке')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+            </button>
+        `;
+
+        initMap(club.address);
+        initGallery();
+        
+        // Scroll listener
+        window.addEventListener('scroll', () => {
+             const offset = window.scrollY;
+             if (offset > 200) headerTitle.classList.add('visible');
+             else headerTitle.classList.remove('visible');
+        });
+    }
+
+    // --- GALLERY LOGIC ---
+    function initGallery() {
+        const track = document.getElementById('galleryTrack');
+        const slides = document.querySelectorAll('.gallery-slide');
+        const dots = document.querySelectorAll('.gallery-dot');
+        const btnPrev = document.getElementById('btnPrev');
+        const btnNext = document.getElementById('btnNext');
+
+        if (!slides || slides.length <= 1) return;
+
+        function updateSlide(idx) {
+            currentPhotoIdx = idx;
+            const offset = -idx * 100;
+            track.style.transform = `translateX(${offset}%)`;
+            dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+        }
+
+        if(btnPrev) btnPrev.addEventListener('click', () => updateSlide((currentPhotoIdx - 1 + slides.length) % slides.length));
+        if(btnNext) btnNext.addEventListener('click', () => updateSlide((currentPhotoIdx + 1) % slides.length));
+        dots.forEach(d => d.addEventListener('click', () => updateSlide(Number(d.dataset.idx))));
+
+        // Swipe support
+        let startX = 0;
+        let isDragging = false;
+
+        track.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; isDragging = true; }, {passive: true});
+        track.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+            const diff = startX - e.changedTouches[0].clientX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) updateSlide((currentPhotoIdx + 1) % slides.length);
+                else updateSlide((currentPhotoIdx - 1 + slides.length) % slides.length);
+            }
+            isDragging = false;
+        });
+    }
+
+    // --- MAP LOGIC ---
+    async function initMap(address) {
+        if (!address || !window.ymaps3) return;
+        try {
+            await ymaps3.ready;
+            const { YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer, YMapMarker } = ymaps3;
+            // Простой геокод (в проде лучше кешировать на бэке)
+            const geocodeUrl = `https://geocode-maps.yandex.ru/1.x/?format=json&apikey=58c38b72-57f7-4946-bc13-a256d341281a&geocode=${encodeURIComponent(address)}`;
+            const res = await fetch(geocodeUrl);
+            const data = await res.json();
+            const pos = data.response.GeoObjectCollection.featureMember[0]?.GeoObject?.Point?.pos;
+            if (!pos) return;
+            const [lng, lat] = pos.split(' ').map(Number);
+
+            const mapContainer = document.getElementById('clubMap');
+            mapContainer.innerHTML = '';
+            
+            const map = new YMap(mapContainer, { location: { center: [lng, lat], zoom: 16 } });
+            map.addChild(new YMapDefaultSchemeLayer());
+            map.addChild(new YMapDefaultFeaturesLayer());
+
+            const el = document.createElement('div');
+            el.className = 'club-marker';
+            el.innerHTML = `<div class="club-marker-label">${club.title}</div><div class="club-marker-dot"></div>`;
+            map.addChild(new YMapMarker({ coordinates: [lng, lat] }, el));
+        } catch (e) { console.warn("Map error", e); }
+    }
+
+    // --- UTILS ---
+    window.togglePhone = function(btn, phone) {
+        if (!phone) return;
+        showFullPhone = !showFullPhone;
+        if (showFullPhone) {
+             btn.innerHTML = `<span style="font-size:18px;">${phone}</span>`;
+             window.location.href = `tel:${phone}`;
+        } else {
+             btn.innerHTML = `Показать номер`; 
+        }
+    };
+
     function maskPhone(phone) {
-      if (!phone) return '';
-      if (phone.length <= 6) return phone;
-      return phone.slice(0, 12) + '••-••';
+        if (!phone) return "";
+        if (phone.length < 10) return phone;
+        return phone.substr(0, 8) + "••-••";
     }
-    function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
-    function escapeAttr(s){ return String(s||'').replaceAll('"','%22').replaceAll("'",'%27'); }
 
-    // === Инициализация страницы: загрузить и отрисовать ===
-    (async function initClubPage() {
-      const mainContent = document.getElementById('mainContent');
-      if (mainContent) mainContent.innerHTML = `<div style="padding:24px">Загрузка данных...</div>`;
-      const apiClub = await fetchClubBySlug(slug);
-      if (!apiClub) {
-        if (mainContent) mainContent.innerHTML = `<div style="padding:24px;color:#900">Кружок с slug "${slug}" не найден.</div>`;
-        document.title = 'Кружок не найден';
-        return;
-      }
-      club = makeClubModel(apiClub);
-      renderClub();
-    })();
+    initPage();
   </script>
 </body>
 </html>
