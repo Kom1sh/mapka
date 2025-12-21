@@ -254,7 +254,8 @@
       left: 0;
       top: 0;
       bottom: 0;
-      width: 480px; 
+      /* УВЕЛИЧЕННАЯ ШИРИНА */
+      width: 560px; 
       max-width: 100%;
       display: flex;
       flex-direction: column;
@@ -425,19 +426,19 @@
       background: #9ca3af;
     }
 
-    /* --- ЯЗЫЧОК / ПЕТЕЛЬКА (Привязан к белому блоку) --- */
+    /* --- ЯЗЫЧОК / ПЕТЕЛЬКА --- */
     .desktop-panel-handle {
       position: absolute;
       right: -24px; /* Торчит из родителя (.cards-container) */
       top: 50%;
       transform: translateY(-50%);
       width: 24px;
-      height: 48px;
+      height: 64px; /* Чуть выше, чтобы было удобнее хватать */
       background: white;
       border: 1px solid rgba(0,0,0,0.05);
       border-left: 1px solid white; /* Скрываем стык */
       border-radius: 0 8px 8px 0;
-      box-shadow: 4px 0 12px rgba(0,0,0,0.05);
+      box-shadow: 4px 2px 12px rgba(0,0,0,0.08);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -487,8 +488,14 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     }
 
+    .sectionCard {
+      scroll-margin-top: 100px; /* Чтобы при скролле не прилипало к самому верху */
+    }
+
     .sectionCard.highlight-temp {
-      box-shadow: 0 0 0 2px var(--accent-color);
+      box-shadow: 0 0 0 3px var(--accent-color);
+      border-color: var(--accent-color);
+      background-color: #f0f9ff;
     }
 
     .card-top {
@@ -1082,7 +1089,8 @@
       /* Desktop Filter Modal */
       .filter-panel {
         position: absolute;
-        left: 520px; /* Отступаем от панели, если она 480px + отступ */
+        /* Сдвигаем правее, так как панель теперь 560px + отступы */
+        left: 600px;
         top: 20px;
         width: 380px;
         max-height: calc(100vh - var(--header-height) - 40px);
@@ -1390,8 +1398,9 @@
 
     function createCardHTML(club) {
       const price = formatPrice(club.price_cents);
+      // Добавил id="club-card-${club.id}" для навигации
       return `
-        <div class="club-card sectionCard" data-tags="${(club.tags || []).join(',').toLowerCase()}" data-price="${club.price_cents || 0}">
+        <div id="club-card-${club.id}" class="club-card sectionCard" data-tags="${(club.tags || []).join(',').toLowerCase()}" data-price="${club.price_cents || 0}">
           <div class="card-top">
             <div class="card-image">
               <img src="${club.image}" alt="${club.name}" loading="lazy">
@@ -1975,6 +1984,35 @@
         leftPanel.classList.remove('collapsed');
       }
     });
+    
+    // --- ИНТЕГРАЦИЯ С КАРТОЙ ---
+    // Эту функцию нужно вызывать из map.js при клике на метку:
+    // window.selectClubFromMap(clubId);
+    window.selectClubFromMap = function(id) {
+        // 1. Если панель скрыта - достаем её
+        if (desktopPanelCollapsed) {
+            desktopPanelCollapsed = false;
+            leftPanel.classList.remove('collapsed');
+            // Обновляем визуальное состояние (если нужно)
+        }
+        
+        // 2. Ищем карточку в DOM
+        const card = document.getElementById(`club-card-${id}`);
+        
+        if (card) {
+            // 3. Скроллим к ней
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // 4. Подсвечиваем
+            card.classList.add('highlight-temp');
+            setTimeout(() => {
+                card.classList.remove('highlight-temp');
+            }, 2000);
+        } else {
+            console.log(`Club card with id ${id} not found (maybe filtered out?)`);
+            // Можно добавить логику сброса фильтров здесь, если нужно
+        }
+    };
 
     // Скролл тень
     const cardsScrollContainer = document.getElementById('cardsScrollContainer');
