@@ -148,7 +148,7 @@
     .badge.category { background: var(--accent-color); color: white; }
     .badge.age { background: #e5e7eb; color: var(--text-secondary); }
 
-    /* H1 ЗАГОЛОВОК - Крупный и заметный */
+    /* H1 ЗАГОЛОВОК */
     h1.main-title {
       font-size: 28px;
       font-weight: 800;
@@ -169,7 +169,7 @@
     }
     .address-row svg { flex-shrink: 0; margin-top: 2px; }
 
-    /* 2. Gallery (Свайп + Стрелки) */
+    /* 2. Gallery */
     .gallery-container {
       position: relative;
       border-radius: 20px;
@@ -216,7 +216,7 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       z-index: 10;
       transition: all 0.2s;
-      opacity: 0; /* Скрываем по умолчанию, показываем при ховере */
+      opacity: 0;
     }
     .gallery-container:hover .gallery-nav-btn { opacity: 1; }
     
@@ -266,12 +266,12 @@
         gap: 10px;
     }
 
-    /* 4. Price Block (Теперь над описанием) */
+    /* 4. Price Block */
     .price-card {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-left: 4px solid var(--accent-color); /* Акцент */
+      border-left: 4px solid var(--accent-color);
     }
     
     .price-info h3 { font-size: 14px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 500; }
@@ -309,7 +309,7 @@
     .social-tg { background: #24A1DE; }
     .social-wa { background: #25D366; }
 
-    /* 6. Schedule (Читаемый список) */
+    /* 6. Schedule */
     .schedule-list {
       display: flex;
       flex-direction: column;
@@ -394,7 +394,7 @@
         font-weight: 500;
     }
 
-    /* --- SIDEBAR (STICKY, DESKTOP ONLY) --- */
+    /* --- SIDEBAR --- */
     .sidebar-wrapper {
       position: relative;
       height: 100%;
@@ -519,7 +519,7 @@
         description: "Приглашаем детей от 5 до 16 лет в нашу футбольную школу!",
         tags: ["Футбол", "Спорт", "Команда"],
         photos: [
-            "https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=1200&auto=format&fit=crop"
+            "https://dummyimage.com/1200x800/d1d5db/fff.png&text=No+Photo"
         ],
         schedules: [
             { day: "Понедельник", time: "17:00 - 18:30" }
@@ -530,7 +530,6 @@
 
     // --- FETCH ---
     async function fetchClubData(slug) {
-        // Если slug не задан, возвращаем демо
         if (!slug) return DEMO_CLUB;
 
         try {
@@ -538,7 +537,6 @@
             if (!res.ok) throw new Error("API Error");
             const list = await res.json();
             
-            // Ищем нужный
             const found = list.find(c => String(c.slug) === String(slug) || String(c.id) === String(slug));
             
             return found || DEMO_CLUB;
@@ -552,25 +550,23 @@
     function normalizeClub(apiData) {
         if (!apiData) return normalizeClub(DEMO_CLUB);
 
-        // 1. Нормализация фото (image строка -> photos массив)
         const rawPhotos = apiData.image || apiData.photos;
         let photos = [];
         
         if (Array.isArray(rawPhotos)) {
             photos = rawPhotos;
         } else if (rawPhotos && typeof rawPhotos === 'string') {
-            photos = [rawPhotos]; // Если пришла одна строка, делаем массив
+            photos = [rawPhotos]; 
         } else {
-            photos = DEMO_CLUB.photos; // Если ничего нет, берем демо
+            photos = DEMO_CLUB.photos;
         }
         
-        // Fix URLs
         photos = photos.map(p => {
             if (!p) return ""; 
             if (p.startsWith('http')) return p;
             if (p.startsWith('/')) return "https://mapkarostov.ru" + p;
             return p;
-        }).filter(Boolean); // Убираем пустые
+        }).filter(Boolean);
 
         return {
             title: apiData.name || apiData.title || "Без названия",
@@ -605,7 +601,7 @@
             const priceStr = club.price > 0 ? `${club.price.toLocaleString('ru-RU')} ₽` : "Бесплатно";
             const ageStr = `${club.minAge} - ${club.maxAge} лет`;
 
-            // HTML GENERATION (with safe navigation ?.)
+            // HTML GENERATION
             let html = `
                 <div class="club-main">
                     <!-- HEADER BLOCK -->
@@ -624,7 +620,7 @@
                     <!-- GALLERY -->
                     <div class="gallery-container" id="galleryContainer">
                         <div class="gallery-track" id="galleryTrack">
-                            ${club.photos?.length > 0 ? club.photos.map(src => `<div class="gallery-slide"><img src="${src}" alt="Фото"></div>`).join('') : '<div class="gallery-slide"><img src="https://via.placeholder.com/800x400?text=No+Photo" alt="No Photo"></div>'}
+                            ${club.photos?.length > 0 ? club.photos.map(src => `<div class="gallery-slide"><img src="${src}" alt="Фото" onerror="this.onerror=null;this.src='https://dummyimage.com/1200x800/d1d5db/fff.png&text=No+Image';"></div>`).join('') : '<div class="gallery-slide"><img src="https://dummyimage.com/1200x800/d1d5db/fff.png&text=No+Photo" alt="No Photo"></div>'}
                         </div>
                         ${club.photos?.length > 1 ? `
                             <button class="gallery-nav-btn prev" id="btnPrev"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
