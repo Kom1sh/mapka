@@ -82,6 +82,50 @@ async function renderIndex(req, res) {
   }
 }
 
+// динамический sitemap.xml
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    // тянем список кружков из API
+    const resp = await fetch(`${API_BASE}/clubs/`);
+    const clubs = resp.ok ? await resp.json() : [];
+
+    const host = req.headers.host || 'xn--80aa3agq.xn--p1ai';
+    const origin = `https://${host}`;
+
+    const urls = [];
+
+    // базовые страницы
+    urls.push(`${origin}/`);
+    urls.push(`${origin}/blog`);
+    urls.push(`${origin}/favorites`);
+
+    // страницы кружков /slug
+    for (const club of clubs) {
+      const slug = club.slug || club.id;
+      if (!slug) continue;
+      urls.push(`${origin}/${slug}`);
+    }
+
+    const xml =
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+      urls.map(u => (
+        `  <url>\n` +
+        `    <loc>${u}</loc>\n` +
+        `    <changefreq>weekly</changefreq>\n` +
+        `    <priority>0.8</priority>\n` +
+        `  </url>`
+      )).join('\n') +
+      `\n</urlset>\n`;
+
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.send(xml);
+  } catch (err) {
+    console.error('sitemap error', err);
+    res.status(500).send('Error generating sitemap');
+  }
+});
+
 // SSR только для корня
 app.get('/', renderIndex);
 

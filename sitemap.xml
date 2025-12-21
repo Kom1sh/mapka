@@ -1,9 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Главная -->
   <url>
-    <loc>https://мапка.рф/</loc>
-    <lastmod>2025-12-08</lastmod>
-    <changefreq>weekly</changefreq>
+    <loc>https://xn--80aa3agq.xn--p1ai/</loc>
+    <changefreq>daily</changefreq>
     <priority>1.0</priority>
+  </url>
+
+  <!-- Блог -->
+  <url>
+    <loc>https://xn--80aa3agq.xn--p1ai/blog</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Избранное -->
+  <url>
+    <loc>https://xn--80aa3agq.xn--p1ai/favorites</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>
 </urlset>
