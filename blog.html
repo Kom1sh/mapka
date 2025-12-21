@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Блог Мапка - Статьи, подборки секций и советы для родителей</title>
+  <meta name="description" content="Полезные статьи для родителей: как выбрать кружок, подборки лучших секций Ростова-на-Дону, советы психологов и тренеров.">
+  <link rel="canonical" href="https://xn--80aa3agq.xn--p1ai/blog">
+  <link rel="icon" href="/favicon.ico" />
+  
+  <!-- Open Graph для соцсетей -->
+  <meta property="og:title" content="Блог Мапка - Статьи и подборки">
+  <meta property="og:description" content="Все о детском досуге и образовании.">
+  <meta property="og:image" content="/og-image.jpg">
+  <meta property="og:type" content="website">
+
+  <style>
+    /* --- CORE STYLES (MATCHING INDEX.HTML) --- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #f5f5f5;
+      --bg-secondary: white;
+      --bg-card: #f0f2f5;
+      --bg-input: #f3f4f6;
+      --text-primary: #111827;
+      --text-secondary: #6b7280;
+      --border-color: #e5e7eb;
+      --accent-color: #69AFDF;
+      --accent-hover: #5b9bc5;
+      --header-height: 72px;
+      --container-width: 1200px;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a { text-decoration: none; color: inherit; }
+    button { font-family: inherit; }
+
+    /* --- HEADER (COPIED FROM INDEX.HTML FOR CONSISTENCY) --- */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      height: var(--header-height);
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 100%;
+      max-width: 1920px;
+      margin: 0 auto;
+    }
+
+    .mainLogo { height: 36px; display: block; object-fit: contain; }
+
+    .nav-desktop {
+      display: none;
+      align-items: center;
+      gap: 32px;
+      margin-left: 48px;
+      margin-right: auto;
+    }
+
+    .nav-desktop a {
+      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-desktop a:hover, .nav-desktop a.active { color: var(--accent-color); }
+    
+    .header-right-desktop { display: none; align-items: center; gap: 20px; }
+    
+    .header-btn {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 500;
+        background: var(--bg-input);
+        transition: background 0.2s;
+    }
+    .header-btn:hover { background: #e5e7eb; }
+
+    /* --- BLOG CONTAINER --- */
+    .blog-container {
+      width: 100%;
+      max-width: var(--container-width);
+      margin: 0 auto;
+      padding: 32px 24px;
+      flex: 1;
+    }
+
+    /* Breadcrumbs */
+    .breadcrumbs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+    .breadcrumbs a:hover { color: var(--accent-color); }
+    .breadcrumbs .separator { opacity: 0.5; }
+
+    /* Hero Section */
+    .blog-header {
+      margin-bottom: 40px;
+      text-align: left;
+    }
+    
+    .blog-title {
+      font-size: 36px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+    
+    .blog-subtitle {
+      font-size: 18px;
+      color: var(--text-secondary);
+      max-width: 600px;
+      line-height: 1.5;
+    }
+
+    /* Categories/Tags Filter */
+    .blog-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+    
+    .category-btn {
+      padding: 8px 16px;
+      border-radius: 100px;
+      background: white;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .category-btn:hover {
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+    }
+    
+    .category-btn.active {
+      background: var(--accent-color);
+      color: white;
+      border-color: var(--accent-color);
+    }
+
+    /* --- ARTICLE GRID --- */
+    .articles-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    /* Featured Article (First one spans 2 cols) */
+    .article-card.featured {
+      grid-column: span 2;
+      display: flex;
+      flex-direction: row;
+    }
+    .article-card.featured .card-img-wrapper {
+      width: 50%;
+      height: auto;
+    }
+    .article-card.featured .card-content {
+      width: 50%;
+      justify-content: center;
+    }
+    .article-card.featured .card-title {
+      font-size: 28px;
+    }
+
+    /* Regular Card */
+    .article-card {
+      background: white;
+      border-radius: 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(0,0,0,0.05);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      height: 100%;
+    }
+
+    .article-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-hover);
+      border-color: transparent;
+    }
+
+    .card-img-wrapper {
+      position: relative;
+      width: 100%;
+      height: 220px;
+      overflow: hidden;
+      background: #e5e7eb;
+    }
+
+    .card-img-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease;
+    }
+
+    .article-card:hover .card-img-wrapper img {
+      transform: scale(1.05);
+    }
+
+    .card-category {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(4px);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      z-index: 2;
+    }
+
+    .card-content {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-excerpt {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 20px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      flex: 1;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border-color);
+      padding-top: 16px;
+      margin-top: auto;
+    }
+
+    .author {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .author-img {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #ccc;
+    }
+
+    .author-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .read-more {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-color);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    /* --- NEWSLETTER SECTION --- */
+    .newsletter {
+      background: linear-gradient(135deg, #69AFDF 0%, #4a90e2 100%);
+      border-radius: 24px;
+      padding: 40px;
+      margin-top: 60px;
+      color: white;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .newsletter h3 {
+        font-size: 28px;
+        margin-bottom: 12px;
+    }
+    
+    .newsletter p {
+        margin-bottom: 24px;
+        opacity: 0.9;
+        max-width: 500px;
+    }
+    
+    .newsletter-form {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+        max-width: 400px;
+    }
+    
+    .newsletter-input {
+        flex: 1;
+        padding: 12px 20px;
+        border-radius: 12px;
+        border: none;
+        outline: none;
+        font-size: 16px;
+    }
+    
+    .newsletter-btn {
+        background: #111827;
+        color: white;
+        border: none;
+        padding: 0 24px;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    .newsletter-btn:hover { transform: scale(1.05); }
+
+    /* --- FOOTER --- */
+    .footer {
+        margin-top: auto;
+        padding: 40px 0;
+        background: white;
+        border-top: 1px solid var(--border-color);
+    }
+    .footer-content {
+        max-width: var(--container-width);
+        margin: 0 auto;
+        padding: 0 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+    .copyright { color: var(--text-secondary); font-size: 14px; }
+
+    /* --- RESPONSIVE --- */
+    @media (min-width: 768px) {
+      .nav-desktop, .header-right-desktop { display: flex; }
+      .header-right-mobile { display: none; }
+    }
+
+    @media (max-width: 1024px) {
+      .articles-grid { grid-template-columns: repeat(2, 1fr); }
+      .article-card.featured { grid-column: span 2; }
+    }
+
+    @media (max-width: 768px) {
+      .blog-title { font-size: 28px; }
+      .articles-grid { grid-template-columns: 1fr; }
+      
+      .article-card.featured {
+        grid-column: span 1;
+        flex-direction: column;
+      }
+      .article-card.featured .card-img-wrapper,
+      .article-card.featured .card-content { width: 100%; }
+      .article-card.featured .card-title { font-size: 20px; }
+      
+      .newsletter { padding: 24px; }
+      .newsletter-form { flex-direction: column; }
+      .newsletter-btn { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header (Identical to Main Site) -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logoContainer">
+        <a href="index.html">
+            <img src="logo.png" alt="Мапка" class="mainLogo" onerror="this.src='https://via.placeholder.com/120x40?text=MAPKA'">
+        </a>
+      </div>
+
+      <nav class="nav-desktop">
+        <a href="index.html">Поиск кружков</a>
+        <a href="blog.html" class="active">Блог</a>
+        <a href="#">О нас</a>
+      </nav>
+
+      <div class="header-right-desktop">
+        <a href="#" class="header-btn">Для партнеров</a>
+        <a href="#" style="background: var(--bg-input); padding: 8px 16px; border-radius: 20px; display: flex; align-items: center; gap: 8px;">
+          <span>Войти</span>
+          <div class="avatar" style="width: 24px; height: 24px; background: #d1d5db; border-radius: 50%;"></div>
+        </a>
+      </div>
+      
+      <!-- Mobile header right (hamburger) -->
+      <div class="header-right-mobile">
+         <button class="icon-btn" aria-label="Меню">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="blog-container">
+    
+    <!-- Breadcrumbs -->
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href="index.html">Главная</a>
+      <span class="separator">/</span>
+      <span aria-current="page">Блог</span>
+    </nav>
+
+    <!-- Blog Header -->
+    <section class="blog-header">
+      <h1 class="blog-title">Полезное для родителей</h1>
+      <p class="blog-subtitle">Подборки лучших секций, советы психологов, новости образования и идеи для развития вашего ребенка.</p>
+    </section>
+
+    <!-- Filter/Tags -->
+    <div class="blog-tags">
+      <button class="category-btn active">Все</button>
+      <button class="category-btn">Подборки</button>
+      <button class="category-btn">Советы</button>
+      <button class="category-btn">Спорт</button>
+      <button class="category-btn">Творчество</button>
+      <button class="category-btn">Новости</button>
+    </div>
+
+    <!-- Grid -->
+    <div class="articles-grid">
+      
+      <!-- Featured Article (Big) -->
+      <article class="article-card featured">
+        <div class="card-img-wrapper">
+            <span class="card-category">Подборка</span>
+            <img src="https://images.unsplash.com/photo-1542315264-884813583226?q=80&w=1200&auto=format&fit=crop" alt="Детский футбол" loading="lazy">
+        </div>
+        <div class="card-content">
+          <div class="card-meta">
+            <span class="meta-item"><time datetime="2025-10-25">25 окт. 2025</time></span>
+            <span class="meta-item">•</span>
+            <span class="meta-item">8 мин. читать</span>
+          </div>
+          <a href="#">
+             <h3 class="card-title">Топ-10 футбольных секций Ростова-на-Дону: Рейтинг 2025 года</h3>
+          </a>
+          <p class="card-excerpt">Мы проанализировали отзывы родителей, квалификацию тренеров и состояние полей, чтобы составить честный рейтинг футбольных школ для детей от 4 до 14 лет.</p>
+          <div class="card-footer">
+            <div class="author">
+               <img src="https://i.pravatar.cc/100?img=33" alt="Анна И." class="author-img">
+               <span class="author-name">Анна Иванова</span>
+            </div>
+            <a href="#" class="read-more">Читать далее &rarr;</a>
+          </div>
+        </div>
+      </article>
+
+      <!-- Standard Article 1 -->
+      <article class="article-card">
+        <div class="card-img-wrapper">
+             <span class="card-category">Советы</span>
+             <img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=800&auto=format&fit=crop" alt="Ребенок рисует" loading="lazy">
+        </div>
+        <div class="card-content">
+          <div class="card-meta">
+             <time datetime="2025-10-20">20 окт. 2025</time>
+             <span>• 5 мин.</span>
+          </div>
+          <a href="#"><h3 class="card-title">Как понять, что ребенку не подходит кружок?</h3></a>
+          <p class="card-excerpt">5 неочевидных признаков того, что стоит сменить секцию, даже если тренер кажется профессионалом.</p>
+          <div class="card-footer">
+             <div class="author">
+               <img src="https://i.pravatar.cc/100?img=12" alt="Олег П." class="author-img">
+               <span class="author-name">Олег Петров</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Standard Article 2 -->
+      <article class="article-card">
+        <div class="card-img-wrapper">
+            <span class="card-category">Творчество</span>
+            <img src="https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=800&auto=format&fit=crop" alt="ИЗО студия" loading="lazy">
+        </div>
+        <div class="card-content">
+          <div class="card-meta">
+             <time datetime="2025-10-15">15 окт. 2025</time>
+             <span>• 6 мин.</span>
+          </div>
+          <a href="#"><h3 class="card-title">ИЗО или лепка? Развиваем мелкую моторику правильно</h3></a>
+          <p class="card-excerpt">Обзор творческих направлений для дошкольников. Что лучше выбрать для подготовки руки к письму.</p>
+          <div class="card-footer">
+             <div class="author">
+               <img src="https://i.pravatar.cc/100?img=5" alt="Мария С." class="author-img">
+               <span class="author-name">Мария Сидорова</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Standard Article 3 -->
+      <article class="article-card">
+        <div class="card-img-wrapper">
+             <span class="card-category">Новости</span>
+             <img src="https://images.unsplash.com/photo-1577896335477-2858506f48db?q=80&w=800&auto=format&fit=crop" alt="Школа" loading="lazy">
+        </div>
+        <div class="card-content">
+          <div class="card-meta">
+             <time datetime="2025-10-10">10 окт. 2025</time>
+             <span>• 3 мин.</span>
+          </div>
+          <a href="#"><h3 class="card-title">Открытие новых технопарков в районе Северный</h3></a>
+          <p class="card-excerpt">В следующем месяце планируется открытие двух новых площадок для занятий робототехникой.</p>
+           <div class="card-footer">
+             <div class="author">
+               <img src="https://via.placeholder.com/24" alt="Редакция" class="author-img">
+               <span class="author-name">Редакция Мапка</span>
+            </div>
+          </div>
+        </div>
+      </article>
+      
+       <!-- Standard Article 4 -->
+      <article class="article-card">
+        <div class="card-img-wrapper">
+            <span class="card-category">Спорт</span>
+            <img src="https://images.unsplash.com/photo-1565108253106-96b67876823c?q=80&w=800&auto=format&fit=crop" alt="Бассейн" loading="lazy">
+        </div>
+        <div class="card-content">
+          <div class="card-meta">
+             <time datetime="2025-10-05">05 окт. 2025</time>
+             <span>• 7 мин.</span>
+          </div>
+          <a href="#"><h3 class="card-title">Плавание для здоровья спины: мифы и реальность</h3></a>
+          <p class="card-excerpt">Врач-ортопед рассказывает, какие стили плавания действительно полезны при сколиозе.</p>
+          <div class="card-footer">
+             <div class="author">
+               <img src="https://i.pravatar.cc/100?img=68" alt="Дмитрий К." class="author-img">
+               <span class="author-name">Дмитрий К.</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+    </div>
+
+    <!-- Newsletter Section -->
+    <section class="newsletter">
+        <h3>Подпишитесь на полезные советы</h3>
+        <p>Каждую неделю присылаем подборку лучших кружков и идеи для выходных с детьми.</p>
+        <form class="newsletter-form" onsubmit="event.preventDefault(); alert('Спасибо за подписку!');">
+            <input type="email" placeholder="Ваш Email" class="newsletter-input" required>
+            <button type="submit" class="newsletter-btn">Подписаться</button>
+        </form>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+      <div class="footer-content">
+          <img src="logo.png" alt="Мапка" style="height: 30px; filter: grayscale(1); opacity: 0.7;" onerror="this.style.display='none'">
+          <div class="copyright">© 2025 Мапка. Все права защищены.</div>
+          <div style="display: flex; gap: 20px;">
+              <a href="#" style="color: var(--text-secondary); font-size: 14px;">Политика конфиденциальности</a>
+              <a href="#" style="color: var(--text-secondary); font-size: 14px;">Оферта</a>
+          </div>
+      </div>
+  </footer>
+
+  <!-- JSON-LD Structured Data (SEO) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    "name": "Блог Мапка",
+    "description": "Полезные статьи и подборки кружков для родителей",
+    "url": "https://xn--80aa3agq.xn--p1ai/blog",
+    "publisher": {
+      "@type": "Organization",
+      "name": "Мапка",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://xn--80aa3agq.xn--p1ai/logo.png"
+      }
+    },
+    "blogPost": [
+      {
+        "@type": "BlogPosting",
+        "headline": "Топ-10 футбольных секций Ростова-на-Дону",
+        "image": "https://images.unsplash.com/photo-1542315264-884813583226",
+        "datePublished": "2025-10-25",
+        "author": {
+          "@type": "Person",
+          "name": "Анна Иванова"
+        }
+      },
+      {
+        "@type": "BlogPosting",
+        "headline": "Как понять, что ребенку не подходит кружок?",
+        "image": "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9",
+        "datePublished": "2025-10-20",
+        "author": {
+          "@type": "Person",
+          "name": "Олег Петров"
+        }
+      }
+    ]
+  }
+  </script>
+
+</body>
+</html>

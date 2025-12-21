@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Избранные кружки и секции - Мапка</title>
+  <meta name="description" content="Ваш личный список отобранных кружков и секций. Сравнивайте, выбирайте и записывайтесь на занятия.">
+  <link rel="canonical" href="https://xn--80aa3agq.xn--p1ai/favorites">
+  <link rel="icon" href="/favicon.ico" />
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Мои избранные секции - Мапка">
+  <meta property="og:description" content="Список лучших кружков для моего ребенка.">
+  <meta property="og:type" content="website">
+
+  <style>
+    /* --- CORE STYLES (MATCHING INDEX/BLOG) --- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #f5f5f5;
+      --bg-secondary: white;
+      --bg-card: #f0f2f5;
+      --bg-input: #f3f4f6;
+      --text-primary: #111827;
+      --text-secondary: #6b7280;
+      --border-color: #e5e7eb;
+      --accent-color: #69AFDF;
+      --accent-hover: #5b9bc5;
+      --danger-color: #ef4444;
+      --header-height: 72px;
+      --container-width: 1200px;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a { text-decoration: none; color: inherit; }
+    button { font-family: inherit; }
+
+    /* --- HEADER --- */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      height: var(--header-height);
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 100%;
+      max-width: 1920px;
+      margin: 0 auto;
+    }
+
+    .mainLogo { height: 36px; display: block; object-fit: contain; }
+
+    .nav-desktop {
+      display: none;
+      align-items: center;
+      gap: 32px;
+      margin-left: 48px;
+      margin-right: auto;
+    }
+
+    .nav-desktop a {
+      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-desktop a:hover { color: var(--accent-color); }
+    
+    .header-right-desktop { display: none; align-items: center; gap: 20px; }
+    
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .icon-btn:hover { background: var(--bg-input); }
+    .icon-btn.active { color: var(--danger-color); }
+
+    .header-right-mobile { display: flex; align-items: center; gap: 12px; }
+
+    /* --- FAVORITES CONTAINER --- */
+    .favorites-container {
+      width: 100%;
+      max-width: var(--container-width);
+      margin: 0 auto;
+      padding: 32px 24px;
+      flex: 1;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 24px;
+    }
+
+    .page-title h1 {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .page-title p {
+      color: var(--text-secondary);
+      font-size: 16px;
+    }
+
+    .page-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .action-btn {
+      padding: 8px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      background: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    
+    .action-btn:hover {
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+    }
+    
+    .action-btn.danger:hover {
+        border-color: var(--danger-color);
+        color: var(--danger-color);
+    }
+
+    /* --- GRID --- */
+    .favorites-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 24px;
+    }
+
+    /* --- CARD STYLE (Reused from index.html with tweaks) --- */
+    .club-card {
+      background: white;
+      border-radius: 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid transparent;
+      box-shadow: var(--shadow-card);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .club-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-hover);
+      border-color: rgba(105, 175, 223, 0.3);
+    }
+
+    .card-image-wrapper {
+      position: relative;
+      height: 200px;
+      background: #e5e7eb;
+    }
+
+    .card-image-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .remove-fav-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--danger-color);
+      transition: transform 0.2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .remove-fav-btn:hover { transform: scale(1.1); background: white; }
+    .remove-fav-btn svg { fill: currentColor; }
+
+    .card-content {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      font-size: 11px;
+      background: var(--bg-input);
+      padding: 4px 10px;
+      border-radius: 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .card-location {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .card-location svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      color: #9ca3af;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .card-price {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .card-btn {
+      background: var(--accent-color);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: opacity 0.2s;
+    }
+    .card-btn:hover { opacity: 0.9; }
+
+    /* --- EMPTY STATE --- */
+    .empty-state {
+      display: none; /* Hidden by default */
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 60px 20px;
+      background: white;
+      border-radius: 24px;
+      border: 1px dashed var(--border-color);
+    }
+
+    .empty-state.visible {
+      display: flex;
+    }
+
+    .empty-state-icon {
+      width: 120px;
+      height: 120px;
+      background: var(--bg-input);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      color: #9ca3af;
+    }
+
+    .empty-state h3 {
+      font-size: 24px;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    .empty-state p {
+      color: var(--text-secondary);
+      max-width: 400px;
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    .primary-btn {
+      background: var(--accent-color);
+      color: white;
+      padding: 14px 32px;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 16px;
+      box-shadow: 0 4px 12px rgba(105, 175, 223, 0.3);
+      transition: transform 0.2s;
+    }
+    .primary-btn:hover { transform: translateY(-2px); }
+
+    /* --- FOOTER --- */
+    .footer {
+      margin-top: auto;
+      padding: 40px 0;
+      background: white;
+      border-top: 1px solid var(--border-color);
+    }
+    .footer-content {
+      max-width: var(--container-width);
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    @media (min-width: 768px) {
+      .nav-desktop, .header-right-desktop { display: flex; }
+      .header-right-mobile { display: none; }
+    }
+    
+    @media (max-width: 768px) {
+        .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+        .page-actions { width: 100%; }
+        .action-btn { flex: 1; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logoContainer">
+        <a href="index.html">
+            <img src="logo.png" alt="Мапка" class="mainLogo" onerror="this.src='https://via.placeholder.com/120x40?text=MAPKA'">
+        </a>
+      </div>
+
+      <nav class="nav-desktop">
+        <a href="index.html">Поиск кружков</a>
+        <a href="blog.html">Блог</a>
+        <a href="#">О нас</a>
+      </nav>
+
+      <div class="header-right-desktop">
+        <!-- Heart Icon is Active Here -->
+        <a href="favorites.html" class="icon-btn active" aria-label="Избранное">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+             <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+          </svg>
+        </a>
+        <a href="#" style="background: var(--bg-input); padding: 8px 16px; border-radius: 20px; display: flex; align-items: center; gap: 8px;">
+          <span>Войти</span>
+          <div class="avatar" style="width: 24px; height: 24px; background: #d1d5db; border-radius: 50%;"></div>
+        </a>
+      </div>
+
+      <div class="header-right-mobile">
+        <button class="icon-btn active">
+           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+             <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+          </svg>
+        </button>
+         <button class="icon-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="favorites-container">
+    
+    <div class="page-header">
+      <div class="page-title">
+        <h1>Избранное</h1>
+        <p>Кружки, которые вы сохранили, чтобы не потерять.</p>
+      </div>
+      <div class="page-actions" id="pageActions">
+        <button class="action-btn" onclick="shareList()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+             <path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
+          </svg>
+          Поделиться
+        </button>
+        <button class="action-btn danger" onclick="clearAllFavorites()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+          </svg>
+          Очистить
+        </button>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-state-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+        </svg>
+      </div>
+      <h3>В избранном пока пусто</h3>
+      <p>Вы еще не добавляли кружки в избранное. Перейдите на карту или в каталог, чтобы найти что-то интересное для вашего ребенка.</p>
+      <a href="index.html" class="primary-btn">Перейти к поиску</a>
+    </div>
+
+    <!-- Grid -->
+    <div class="favorites-grid" id="favoritesGrid">
+      <!-- Cards will be injected here via JS -->
+    </div>
+
+  </main>
+
+  <footer class="footer">
+      <div class="footer-content">
+          <img src="logo.png" alt="Мапка" style="height: 30px; filter: grayscale(1); opacity: 0.7;" onerror="this.style.display='none'">
+          <div style="color: var(--text-secondary); font-size: 14px;">© 2024 Мапка. Все права защищены.</div>
+          <div style="display: flex; gap: 20px;">
+              <a href="#" style="color: var(--text-secondary); font-size: 14px;">Политика конфиденциальности</a>
+              <a href="#" style="color: var(--text-secondary); font-size: 14px;">Оферта</a>
+          </div>
+      </div>
+  </footer>
+
+  <script>
+    // --- Mock Data Generator (Since we don't have a real backend connected yet) ---
+    // В реальности эти данные должны браться из localStorage или API
+    const mockFavorites = [
+      {
+        id: 1,
+        title: "Футбольная школа 'Юниор'",
+        image: "https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=600&auto=format&fit=crop",
+        tags: ["Спорт", "Футбол"],
+        address: "ул. Большая Садовая, 45",
+        price: "4500 ₽"
+      },
+      {
+        id: 2,
+        title: "Студия рисования 'Палитра'",
+        image: "https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=600&auto=format&fit=crop",
+        tags: ["Творчество", "ИЗО"],
+        address: "пр. Буденновский, 21",
+        price: "3200 ₽"
+      },
+      {
+        id: 3,
+        title: "Робототехника для детей",
+        image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=600&auto=format&fit=crop",
+        tags: ["IT", "Робототехника"],
+        address: "ул. Пушкинская, 101",
+        price: "5000 ₽"
+      }
+    ];
+
+    let favorites = [...mockFavorites]; // Copy for manipulation
+
+    const grid = document.getElementById('favoritesGrid');
+    const emptyState = document.getElementById('emptyState');
+    const pageActions = document.getElementById('pageActions');
+
+    function renderFavorites() {
+      grid.innerHTML = '';
+      
+      if (favorites.length === 0) {
+        grid.style.display = 'none';
+        emptyState.classList.add('visible');
+        pageActions.style.display = 'none'; // Hide buttons if empty
+        return;
+      }
+
+      grid.style.display = 'grid';
+      emptyState.classList.remove('visible');
+      pageActions.style.display = 'flex';
+
+      favorites.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'club-card';
+        card.innerHTML = `
+          <div class="card-image-wrapper">
+             <img src="${item.image}" alt="${item.title}" loading="lazy">
+             <button class="remove-fav-btn" onclick="removeItem(${item.id})" title="Удалить из избранного">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 18L18 6M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+             </button>
+          </div>
+          <div class="card-content">
+             <div class="card-tags">
+                ${item.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+             </div>
+             <h3 class="card-title">${item.title}</h3>
+             <div class="card-location">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                ${item.address}
+             </div>
+             <div class="card-footer">
+                <span class="card-price">${item.price}</span>
+                <a href="#" class="card-btn">Подробнее</a>
+             </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // Function to remove item
+    window.removeItem = function(id) {
+      if(confirm('Удалить из избранного?')) {
+        favorites = favorites.filter(item => item.id !== id);
+        renderFavorites();
+      }
+    };
+
+    // Function to clear all
+    window.clearAllFavorites = function() {
+      if(confirm('Вы уверены, что хотите очистить весь список?')) {
+        favorites = [];
+        renderFavorites();
+      }
+    };
+    
+    // Function to mimic sharing
+    window.shareList = function() {
+        // In reality, this would copy a link with IDs
+        alert('Ссылка на список скопирована в буфер обмена!');
+    };
+
+    // Initial Render
+    document.addEventListener('DOMContentLoaded', () => {
+      // Check localStorage here in real app
+      renderFavorites();
+    });
+
+  </script>
+</body>
+</html>
