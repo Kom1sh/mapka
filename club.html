@@ -496,10 +496,31 @@
     
     // Получаем slug
     const url = new URL(window.location.href);
-    let slug = url.searchParams.get('slug');
+
+    // Пути, которые НЕ являются slug кружка
+    const RESERVED_SLUGS = new Set([
+      "",            // корень
+      "index.html",
+      "club.html",
+      "blog",
+      "blog.html",
+      "favorites",
+      "favorites.html"
+    ]);
+
+    let slug = url.searchParams.get("slug");
+
+    // Если slug не передан как query-параметр – пробуем взять из пути
     if (!slug) {
-      const path = url.pathname.replace(/^\/+|\/+$/g, "");
-      if (path && path !== "club.html" && path !== "index.html") slug = path;
+      const path = url.pathname.replace(/^\/+|\/+$/g, ""); // без ведущих/замыкающих слэшей
+
+      if (path && !RESERVED_SLUGS.has(path)) {
+        // нормальный slug типа "happy-swim"
+        slug = path;
+      } else {
+        // системный путь – явно не страница кружка
+        slug = null;
+      }
     }
 
     let club = null;
@@ -581,12 +602,39 @@
             schedules: Array.isArray(apiData.schedules) ? apiData.schedules : [],
             socialLinks: apiData.social_links || apiData.socialLinks || {},
             tags: Array.isArray(apiData.tags) ? apiData.tags : [],
-            webSite: apiData.site || apiData.webSite || ""
+            webSite: apiData.site || apiData.webSite || "",
+            photos
         };
     }
 
     // --- RENDER ---
     async function initPage() {
+
+      // Если slug не определён — мы сюда попали по ошибке (не страница кружка)
+      if (!slug) {
+          const path = location.pathname.replace(/^\/+|\/+$/g, "");
+
+          // Если вдруг /blog или /favorites по ошибке отдали club.html — мягко перекинем пользователя
+          if (path === "blog" || path === "blog.html") {
+              location.replace("/blog");
+              return;
+          }
+          if (path === "favorites" || path === "favorites.html") {
+              location.replace("/favorites");
+              return;
+          }
+
+          // В остальных случаях — просто 404 по кружку
+          document.title = "Кружок не найден – Мапка";
+          const container = document.getElementById("mainContainer");
+          if (container) {
+              container.innerHTML = '<div style="padding:40px;text-align:center;color:#999;">Кружок не найден</div>';
+          }
+          const bar = document.getElementById("mobileBottomBar");
+          if (bar) bar.style.display = "none";
+          return;
+      }
+
         try {
             const rawData = await fetchClubData(slug);
             club = normalizeClub(rawData);
