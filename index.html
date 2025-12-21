@@ -24,12 +24,13 @@
     :root {
       --bg-primary: #f5f5f5;
       --bg-secondary: white;
-      --bg-card: #d1d1d1;
+      --bg-card: #f0f2f5;
       --bg-input: white;
       --text-primary: #1a1a1a;
       --text-secondary: #565555;
       --border-color: #e5e5e5;
       --handle-color: #d1d1d1;
+      --accent-color: #69AFDF;
     }
 
     body {
@@ -37,15 +38,17 @@
       background: var(--bg-primary);
       color: var(--text-primary);
       min-height: 100vh;
+      overflow: hidden; /* Важно для поведения "как приложение" */
     }
 
     /* Header */
     .header {
-      position: sticky;
-      top: 0;
+      position: relative;
       z-index: 50;
       background: #565555;
       color: white;
+      height: 64px;
+      flex-shrink: 0;
     }
 
     .header-inner {
@@ -53,7 +56,7 @@
       align-items: center;
       justify-content: space-between;
       padding: 0 16px;
-      height: 56px;
+      height: 100%;
       gap: 16px;
     }
 
@@ -195,12 +198,15 @@
       display: none;
       position: relative;
       height: calc(100vh - 64px);
+      width: 100%;
+      overflow: hidden;
     }
 
     .map-container {
       position: absolute;
       inset: 0;
       background: #e5e5e5;
+      z-index: 1;
     }
 
     #map {
@@ -208,101 +214,110 @@
       height: 100%;
     }
 
-    /* Left panel (desktop) */
+    /* --- ЛЕВАЯ ПАНЕЛЬ (Avito Style) --- */
     .left-panel {
       position: absolute;
       left: 0;
       top: 0;
       bottom: 0;
-      width: 800px;
-      max-width: 50%;
+      /* Фиксированная ширина, не зависит от зума и экрана */
+      width: 480px; 
+      max-width: 100%; /* На случай супер-узких экранов */
       display: flex;
       flex-direction: column;
       padding: 16px;
       gap: 16px;
-      z-index: 10;
-      transition: transform 0.3s ease;
+      z-index: 20;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      /* Чтобы клики проходили сквозь отступы (padding), 
+         но работали на содержимом */
+      pointer-events: none; 
     }
 
+    /* При сворачивании уезжает влево на 100% своей ширины */
     .left-panel.collapsed {
-      transform: translateX(calc(-100% + 24px));
+      transform: translateX(-100%);
     }
 
-    /* Внешний контейнер с рамкой и скруглением */
+    /* Включаем клики внутри элементов панели обратно */
+    .left-panel > * {
+      pointer-events: auto;
+    }
+
+    /* Контейнер списка */
     .cards-container {
       flex: 1;
       background: var(--bg-secondary);
-      border-radius: 24px;
-      border: 2px solid #1a1a1a;
+      border-radius: 20px;
+      /* Красивая тень вместо рамки */
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+      border: 1px solid rgba(0,0,0,0.05);
       position: relative;
-      overflow: hidden; /* обрезаем скролл по радиусу */
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
-    /* Внутренний блок, который реально скроллится */
     .cards-scroll {
-      height: 100%;
+      flex: 1;
       padding: 16px;
       overflow-y: auto;
     }
 
-    /* Кастомный скроллбар для desktop */
+    /* Скроллбар */
     .cards-scroll::-webkit-scrollbar {
-      width: 10px;
+      width: 8px;
     }
-
     .cards-scroll::-webkit-scrollbar-track {
-      background: var(--bg-primary);
-      border-radius: 12px;
-      margin: 8px;
+      background: transparent;
     }
-
     .cards-scroll::-webkit-scrollbar-thumb {
-      background: #69AFDF;
-      border-radius: 12px;
-      border: 3px solid var(--bg-secondary);
+      background: #d1d5db;
+      border-radius: 4px;
     }
-
     .cards-scroll::-webkit-scrollbar-thumb:hover {
-      background: #5a9fcf;
+      background: #9ca3af;
     }
-
-    /* Firefox */
     .cards-scroll {
       scrollbar-width: thin;
-      scrollbar-color: #69AFDF var(--bg-primary);
+      scrollbar-color: #d1d5db transparent;
     }
 
-    /* Ручка сворачивания панели на десктопе */
+    /* --- ЯЗЫЧОК / ПЕТЕЛЬКА --- */
     .desktop-panel-handle {
       position: absolute;
-      right: -24px;
+      /* Выносим его справа от панели */
+      right: -32px; 
       top: 50%;
       transform: translateY(-50%);
-      width: 42px;
-      height: 48px;
+      width: 32px;
+      height: 64px;
       background: var(--bg-secondary);
-      border: 2px solid #1a1a1a;
-      border-left: none;
+      border: 1px solid rgba(0,0,0,0.1);
+      border-left: none; /* Сливаем с панелью если прижат */
       border-radius: 0 12px 12px 0;
+      box-shadow: 4px 2px 12px rgba(0,0,0,0.08);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 11;
+      z-index: 21;
+      pointer-events: auto; /* Кликабелен всегда */
       transition: background 0.2s;
     }
 
     .desktop-panel-handle:hover {
-      background: var(--bg-card);
+      background: #f9fafb;
     }
 
     .desktop-panel-handle svg {
       width: 16px;
       height: 16px;
-      color: var(--text-primary);
+      color: var(--text-secondary);
       transition: transform 0.3s;
     }
 
+    /* Когда панель скрыта, стрелка поворачивается */
     .left-panel.collapsed .desktop-panel-handle svg {
       transform: rotate(180deg);
     }
@@ -316,8 +331,9 @@
     /* Search Filter */
     .search-filter {
       display: flex;
-      gap: 8px;
-      height: 40px;
+      gap: 12px;
+      height: 48px;
+      flex-shrink: 0;
     }
 
     .filter-btn {
@@ -325,17 +341,18 @@
       align-items: center;
       gap: 8px;
       padding: 0 16px;
-      background: #69AFDF;
+      background: var(--accent-color);
       color: white;
       border: none;
-      border-radius: 24px;
+      border-radius: 14px;
       font-size: 14px;
       cursor: pointer;
-      transition: transform 0.2s;
+      transition: transform 0.2s, opacity 0.2s;
+      box-shadow: 0 2px 8px rgba(105, 175, 223, 0.3);
     }
 
     .filter-btn:hover {
-      transform: scale(1.02);
+      opacity: 0.9;
     }
 
     .filter-btn .filter-text {
@@ -345,30 +362,39 @@
     .search-box {
       flex: 1;
       display: flex;
-      background: #69AFDF;
-      border-radius: 24px;
-      padding: 2px;
+      background: white;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 4px;
+      transition: box-shadow 0.2s;
+    }
+    
+    .search-box:focus-within {
+        box-shadow: 0 4px 16px rgba(105, 175, 223, 0.25);
+        border-color: var(--accent-color);
     }
 
     .search-box input {
       flex: 1;
       min-width: 0;
-      background: var(--bg-input);
+      background: transparent;
       color: var(--text-primary);
       border: none;
-      border-radius: 24px;
-      padding: 0 16px;
-      font-size: 14px;
+      padding: 0 12px;
+      font-size: 15px;
       outline: none;
     }
 
     .search-box button {
       padding: 0 16px;
-      background: none;
+      background: var(--accent-color);
+      border-radius: 10px;
       border: none;
       color: white;
       font-size: 14px;
       cursor: pointer;
+      font-weight: 500;
     }
 
     .search-box .search-btn-mobile {
@@ -390,11 +416,17 @@
     /* Club Card */
     .club-card {
       background: var(--bg-card);
-      border-radius: 24px;
-      padding: 8px;
+      border-radius: 16px;
+      padding: 12px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 12px;
+      transition: background 0.2s;
+      border: 1px solid transparent;
+    }
+    
+    .club-card:hover {
+        background: #e8eaed;
     }
 
     .sectionCard {
@@ -431,16 +463,25 @@
       position: absolute;
       top: 8px;
       left: 8px;
-      background: none;
+      background: rgba(0,0,0,0.4);
+      border-radius: 50%;
+      padding: 6px;
       border: none;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    
+    .favorite-btn:hover {
+        background: rgba(0,0,0,0.6);
     }
 
     .favorite-btn svg {
-      width: 24px;
-      height: 24px;
+      width: 20px;
+      height: 20px;
       color: white;
-      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
     }
 
     .favorite-btn.active svg {
@@ -452,30 +493,25 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       min-width: 0;
     }
 
     .card-title {
-      background: var(--bg-input);
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.3;
       color: var(--text-primary);
-      border-radius: 16px;
-      padding: 8px 12px;
-      font-size: 14px;
-      font-weight: normal;
-      word-break: break-word;
-      overflow-wrap: anywhere;
     }
 
     .card-description {
-      background: var(--bg-input);
-      color: var(--text-primary);
-      border-radius: 16px;
-      padding: 8px 12px;
-      flex: 1;
-      overflow-y: auto;
-      font-size: 12px;
-      line-height: 1.5;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     .card-tags {
@@ -485,24 +521,25 @@
     }
 
     .tag-btn {
-      background: var(--bg-input);
-      color: var(--text-primary);
-      font-size: 10px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      border: none;
+      background: white;
+      color: var(--text-secondary);
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
       cursor: pointer;
       transition: all 0.2s;
     }
 
     .tag-btn:hover {
-      background: #69AFDF;
-      color: white;
+      border-color: var(--accent-color);
+      color: var(--accent-color);
     }
 
     .tag-btn.active {
-      background: #69AFDF;
+      background: var(--accent-color);
       color: white;
+      border-color: var(--accent-color);
     }
 
     .card-bottom {
@@ -514,8 +551,8 @@
     .card-main-row {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
-      flex-wrap: wrap; /* чтобы на узких экранах не ломалось */
     }
 
     .card-location {
@@ -523,7 +560,8 @@
       align-items: center;
       gap: 4px;
       font-size: 12px;
-      color: var(--text-primary);
+      color: var(--text-secondary);
+      margin-top: 4px;
     }
 
     .card-location svg {
@@ -534,7 +572,6 @@
 
     .cardLocationText {
       word-break: break-word;
-      overflow-wrap: anywhere;
     }
 
     .card-buttons {
@@ -543,34 +580,30 @@
     }
 
     .card-btn {
-      background: #69AFDF;
+      background: var(--accent-color);
       color: white;
-      padding: 8px 12px;
-      border-radius: 12px;
+      padding: 8px 16px;
+      border-radius: 10px;
       border: none;
       font-size: 14px;
+      font-weight: 500;
       cursor: pointer;
-      transition: transform 0.2s;
+      transition: opacity 0.2s;
       text-decoration: none;
     }
 
     .card-btn:hover {
-      transform: scale(1.02);
+      opacity: 0.9;
     }
 
     .card-price {
-      background: var(--bg-input);
-      border-radius: 12px;
-      padding: 6px 12px;
-      font-size: 12px;
-      font-weight: 500;
+      font-size: 16px;
+      font-weight: 700;
       color: var(--text-primary);
-      align-self: flex-start;
     }
 
     .card-price.free {
-      background: #4ade80;
-      color: white;
+      color: #22c55e;
     }
 
     /* Mobile Layout */
@@ -600,8 +633,7 @@
       bottom: 0;
       background: var(--bg-secondary);
       border-radius: 24px 24px 0 0;
-      border: 2px solid #1a1a1a;
-      border-bottom: none;
+      box-shadow: 0 -2px 20px rgba(0,0,0,0.1);
       z-index: 30;
       touch-action: none;
       transition: transform 0.3s ease-out;
@@ -926,6 +958,8 @@
       flex-wrap: wrap;
       gap: 8px;
       margin-top: 8px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
     }
 
     .active-filter-chip {
@@ -980,15 +1014,25 @@
         display: none;
       }
 
-      .search-filter {
-        height: 72px;
+      /* Desktop Filter Modal */
+      .filter-panel {
+        position: absolute;
+        left: 500px; /* Позиция правее фиксированной панели */
+        top: 80px;
+        width: 360px;
+        max-height: 80vh;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        right: auto;
+        bottom: auto;
+        border: 1px solid rgba(0,0,0,0.05);
       }
 
       .filter-btn {
-        padding: 0 56px 0 40px;
-        font-size: 20px;
+        padding: 0 16px;
+        font-size: 14px;
       }
-
+      
       .filter-btn .filter-text {
         display: inline;
       }
@@ -998,13 +1042,11 @@
       }
 
       .search-box input {
-        padding: 0 24px;
-        font-size: 20px;
+        font-size: 16px;
       }
 
       .search-box button {
-        padding: 0 32px;
-        font-size: 20px;
+        padding: 0 20px;
       }
 
       .search-box .search-btn-text {
@@ -1020,30 +1062,16 @@
       }
 
       .card-image {
-        width: 250px;
-        height: 250px;
-        border-radius: 24px;
+        width: 140px;
+        height: 140px;
       }
 
       .card-title {
-        border-radius: 24px;
-        padding: 8px 24px;
-        font-size: 24px;
+        font-size: 20px;
       }
 
       .card-description {
-        border-radius: 24px;
-        padding: 16px;
-        font-size: 16px;
-      }
-
-      .card-tags {
-        gap: 8px;
-      }
-
-      .tag-btn {
         font-size: 14px;
-        padding: 4px 12px;
       }
 
       .card-bottom {
@@ -1053,58 +1081,15 @@
       }
 
       .card-location {
-        font-size: 16px;
+        font-size: 13px;
         order: 2;
-      }
-
-      .card-location svg {
-        width: 24px;
-        height: 24px;
       }
 
       .card-buttons {
         order: 1;
       }
-
-      .card-btn {
-        padding: 8px 16px;
-        border-radius: 24px;
-        font-size: 16px;
-      }
-
-      .card-price {
-        font-size: 14px;
-        padding: 8px 16px;
-      }
-
-      .filter-panel {
-        position: absolute;
-        left: 16px;
-        top: 100px;
-        right: auto;
-        bottom: auto;
-        width: 400px;
-        max-height: calc(100vh - 180px);
-        border-radius: 24px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        inset: auto;
-      }
     }
   </style>
-
-  <!-- Yandex.Metrika counter -->
-  <script type="text/javascript">
-    (function(m,e,t,r,i,k,a){
-        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=105798797', 'ym');
-
-    ym(105798797, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
-  </script>
-  <noscript><div><img src="https://mc.yandex.ru/watch/105798797" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-  <!-- /Yandex.Metrika counter -->
 </head>
 <body>
   <!-- Header -->
@@ -1240,6 +1225,7 @@
       <div id="map"></div>
     </div>
 
+    <!-- Обновленная левая панель -->
     <div class="left-panel" id="leftPanel">
       <div class="search-filter">
         <button class="filter-btn" id="desktopFilterBtn">
@@ -1261,9 +1247,10 @@
 
       <div class="active-filters" id="desktopActiveFilters"></div>
 
+      <!-- Кнопка-язычок теперь снаружи и справа -->
       <div class="desktop-panel-handle" id="desktopPanelHandle">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
         </svg>
       </div>
 
@@ -1919,63 +1906,33 @@
       }
     });
 
-    // Desktop panel collapse drag
+    // ----------------------------------------------------------------------------------
+    // ОБНОВЛЕННАЯ ЛОГИКА ДЛЯ ДЕСКТОП ПАНЕЛИ
+    // ----------------------------------------------------------------------------------
     const leftPanel = document.getElementById('leftPanel');
     const desktopPanelHandle = document.getElementById('desktopPanelHandle');
 
+    // Просто переключаем класс .collapsed по клику на язычок
     desktopPanelHandle?.addEventListener('click', () => {
       desktopPanelCollapsed = !desktopPanelCollapsed;
-      leftPanel.classList.toggle('collapsed', desktopPanelCollapsed);
-      desktopPanelHandle.style.transition = 'transform 0.3s ease';
-    });
-
-    let desktopDragStartX = 0;
-    let isDesktopDragging = false;
-
-    desktopPanelHandle?.addEventListener('mousedown', (e) => {
-      desktopDragStartX = e.clientX;
-      isDesktopDragging = true;
-      e.preventDefault();
-      leftPanel.style.transition = 'transform 0s';
-    });
-
-    document.addEventListener('mousemove', (e) => {
-      if (!isDesktopDragging) return;
-      const deltaX = e.clientX - desktopDragStartX;
-      const panelWidth = leftPanel.offsetWidth;
-      const collapseThreshold = panelWidth * 0.3;
-
-      if (Math.abs(deltaX) > 50) {
-        if (deltaX < -collapseThreshold && !desktopPanelCollapsed) {
-          desktopPanelCollapsed = true;
-          leftPanel.classList.add('collapsed');
-        } else if (deltaX > collapseThreshold && desktopPanelCollapsed) {
-          desktopPanelCollapsed = false;
-          leftPanel.classList.remove('collapsed');
-        }
-        isDesktopDragging = false;
-        leftPanel.style.transition = 'transform 0.3s ease';
+      
+      if (desktopPanelCollapsed) {
+        leftPanel.classList.add('collapsed');
+      } else {
+        leftPanel.classList.remove('collapsed');
       }
     });
 
-    document.addEventListener('mouseup', () => {
-      if (isDesktopDragging) {
-        isDesktopDragging = false;
-        leftPanel.style.transition = 'transform 0.3s ease';
-      }
-    });
-
-    // Map placeholders
+    // Map placeholders (для отладки, если map.js не подгрузился)
     function initializeMap() {
       console.log("Map initialization placeholder.");
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      // Инициализация карты обычно происходит в map.js,
+      // но если у тебя есть логика тут - оставляем
       if (document.getElementById('map') && typeof ymaps !== 'undefined') {
         initializeMap();
-      }
-      if (document.getElementById('mobileMap') && typeof ymaps !== 'undefined') {
-        console.log("Mobile map initialization placeholder.");
       }
     });
 
