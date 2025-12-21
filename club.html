@@ -378,6 +378,22 @@
       box-shadow: 0 0 0 3px white, 0 4px 10px rgba(0,0,0,0.3);
     }
 
+    /* Tags */
+    .tags-section {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 16px;
+    }
+    .tag-chip {
+        background: var(--bg-primary);
+        color: var(--text-secondary);
+        font-size: 13px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
     /* --- SIDEBAR (STICKY, DESKTOP ONLY) --- */
     .sidebar-wrapper {
       position: relative;
@@ -467,13 +483,11 @@
   </div>
 
   <script>
-    // === API CONFIG (Исправлено для продакшена) ===
+    // === API CONFIG ===
     const API_BASE = (function(){
-        // Если мы на локалке, пробуем локальный API
         if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
             return "http://localhost:8000/api";
         }
-        // В продакшене или превью используем реальный адрес бэкенда
         return "https://mapkarostov.ru/api"; 
     })();
 
@@ -492,7 +506,7 @@
     let currentPhotoIdx = 0;
     let showFullPhone = false;
 
-    // --- DEMO DATA (Fallback, если API упал) ---
+    // --- DEMO DATA (Fallback) ---
     const DEMO_CLUB = {
         title: "Футбольная Академия 'Чемпион'",
         category: "Спорт",
@@ -502,18 +516,13 @@
         priceNotes: "за 12 тренировок",
         address: "г. Ростов-на-Дону, ул. Ленина, д. 42",
         phone: "+79991234567",
-        description: "Приглашаем детей от 5 до 16 лет в нашу футбольную школу! \n\nМы предлагаем:\n• Профессиональный тренерский состав (лицензии UEFA)\n• Современные поля с искусственным покрытием\n• Участие в городских и областных турнирах\n• Летние спортивные лагеря\n\nНаша методика основана на развитии индивидуальных качеств игрока и командного взаимодействия. Первая тренировка - бесплатно!",
-        tags: ["Футбол", "Спорт", "Команда", "ОФП"],
+        description: "Приглашаем детей от 5 до 16 лет в нашу футбольную школу!",
+        tags: ["Футбол", "Спорт", "Команда"],
         photos: [
-            "https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=1200&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=1200&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=1200&auto=format&fit=crop"
+            "https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=1200&auto=format&fit=crop"
         ],
         schedules: [
-            { day: "Понедельник", time: "17:00 - 18:30" },
-            { day: "Среда", time: "17:00 - 18:30" },
-            { day: "Пятница", time: "16:30 - 18:00" },
-            { day: "Суббота", time: "10:00 - 11:30" }
+            { day: "Понедельник", time: "17:00 - 18:30" }
         ],
         socialLinks: { vk: "https://vk.com", telegram: "https://t.me" },
         capacity: 15
@@ -521,10 +530,10 @@
 
     // --- FETCH ---
     async function fetchClubData(slug) {
+        // Если slug не задан, возвращаем демо
         if (!slug) return DEMO_CLUB;
 
         try {
-            // Фетчим полный список (как в старом коде), т.к. эндпоинт /clubs/slug может не существовать
             const res = await fetch(`${API_BASE}/clubs`);
             if (!res.ok) throw new Error("API Error");
             const list = await res.json();
@@ -539,25 +548,29 @@
         }
     }
 
+    // --- NORMALIZE (Bulletproof) ---
     function normalizeClub(apiData) {
-        // Нормализация фоток (добавление домена если путь относительный)
+        if (!apiData) return normalizeClub(DEMO_CLUB);
+
+        // 1. Нормализация фото (image строка -> photos массив)
         const rawPhotos = apiData.image || apiData.photos;
         let photos = [];
         
         if (Array.isArray(rawPhotos)) {
             photos = rawPhotos;
-        } else if (rawPhotos) {
-            photos = [rawPhotos];
+        } else if (rawPhotos && typeof rawPhotos === 'string') {
+            photos = [rawPhotos]; // Если пришла одна строка, делаем массив
         } else {
-            photos = DEMO_CLUB.photos;
+            photos = DEMO_CLUB.photos; // Если ничего нет, берем демо
         }
         
-        // Fix relative URLs
+        // Fix URLs
         photos = photos.map(p => {
+            if (!p) return ""; 
             if (p.startsWith('http')) return p;
-            if (p.startsWith('/')) return "https://mapkarostov.ru" + p; // Предполагаем, что картинки на том же домене, что и API
+            if (p.startsWith('/')) return "https://mapkarostov.ru" + p;
             return p;
-        });
+        }).filter(Boolean); // Убираем пустые
 
         return {
             title: apiData.name || apiData.title || "Без названия",
@@ -569,144 +582,154 @@
             address: apiData.location || apiData.address_text || apiData.address || "Адрес не указан",
             phone: apiData.phone || "",
             description: apiData.description || "",
-            schedules: apiData.schedules || [], // Ожидаем массив {day, time}
+            schedules: Array.isArray(apiData.schedules) ? apiData.schedules : [],
             socialLinks: apiData.social_links || apiData.socialLinks || {},
-            tags: apiData.tags || [],
+            tags: Array.isArray(apiData.tags) ? apiData.tags : [],
             webSite: apiData.site || apiData.webSite || ""
         };
     }
 
     // --- RENDER ---
     async function initPage() {
-        const rawData = await fetchClubData(slug);
-        club = normalizeClub(rawData);
+        try {
+            const rawData = await fetchClubData(slug);
+            club = normalizeClub(rawData);
 
-        document.title = `${club.title} - Мапка`;
-        const container = document.getElementById('mainContainer');
-        const mobileBar = document.getElementById('mobileBottomBar');
-        const headerTitle = document.getElementById('headerScrollTitle');
+            document.title = `${club.title} - Мапка`;
+            const container = document.getElementById('mainContainer');
+            const mobileBar = document.getElementById('mobileBottomBar');
+            const headerTitle = document.getElementById('headerScrollTitle');
 
-        if (headerTitle) headerTitle.textContent = club.title;
+            if (headerTitle) headerTitle.textContent = club.title;
 
-        const priceStr = club.price > 0 ? `${club.price.toLocaleString('ru-RU')} ₽` : "Бесплатно";
-        const ageStr = `${club.minAge} - ${club.maxAge} лет`;
+            const priceStr = club.price > 0 ? `${club.price.toLocaleString('ru-RU')} ₽` : "Бесплатно";
+            const ageStr = `${club.minAge} - ${club.maxAge} лет`;
 
-        // Генерируем HTML
-        let html = `
-            <div class="club-main">
-                <!-- 1. ЗАГОЛОВОК (H1) И БЕЙДЖИ -->
-                <div class="header-block">
-                    <div class="badges">
-                        <span class="badge category">${escapeHtml(club.category)}</span>
-                        <span class="badge age">${ageStr}</span>
-                    </div>
-                    <h1 class="main-title">${escapeHtml(club.title)}</h1>
-                    <div class="address-row">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        <span>${escapeHtml(club.address)}</span>
-                    </div>
-                </div>
-
-                <!-- 2. ГАЛЕРЕЯ (СВАЙП) -->
-                <div class="gallery-container" id="galleryContainer">
-                    <div class="gallery-track" id="galleryTrack">
-                        ${club.photos && club.photos.length > 0 ? club.photos.map(src => `<div class="gallery-slide"><img src="${src}" alt="Фото"></div>`).join('') : '<div class="gallery-slide"><img src="https://via.placeholder.com/800x400?text=No+Photo" alt="No Photo"></div>'}
-                    </div>
-                    ${club.photos && club.photos.length > 1 ? `
-                        <button class="gallery-nav-btn prev" id="btnPrev"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
-                        <button class="gallery-nav-btn next" id="btnNext"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
-                        <div class="gallery-dots">
-                            ${club.photos.map((_, i) => `<div class="gallery-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('')}
+            // HTML GENERATION (with safe navigation ?.)
+            let html = `
+                <div class="club-main">
+                    <!-- HEADER BLOCK -->
+                    <div class="header-block">
+                        <div class="badges">
+                            <span class="badge category">${escapeHtml(club.category)}</span>
+                            <span class="badge age">${ageStr}</span>
                         </div>
-                    ` : ''}
-                </div>
-
-                <!-- 3. СТОИМОСТЬ (ПЕРЕНЕСЕНО ВЫШЕ ОПИСАНИЯ) -->
-                <div class="section-card price-card">
-                    <div class="price-info">
-                        <h3>Стоимость обучения</h3>
-                        <div class="price-value">${priceStr}</div>
-                        ${club.priceNotes ? `<div class="price-note">${escapeHtml(club.priceNotes)}</div>` : ''}
-                    </div>
-                </div>
-
-                <!-- 4. О КРУЖКЕ + СОЦСЕТИ -->
-                <div class="section-card">
-                    <h2 class="section-header">О кружке</h2>
-                    <div class="section-text">${escapeHtml(club.description)}</div>
-
-                    <!-- СОЦСЕТИ (ВНУТРИ БЛОКА О КРУЖКЕ, ВНИЗУ) -->
-                    ${(club.socialLinks && (club.socialLinks.vk || club.socialLinks.telegram)) ? `
-                        <div class="social-block">
-                            <div class="social-title">Следите за нами в соцсетях:</div>
-                            <div class="social-grid">
-                                ${club.socialLinks.vk ? `<a href="${club.socialLinks.vk}" target="_blank" class="social-btn social-vk"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.07 2H8.93C5.1 2 2 5.1 2 8.93v6.14C2 18.9 5.1 22 8.93 22h6.14c3.83 0 6.93-3.1 6.93-6.93V8.93C22 5.1 18.9 2 15.07 2zM18 13.5h-1.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5H18c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5z"/></svg> ВКонтакте</a>` : ''}
-                                ${club.socialLinks.telegram ? `<a href="${club.socialLinks.telegram}" target="_blank" class="social-btn social-tg"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42l10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701l-.25 3.635c.34 0 .63-.166.875-.411l2.368-2.288l4.922 3.635c.907.5 1.56.242 1.783-.855l3.226-15.228c.328-1.536-.576-2.193-1.602-1.745z"/></svg> Telegram</a>` : ''}
-                            </div>
+                        <h1 class="main-title">${escapeHtml(club.title)}</h1>
+                        <div class="address-row">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            <span>${escapeHtml(club.address)}</span>
                         </div>
-                    ` : ''}
-                </div>
+                    </div>
 
-                <!-- 5. РАСПИСАНИЕ (СПИСОК) -->
-                <div class="section-card">
-                    <h2 class="section-header">Расписание занятий</h2>
-                    <div class="schedule-list">
-                        ${club.schedules && club.schedules.length ? club.schedules.map(s => `
-                            <div class="schedule-row">
-                                <div class="schedule-day">${escapeHtml(s.day)}</div>
-                                <div class="schedule-time">${escapeHtml(s.time)}</div>
+                    <!-- GALLERY -->
+                    <div class="gallery-container" id="galleryContainer">
+                        <div class="gallery-track" id="galleryTrack">
+                            ${club.photos?.length > 0 ? club.photos.map(src => `<div class="gallery-slide"><img src="${src}" alt="Фото"></div>`).join('') : '<div class="gallery-slide"><img src="https://via.placeholder.com/800x400?text=No+Photo" alt="No Photo"></div>'}
+                        </div>
+                        ${club.photos?.length > 1 ? `
+                            <button class="gallery-nav-btn prev" id="btnPrev"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+                            <button class="gallery-nav-btn next" id="btnNext"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+                            <div class="gallery-dots">
+                                ${club.photos.map((_, i) => `<div class="gallery-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('')}
                             </div>
-                        `).join('') : '<div class="section-text" style="color:#999; padding:12px;">Уточняйте у администратора</div>'}
+                        ` : ''}
+                    </div>
+
+                    <!-- PRICE -->
+                    <div class="section-card price-card">
+                        <div class="price-info">
+                            <h3>Стоимость обучения</h3>
+                            <div class="price-value">${priceStr}</div>
+                            ${club.priceNotes ? `<div class="price-note">${escapeHtml(club.priceNotes)}</div>` : ''}
+                        </div>
+                    </div>
+
+                    <!-- ABOUT -->
+                    <div class="section-card">
+                        <h2 class="section-header">О кружке</h2>
+                        <div class="section-text">${escapeHtml(club.description)}</div>
+                        
+                        <!-- Tags -->
+                        ${club.tags?.length > 0 ? `
+                            <div class="tags-section">
+                                ${club.tags.map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('')}
+                            </div>
+                        ` : ''}
+
+                        <!-- Socials -->
+                        ${(club.socialLinks && (club.socialLinks.vk || club.socialLinks.telegram)) ? `
+                            <div class="social-block">
+                                <div class="social-title">Следите за нами в соцсетях:</div>
+                                <div class="social-grid">
+                                    ${club.socialLinks.vk ? `<a href="${club.socialLinks.vk}" target="_blank" class="social-btn social-vk"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.07 2H8.93C5.1 2 2 5.1 2 8.93v6.14C2 18.9 5.1 22 8.93 22h6.14c3.83 0 6.93-3.1 6.93-6.93V8.93C22 5.1 18.9 2 15.07 2zM18 13.5h-1.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5H18c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5z"/></svg> ВКонтакте</a>` : ''}
+                                    ${club.socialLinks.telegram ? `<a href="${club.socialLinks.telegram}" target="_blank" class="social-btn social-tg"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42l10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701l-.25 3.635c.34 0 .63-.166.875-.411l2.368-2.288l4.922 3.635c.907.5 1.56.242 1.783-.855l3.226-15.228c.328-1.536-.576-2.193-1.602-1.745z"/></svg> Telegram</a>` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- SCHEDULE -->
+                    <div class="section-card">
+                        <h2 class="section-header">Расписание занятий</h2>
+                        <div class="schedule-list">
+                            ${club.schedules?.length > 0 ? club.schedules.map(s => `
+                                <div class="schedule-row">
+                                    <div class="schedule-day">${escapeHtml(s.day)}</div>
+                                    <div class="schedule-time">${escapeHtml(s.time)}</div>
+                                </div>
+                            `).join('') : '<div class="section-text" style="color:#999; padding:12px;">Уточняйте у администратора</div>'}
+                        </div>
+                    </div>
+
+                    <!-- MAP -->
+                    <div class="section-card" style="padding:0; overflow:hidden;">
+                        <div class="map-wrapper" id="clubMap"></div>
+                        <div style="padding:16px;">
+                            <div style="font-weight:600; margin-bottom:4px; font-size:14px;">Адрес:</div>
+                            <div style="color:#555; font-size:15px;">${escapeHtml(club.address)}</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 6. КАРТА -->
-                <div class="section-card" style="padding:0; overflow:hidden;">
-                     <div class="map-wrapper" id="clubMap"></div>
-                     <div style="padding:16px;">
-                        <div style="font-weight:600; margin-bottom:4px; font-size:14px;">Адрес:</div>
-                        <div style="color:#555; font-size:15px;">${escapeHtml(club.address)}</div>
-                     </div>
-                </div>
-            </div>
-
-            <!-- SIDEBAR (DESKTOP) -->
-            <div class="sidebar-wrapper">
-                <div class="sidebar-sticky">
-                    <div style="text-align:center; margin-bottom:12px;">
-                        <div style="font-size:14px; color:#777;">Запись в группу</div>
-                        <div style="font-weight:800; font-size:24px; color:var(--text-primary); margin-top:4px;">${club.phone ? maskPhone(club.phone) : ''}</div>
-                    </div>
-                    <button class="cta-btn btn-primary" onclick="togglePhone(this, '${club.phone}')">
-                        Показать номер
-                    </button>
-                    <button class="cta-btn btn-outline" onclick="alert('Функция в разработке')">Написать сообщение</button>
-                    <div style="font-size:11px; color:#999; text-align:center; line-height:1.4; margin-top:8px;">
-                        Нажимая кнопку, вы соглашаетесь с политикой конфиденциальности
+                <!-- SIDEBAR -->
+                <div class="sidebar-wrapper">
+                    <div class="sidebar-sticky">
+                        <div style="text-align:center; margin-bottom:12px;">
+                            <div style="font-size:14px; color:#777;">Запись в группу</div>
+                            <div style="font-weight:800; font-size:24px; color:var(--text-primary); margin-top:4px;">${club.phone ? maskPhone(club.phone) : ''}</div>
+                        </div>
+                        <button class="cta-btn btn-primary" onclick="togglePhone(this, '${club.phone}')">Показать номер</button>
+                        <button class="cta-btn btn-outline" onclick="alert('Функция в разработке')">Написать сообщение</button>
+                        <div style="font-size:11px; color:#999; text-align:center; line-height:1.4; margin-top:8px;">Нажимая кнопку, вы соглашаетесь с политикой конфиденциальности</div>
                     </div>
                 </div>
-            </div>
-        `;
+            `;
 
-        container.innerHTML = html;
+            container.innerHTML = html;
 
-        // Mobile Actions
-        mobileBar.innerHTML = `
-            <button class="cta-btn btn-primary" style="flex:1" onclick="togglePhone(this, '${club.phone}')">Позвонить</button>
-            <button class="cta-btn btn-outline" style="width:auto; padding:12px;" onclick="alert('Функция в разработке')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-            </button>
-        `;
+            // Mobile Actions
+            mobileBar.innerHTML = `
+                <button class="cta-btn btn-primary" style="flex:1" onclick="togglePhone(this, '${club.phone}')">Позвонить</button>
+                <button class="cta-btn btn-outline" style="width:auto; padding:12px;" onclick="alert('Функция в разработке')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                </button>
+            `;
 
-        initMap(club.address);
-        initGallery();
-        
-        // Scroll listener
-        window.addEventListener('scroll', () => {
-             const offset = window.scrollY;
-             if (offset > 200) headerTitle.classList.add('visible');
-             else headerTitle.classList.remove('visible');
-        });
+            // Init Map & Gallery
+            initMap(club.address);
+            initGallery();
+            
+            // Scroll listener
+            window.addEventListener('scroll', () => {
+                const offset = window.scrollY;
+                if (offset > 200) headerTitle.classList.add('visible');
+                else headerTitle.classList.remove('visible');
+            });
+
+        } catch (err) {
+            console.error("Render error:", err);
+            document.getElementById('mainContainer').innerHTML = `<div style="text-align:center; padding:40px; color:red">Ошибка отображения: ${err.message}</div>`;
+        }
     }
 
     // --- GALLERY LOGIC ---
@@ -752,7 +775,6 @@
         try {
             await ymaps3.ready;
             const { YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer, YMapMarker } = ymaps3;
-            // Простой геокод (в проде лучше кешировать на бэке)
             const geocodeUrl = `https://geocode-maps.yandex.ru/1.x/?format=json&apikey=58c38b72-57f7-4946-bc13-a256d341281a&geocode=${encodeURIComponent(address)}`;
             const res = await fetch(geocodeUrl);
             const data = await res.json();
