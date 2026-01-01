@@ -1,0 +1,33 @@
+:root{--accent:#2b87d4;--muted:#666}
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; margin:0;background:#f3f5f7;color:#111}
+header{background:#fff;border-bottom:1px solid #e6e9ec;padding:12px 20px;display:flex;align-items:center;gap:12px}
+header h1{font-size:16px;margin:0}
+.wrap{display:flex;height:calc(100vh - 56px)}
+.left{width:340px;background:#fff;border-right:1px solid #e6e9ec;overflow:auto;padding:12px}
+.left .toolbar{display:flex;gap:8px;margin-bottom:12px}
+.btn{background:var(--accent);color:white;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{padding:10px;border-radius:10px;border:1px solid #eee;background:#fafafa;cursor:pointer;display:flex;align-items:center;gap:10px}
+.item .meta{flex:1}
+.item .meta h4{margin:0;font-size:14px}
+.item .meta p{margin:4px 0 0;font-size:12px;color:var(--muted)}
+.item.selected{box-shadow:0 4px 18px rgba(43,135,212,0.12);border-color:rgba(43,135,212,0.18)}
+.main{flex:1;padding:18px;overflow:auto}
+.grid{display:grid;grid-template-columns:1fr 320px;gap:18px}
+.card{background:#fff;border-radius:12px;padding:14px;border:1px solid #eee}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+input[type=text], textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ec;font-size:14px}
+textarea{min-height:120px;resize:vertical}
+.row{display:flex;gap:8px}
+.small{width:140px}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tag{background:#eef6ff;color:var(--accent);padding:6px 8px;border-radius:999px;font-size:12px}
+.actions{display:flex;gap:8px;margin-top:12px}
+.preview{border-radius:8px;overflow:hidden;border:1px solid #e6e9ec;height:160px;background:#ddd;display:flex;align-items:center;justify-content:center}
+.muted{color:var(--muted);font-size:13px}
+.toast{position:fixed;right:18px;bottom:18px;background:#111;color:#fff;padding:10px 14px;border-radius:8px;opacity:0;transform:translateY(10px);transition:all .22s}
+.toast.show{opacity:1;transform:translateY(0)}
+.search{display:flex;gap:8px;margin-bottom:10px}
+.search input{flex:1;padding:8px;border-radius:8px;border:1px solid #e6e9ec}
+.muted-log{white-space:pre-wrap;font-family:monospace;font-size:12px;color:#444}
