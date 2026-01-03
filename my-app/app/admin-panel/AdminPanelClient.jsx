@@ -16,10 +16,18 @@ export default function AdminPanelClient() {
      * Потом вернуть обратно на localhost:8000
      */
     if (isLocal) {
-      return { API_BASE: "https://xn--80aa3agq.xn--p1ai/api", API_ORIGIN: "https://xn--80aa3agq.xn--p1ai/", IS_DEV_PROXY: true };
+      return {
+        API_BASE: "https://xn--80aa3agq.xn--p1ai/api",
+        API_ORIGIN: "https://xn--80aa3agq.xn--p1ai/",
+        IS_DEV_PROXY: true,
+      };
     }
 
-    return { API_BASE: `${window.location.origin}/api`, API_ORIGIN: window.location.origin, IS_DEV_PROXY: false };
+    return {
+      API_BASE: `${window.location.origin}/api`,
+      API_ORIGIN: window.location.origin,
+      IS_DEV_PROXY: false,
+    };
   }, []);
 
   const { API_BASE, API_ORIGIN } = api;
@@ -46,6 +54,8 @@ export default function AdminPanelClient() {
     image: "",
     price_rub: "",
     location: "",
+    lat: "", // ✅ optional
+    lon: "", // ✅ optional
     schedules: "",
     phone: "",
     webSite: "",
@@ -122,12 +132,6 @@ export default function AdminPanelClient() {
 
   // ===== Auth check =====
   const ensureAuth = async () => {
-    /**
-     * ⚠️ ВРЕМЕННО ДЛЯ ОТЛАДКИ:
-     * Если мы в DEV и ходим на mapka.рф, то fetch на /admin отсюда (localhost)
-     * почти всегда упирается в CORS, поэтому НЕ делаем проверку через fetch.
-     * Логин открывается кнопкой "Войти" (вкладка mapka.рф).
-     */
     if (api.IS_DEV_PROXY) {
       log("DEV: пропускаю ensureAuth() из-за CORS. Нажми «Войти» (mapka.рф) и вернись сюда.");
       return;
@@ -190,6 +194,8 @@ export default function AdminPanelClient() {
       image: obj.image || "",
       price_rub: obj.price_cents ? String(Number(obj.price_cents) / 100) : "",
       location: obj.location || "",
+      lat: obj.lat != null ? String(obj.lat) : "",
+      lon: obj.lon != null ? String(obj.lon) : "",
       schedules:
         Array.isArray(obj.schedules) && obj.schedules.length
           ? obj.schedules.map((s) => `${s.day || ""}|${s.time || ""}`).join("\n")
@@ -226,6 +232,13 @@ export default function AdminPanelClient() {
       });
   };
 
+  const parseNum = (v) => {
+    const s = String(v ?? "").trim().replace(",", ".");
+    if (!s) return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  };
+
   const getPayload = () => {
     const tags = String(form.tags || "")
       .split(",")
@@ -243,7 +256,10 @@ export default function AdminPanelClient() {
     if (vk) socialLinks.vk = vk;
     if (tg) socialLinks.telegram = tg;
 
-    return {
+    const latNum = parseNum(form.lat);
+    const lonNum = parseNum(form.lon);
+
+    const base = {
       name: String(form.name || "").trim(),
       slug: String(form.slug || "").trim(),
       description: String(form.description || "").trim(),
@@ -257,6 +273,12 @@ export default function AdminPanelClient() {
       socialLinks,
       schedules,
     };
+
+    // ✅ координаты добавляем ТОЛЬКО если обе валидны
+    if (latNum != null && lonNum != null) {
+      return { ...base, lat: latNum, lon: lonNum };
+    }
+    return base;
   };
 
   const handleSave = async (asNew = false) => {
@@ -403,15 +425,8 @@ export default function AdminPanelClient() {
         <h1>Mapka — Admin: Управление кружками</h1>
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
-          <div style={{ color: "var(--muted)", fontSize: 13 }}>
-            API: {API_ORIGIN}
-          </div>
-          <button
-            type="button"
-            className="btn ghost"
-            onClick={openLogin}
-            title="Открыть логин в mapka.рф (в новой вкладке)"
-          >
+          <div style={{ color: "var(--muted)", fontSize: 13 }}>API: {API_ORIGIN}</div>
+          <button type="button" className="btn ghost" onClick={openLogin} title="Открыть логин в mapka.рф (в новой вкладке)">
             Войти
           </button>
         </div>
@@ -426,12 +441,7 @@ export default function AdminPanelClient() {
             <button className="btn" onClick={handleNew} type="button">
               Новый
             </button>
-            <button
-              className="btn ghost"
-              style={{ marginLeft: "auto" }}
-              onClick={handleDelete}
-              type="button"
-            >
+            <button className="btn ghost" style={{ marginLeft: "auto" }} onClick={handleDelete} type="button">
               Удалить
             </button>
           </div>
@@ -457,11 +467,7 @@ export default function AdminPanelClient() {
               const loc = String(it.location || "").slice(0, 60);
 
               return (
-                <div
-                  key={it.id}
-                  className={"item" + (selected ? " selected" : "")}
-                  onClick={() => selectItem(it.id)}
-                >
+                <div key={it.id} className={"item" + (selected ? " selected" : "")} onClick={() => selectItem(it.id)}>
                   <div className="meta">
                     <h4>{it.name || "—"}</h4>
                     <p>{loc}</p>
@@ -489,12 +495,7 @@ export default function AdminPanelClient() {
                 <div style={{ flex: 1 }}>
                   <label>Image URL</label>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input
-                      type="text"
-                      style={{ flex: 1 }}
-                      value={form.image}
-                      onChange={(e) => setForm((p) => ({ ...p, image: e.target.value }))}
-                    />
+                    <input type="text" style={{ flex: 1 }} value={form.image} onChange={(e) => setForm((p) => ({ ...p, image: e.target.value }))} />
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -514,17 +515,25 @@ export default function AdminPanelClient() {
 
                 <div style={{ width: 150 }}>
                   <label>Цена (₽)</label>
-                  <input
-                    type="text"
-                    placeholder="1000"
-                    value={form.price_rub}
-                    onChange={(e) => setForm((p) => ({ ...p, price_rub: e.target.value }))}
-                  />
+                  <input type="text" placeholder="1000" value={form.price_rub} onChange={(e) => setForm((p) => ({ ...p, price_rub: e.target.value }))} />
                 </div>
               </div>
 
               <label style={{ marginTop: 10 }}>Адрес (location)</label>
               <input type="text" value={form.location} onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))} />
+
+              {/* ✅ optional coords */}
+              <div className="row" style={{ marginTop: 10 }}>
+                <div style={{ width: 160 }}>
+                  <label>lat (опц.)</label>
+                  <input type="text" placeholder="47.2" value={form.lat} onChange={(e) => setForm((p) => ({ ...p, lat: e.target.value }))} />
+                </div>
+                <div style={{ width: 160 }}>
+                  <label>lon (опц.)</label>
+                  <input type="text" placeholder="39.7" value={form.lon} onChange={(e) => setForm((p) => ({ ...p, lon: e.target.value }))} />
+                </div>
+                <div style={{ flex: 1 }} />
+              </div>
 
               <label style={{ marginTop: 10 }}>Расписание (по строке: День|время)</label>
               <textarea
@@ -535,33 +544,10 @@ export default function AdminPanelClient() {
               />
 
               <label style={{ marginTop: 10 }}>Contacts (телефон, сайт, соцссылки)</label>
-              <input
-                type="text"
-                placeholder="+7 (___) ___-__-__"
-                style={{ marginBottom: 6 }}
-                value={form.phone}
-                onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-              />
-              <input
-                type="text"
-                placeholder="https://..."
-                style={{ marginBottom: 6 }}
-                value={form.webSite}
-                onChange={(e) => setForm((p) => ({ ...p, webSite: e.target.value }))}
-              />
-              <input
-                type="text"
-                placeholder="VK URL (опционально)"
-                style={{ marginBottom: 6 }}
-                value={form.social_vk}
-                onChange={(e) => setForm((p) => ({ ...p, social_vk: e.target.value }))}
-              />
-              <input
-                type="text"
-                placeholder="Telegram URL (опционально)"
-                value={form.social_telegram}
-                onChange={(e) => setForm((p) => ({ ...p, social_telegram: e.target.value }))}
-              />
+              <input type="text" placeholder="+7 (___) ___-__-__" style={{ marginBottom: 6 }} value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+              <input type="text" placeholder="https://..." style={{ marginBottom: 6 }} value={form.webSite} onChange={(e) => setForm((p) => ({ ...p, webSite: e.target.value }))} />
+              <input type="text" placeholder="VK URL (опционально)" style={{ marginBottom: 6 }} value={form.social_vk} onChange={(e) => setForm((p) => ({ ...p, social_vk: e.target.value }))} />
+              <input type="text" placeholder="Telegram URL (опционально)" value={form.social_telegram} onChange={(e) => setForm((p) => ({ ...p, social_telegram: e.target.value }))} />
 
               <label style={{ marginTop: 10 }}>Tags (через запятую)</label>
               <input type="text" placeholder="каратэ,спорт,дети" value={form.tags} onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))} />
