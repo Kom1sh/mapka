@@ -163,7 +163,7 @@ export default async function Page({ params }) {
           </div>
 
           {/* Map */}
-          <ClubMap address={club.address} title={club.title} />
+          <ClubMap address={club.address} title={club.name} lat={club.lat} lon={club.lon} />
         </div>
 
         {/* Sidebar + Mobile bottom bar */}
