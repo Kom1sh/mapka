@@ -5,7 +5,8 @@ import datetime
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, Response, PlainTextResponse
+from xml.sax.saxutils import escape as xml_escape
 from typing import List
 from models import Club, Address, Schedule
 from db import AsyncSessionLocal
@@ -21,7 +22,6 @@ from crud import get_clubs, get_club_by_id, create_review_for_club
 from schemas import ClubSchema, ReviewSchema, ReviewCreateSchema
 from auth import router as auth_router, admin_required
 
-from fastapi.responses import JSONResponse
 from fastapi.requests import Request as FastAPIRequest
 from fastapi.exception_handlers import RequestValidationError
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
@@ -67,6 +67,88 @@ app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
 STATIC_CLUBS_DIR = os.getenv("STATIC_CLUBS_DIR", "static_clubs")
 os.makedirs(STATIC_CLUBS_DIR, exist_ok=True)
+
+def _sitemap_base(request: Request) -> str:
+    # если хочешь зафиксировать канонический домен — задай env SITEMAP_BASE_URL
+    # иначе будет брать домен из запроса (xn--80aa3agq.xn--p1ai / mapkarostov.ru)
+    return (os.getenv("SITEMAP_BASE_URL") or str(request.base_url)).rstrip("/")
+
+
+@app.get("/robots.txt", include_in_schema=False)
+async def robots_txt(request: Request):
+    base = _sitemap_base(request)
+    txt = "\n".join([
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /admin",
+        "Disallow: /admin-panel",
+        "",
+        f"Sitemap: {base}/sitemap.xml",
+        "",
+    ])
+    return PlainTextResponse(
+        txt,
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+async def sitemap_xml(request: Request):
+    base = _sitemap_base(request)
+
+    # Статические/основные страницы (оставь только те, что реально должны индексироваться)
+    static_urls = [
+        (f"{base}/", None),
+        (f"{base}/blog", None),
+        (f"{base}/favorites", None),
+    ]
+
+    # Кружки из БД: /{slug}
+    async with AsyncSessionLocal() as session:
+        q = await session.execute(
+            select(Club.slug, Club.updated_at)
+            .where(Club.slug != None)
+        )
+        rows = q.all()
+
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+    ]
+
+    def add_url(loc: str, lastmod: str | None = None):
+        parts.append("<url>")
+        parts.append(f"<loc>{xml_escape(loc)}</loc>")
+        if lastmod:
+            parts.append(f"<lastmod>{xml_escape(lastmod)}</lastmod>")
+        parts.append("</url>")
+
+    # статические
+    for loc, lastmod in static_urls:
+        add_url(loc, lastmod)
+
+    # кружки
+    for slug, updated_at in rows:
+        if not slug:
+            continue
+        # updated_at у тебя обычно naive utc; отдадим YYYY-MM-DD (валидно для sitemap)
+        lm = None
+        if updated_at:
+            try:
+                lm = updated_at.date().isoformat()
+            except Exception:
+                lm = None
+        add_url(f"{base}/{slug}", lm)
+
+    parts.append("</urlset>")
+    xml = "\n".join(parts)
+
+    return Response(
+        content=xml,
+        media_type="application/xml; charset=utf-8",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 def _serialize_club(c, base_origin: str, payload_extra: dict = None):
     """
