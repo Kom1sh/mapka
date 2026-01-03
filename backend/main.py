@@ -83,6 +83,7 @@ async def robots_txt(request: Request):
         "Disallow: /api/",
         "Disallow: /admin",
         "Disallow: /admin-panel",
+        "Disallow: /favorites",        
         "",
         f"Sitemap: {base}/sitemap.xml",
         "",
@@ -101,7 +102,6 @@ async def sitemap_xml(request: Request):
     static_urls = [
         (f"{base}/", None),
         (f"{base}/blog", None),
-        (f"{base}/favorites", None),
     ]
 
     # Кружки из БД: /{slug}
