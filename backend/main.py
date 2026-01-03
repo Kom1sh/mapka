@@ -955,6 +955,116 @@ async def serve_club_page(slug: str):
         return HTMLResponse(html)
 
 
+
+
+@app.get("/api/admin/geocode-missing")
+@app.post("/api/admin/geocode-missing")
+async def api_admin_geocode_missing(
+    request: Request,
+    limit: int = 50,
+    sleep_ms: int = 250,
+    user=Depends(admin_required),
+):
+    """
+    Бэкенд-утилита для разовой миграции данных.
+
+    Заполняет координаты (lat/lon) для уже существующих кружков/адресов, где координаты отсутствуют.
+    Это нужно, если вы переключили фронт на работу ТОЛЬКО по координатам из БД (без геокодинга на клиенте).
+
+    Как использовать:
+      1) Деплой этого main.py + рестарт бэка
+      2) Вызвать (в браузере/терминале) несколько раз, пока updated не станет 0:
+         POST {BASE}/api/admin/geocode-missing?limit=50
+
+    Параметры:
+      - limit: сколько записей обработать за один вызов
+      - sleep_ms: пауза между запросами к геокодеру (бережно к квотам)
+    """
+    async with AsyncSessionLocal() as session:
+        # Берём пачку клубов вместе с address (без ленивых запросов)
+        q = await session.execute(
+            select(Club)
+            .options(selectinload(Club.address))
+            .limit(5000)
+        )
+        clubs = q.scalars().all()
+
+        # отберём кандидатов с отсутствующими координатами
+        candidates = []
+        for c in clubs:
+            addr = getattr(c, "address", None)
+
+            # location string для геокодинга
+            loc_parts = []
+            if addr:
+                st = (getattr(addr, "street", None) or "").strip()
+                ct = (getattr(addr, "city", None) or "").strip()
+                if st: loc_parts.append(st)
+                if ct: loc_parts.append(ct)
+            loc = ", ".join(loc_parts).strip()
+
+            if not loc:
+                continue
+
+            club_lat = getattr(c, "lat", None)
+            club_lon = getattr(c, "lon", None)
+            addr_lat = getattr(addr, "lat", None) if addr else None
+            addr_lon = getattr(addr, "lon", None) if addr else None
+
+            missing = (club_lat is None or club_lon is None or addr_lat is None or addr_lon is None)
+            if missing:
+                candidates.append((c, addr, loc))
+
+        candidates = candidates[: max(0, int(limit or 0))]
+
+        updated_count = 0
+        failed = []
+
+        for c, addr, loc in candidates:
+            geo = await _geocode_yandex(loc)
+            if not geo:
+                failed.append({"id": str(getattr(c, "id", "")), "slug": getattr(c, "slug", ""), "location": loc})
+                continue
+
+            lat, lon = geo
+
+            try:
+                c.lat = lat
+                c.lon = lon
+                session.add(c)
+
+                if addr:
+                    addr.lat = lat
+                    addr.lon = lon
+                    session.add(addr)
+
+                updated_count += 1
+                # flush чтобы ловить возможные ошибки раньше
+                await session.flush()
+            except Exception as e:
+                failed.append({"id": str(getattr(c, "id", "")), "slug": getattr(c, "slug", ""), "location": loc, "error": str(e)})
+                continue
+
+            if sleep_ms:
+                try:
+                    await asyncio.sleep(float(sleep_ms) / 1000.0)
+                except Exception:
+                    pass
+
+        try:
+            await session.commit()
+        except Exception as e:
+            await session.rollback()
+            raise HTTPException(status_code=500, detail=f"Backfill commit failed: {e}")
+
+        return {
+            "processed": len(candidates),
+            "updated": updated_count,
+            "failed": failed[:20],  # чтобы не раздувать ответ
+        }
+
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
