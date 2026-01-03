@@ -3,16 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ClubCard from "./ClubCard";
 
-const GEOCODE_API_KEY = "58c38b72-57f7-4946-bc13-a256d341281a";
-
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
 // ===============================
 // Favorites persistence
-// Храним избранное в localStorage (ключ mapka_favorites) + дублируем в cookie
-// чтобы состояние не терялось и было доступно при необходимости.
 // ===============================
 const FAVORITES_STORAGE_KEY = "mapka_favorites";
 const FAVORITES_COOKIE_KEY = "mapka_favorites_ids";
@@ -26,9 +22,7 @@ function getCookie(name) {
 function setCookie(name, value, days = 90) {
   if (typeof document === "undefined") return;
   const maxAge = days * 24 * 60 * 60;
-  document.cookie = `${name}=${encodeURIComponent(
-    value
-  )}; path=/; max-age=${maxAge}; samesite=lax`;
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; samesite=lax`;
 }
 
 function deleteCookie(name) {
@@ -40,12 +34,10 @@ function normalizeFavoriteIds(raw) {
   if (!raw) return [];
   if (!Array.isArray(raw)) return [];
 
-  // массив ids (number/string)
   if (raw.length && (typeof raw[0] === "string" || typeof raw[0] === "number")) {
     return raw.map((x) => String(x)).filter(Boolean);
   }
 
-  // массив объектов
   return raw
     .map((x) => x?.id ?? x?.clubId ?? x?.slug)
     .filter((x) => x != null)
@@ -65,7 +57,6 @@ function readFavoriteIds() {
     // ignore
   }
 
-  // cookie fallback (csv)
   const ck = getCookie(FAVORITES_COOKIE_KEY);
   if (!ck) return [];
   return ck
@@ -77,11 +68,13 @@ function readFavoriteIds() {
 function writeFavoriteIds(ids) {
   if (typeof window === "undefined") return;
   const uniq = Array.from(new Set((ids || []).map(String))).filter(Boolean);
+
   try {
     window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(uniq));
   } catch {
     // ignore
   }
+
   if (uniq.length) setCookie(FAVORITES_COOKIE_KEY, uniq.join(","));
   else deleteCookie(FAVORITES_COOKIE_KEY);
 }
@@ -136,7 +129,6 @@ export default function ClubListClient({ initialClubs = [] }) {
   const mobileMapRef = useRef(null);
   const mapsReadyRef = useRef(false);
   const markersAddedRef = useRef(false);
-  const coordsCacheRef = useRef(new Map());
 
   // Bottom sheet refs (mobile)
   const bottomSheetRef = useRef(null);
@@ -237,9 +229,7 @@ export default function ClubListClient({ initialClubs = [] }) {
       }
       if (cancelled) return;
 
-      const { YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer } =
-        window.ymaps3;
-
+      const { YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer } = window.ymaps3;
       const rostov = { center: [39.711515, 47.236171], zoom: 12 };
 
       const desktopContainer = document.getElementById("map");
@@ -271,22 +261,15 @@ export default function ClubListClient({ initialClubs = [] }) {
   }, []);
 
   // ✅ Add markers only after mapsReady
+  // ВАЖНО: координаты берём с бэка (club.lat / club.lon). Геокодинг на фронте убран.
   useEffect(() => {
     if (!mapsReady) return;
 
     let cancelled = false;
 
-    const normalizeAddress = (str) =>
-      String(str || "")
-        .replace(/^г\.\s*/i, "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .toLowerCase();
-
     const createMarkerElement = (title = "", rawAddress = "") => {
       const el = document.createElement("div");
       el.className = "club-marker";
-      el.setAttribute("data-address", normalizeAddress(rawAddress));
       el.style.cssText = `
         display: flex;
         flex-direction: column;
@@ -326,37 +309,6 @@ export default function ClubListClient({ initialClubs = [] }) {
       return el;
     };
 
-    const geocodeAddress = async (address) => {
-      const key = normalizeAddress(address);
-      if (!key) return null;
-
-      if (coordsCacheRef.current.has(key)) {
-        return coordsCacheRef.current.get(key);
-      }
-
-      const url = `https://geocode-maps.yandex.ru/1.x/?format=json&geocode=${encodeURIComponent(
-        address
-      )}&apikey=${GEOCODE_API_KEY}&results=1`;
-
-      try {
-        const r = await fetch(url);
-        if (!r.ok) return null;
-        const json = await r.json();
-        const fm = json?.response?.GeoObjectCollection?.featureMember;
-        const pos = fm?.[0]?.GeoObject?.Point?.pos;
-        if (!pos) return null;
-
-        const [lng, lat] = pos.split(" ").map(Number);
-        if (Number.isNaN(lng) || Number.isNaN(lat)) return null;
-
-        const coords = [lng, lat];
-        coordsCacheRef.current.set(key, coords);
-        return coords;
-      } catch {
-        return null;
-      }
-    };
-
     const scrollToClubCard = (id) => {
       setDesktopPanelCollapsed(false);
       const card = document.getElementById(`club-card-${id}`);
@@ -380,41 +332,35 @@ export default function ClubListClient({ initialClubs = [] }) {
       for (const club of allClubs || []) {
         if (cancelled) return;
 
-        let coords = null;
-
+        // ✅ ожидаем lat/lon из API
         const lat = club.lat ?? club.latitude ?? null;
         const lon = club.lon ?? club.lng ?? club.longitude ?? null;
 
-        if (lat != null && lon != null) {
-          coords = [Number(lon), Number(lat)];
-        } else if (club.location || club.address_text) {
-          coords = await geocodeAddress(club.location || club.address_text);
+        if (lat == null || lon == null) continue;
+
+        const lt = Number(lat);
+        const lg = Number(lon);
+        if (Number.isNaN(lt) || Number.isNaN(lg)) continue;
+
+        const coords = [lg, lt];
+
+        const title = club.name || "";
+        const addr = club.location || club.address_text || "";
+
+        if (desktopMapRef.current) {
+          const el = createMarkerElement(title, addr);
+          el.addEventListener("click", () => scrollToClubCard(club.id));
+          desktopMapRef.current.addChild(new YMapMarker({ coordinates: coords }, el));
         }
 
-        if (coords && Array.isArray(coords) && coords.length === 2) {
-          const title = club.name || "";
-          const addr = club.location || club.address_text || "";
-
-          if (desktopMapRef.current) {
-            const el = createMarkerElement(title, addr);
-            el.addEventListener("click", () => scrollToClubCard(club.id));
-            desktopMapRef.current.addChild(
-              new YMapMarker({ coordinates: coords }, el)
-            );
-          }
-
-          if (mobileMapRef.current) {
-            const el = createMarkerElement(title, addr);
-            el.addEventListener("click", () => scrollToClubCard(club.id));
-            mobileMapRef.current.addChild(
-              new YMapMarker({ coordinates: coords }, el)
-            );
-          }
-
-          added.push(coords);
+        if (mobileMapRef.current) {
+          const el = createMarkerElement(title, addr);
+          el.addEventListener("click", () => scrollToClubCard(club.id));
+          mobileMapRef.current.addChild(new YMapMarker({ coordinates: coords }, el));
         }
 
-        await sleep(150);
+        added.push(coords);
+        await sleep(50);
       }
 
       if (added.length) {
@@ -590,7 +536,7 @@ export default function ClubListClient({ initialClubs = [] }) {
       return next;
     });
 
-    // ✅ instant update in filtered list (so heart changes without waiting for applyFilters)
+    // ✅ instant update in filtered list
     setFilteredClubs((prev) =>
       (prev || []).map((c) =>
         c.id === id ? { ...c, isFavorite: !c.isFavorite } : c
@@ -640,7 +586,6 @@ export default function ClubListClient({ initialClubs = [] }) {
         <div className={`left-panel ${desktopPanelCollapsed ? "collapsed" : ""}`} id="leftPanel">
           <div className="cards-container">
             <div className={`panel-header-area ${panelHeaderScrolled ? "scrolled" : ""}`} id="panelHeaderArea">
-              {/* ✅ H1 — первый заголовок на странице */}
               <div className="home-title-wrap">
                 <h1 className="home-title">
                   Кружки и секции для детей в Ростове-на-Дону{" "}
@@ -706,7 +651,7 @@ export default function ClubListClient({ initialClubs = [] }) {
                     <ClubCard
                       key={club.id}
                       club={club}
-                      titleTag="h2"          // ✅ headings only here
+                      titleTag="h2"
                       onTagClick={addTag}
                       onToggleFavorite={toggleFavorite}
                     />
@@ -770,7 +715,7 @@ export default function ClubListClient({ initialClubs = [] }) {
                   <ClubCard
                     key={`m-${club.id}`}
                     club={club}
-                    titleTag="div"         // ✅ no headings in mobile clone
+                    titleTag="div"
                     onTagClick={addTag}
                     onToggleFavorite={toggleFavorite}
                   />
@@ -785,7 +730,7 @@ export default function ClubListClient({ initialClubs = [] }) {
         </div>
       </main>
 
-      {/* ✅ Filter panel вынесен в конец DOM + убраны h2/h3 (для SEO) */}
+      {/* Filter panel */}
       <div className={`filter-panel ${filterOpen ? "active" : ""}`} id="filterPanel">
         <div className="filter-panel-header">
           <div className="filter-panel-title">Фильтры</div>
@@ -901,7 +846,7 @@ export default function ClubListClient({ initialClubs = [] }) {
         </div>
       </div>
 
-      {/* ✅ Стили H1 (чтобы сразу было красиво, без правок globals.css) */}
+      {/* ✅ Стили H1 (без правок globals.css) */}
       <style jsx global>{`
         .home-title-wrap {
           margin: 10px 0 12px;
