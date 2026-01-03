@@ -6,6 +6,7 @@ import asyncio
 import json
 import urllib.parse
 import urllib.request
+import urllib.error
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,6 +41,11 @@ app.include_router(auth_router)
 # По твоей просьбе — ключ прямо в коде.
 YANDEX_GEOCODER_API_KEY = "58c38b72-57f7-4946-bc13-a256d341281a"
 _GEOCODE_CACHE: dict[str, tuple[float, float]] = {}  # normalized address -> (lat, lon)
+
+# Если ключ ограничен по домену (HTTP Referer), серверные запросы без Referer могут блокироваться.
+# Поэтому подставляем Referer/Origin (можно переопределить через env).
+YANDEX_GEOCODER_REFERER = os.getenv("YANDEX_GEOCODER_REFERER", "https://mapka.рф/")
+YANDEX_GEOCODER_ORIGIN = os.getenv("YANDEX_GEOCODER_ORIGIN", "https://mapka.рф")
 
 def _to_float(v):
     try:
@@ -78,7 +84,14 @@ async def _geocode_yandex(address: str):
     url = "https://geocode-maps.yandex.ru/1.x/?" + urllib.parse.urlencode(params)
 
     def _fetch():
-        req = urllib.request.Request(url, headers={"User-Agent": "mapka-backend/1.0"})
+        headers = {
+            "User-Agent": "mapka-backend/1.0",
+            # важно для ключей с whitelist по домену
+            "Referer": YANDEX_GEOCODER_REFERER,
+            "Origin": YANDEX_GEOCODER_ORIGIN,
+            "Accept": "application/json,text/plain,*/*",
+        }
+        req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=8) as resp:
             return resp.read().decode("utf-8", errors="ignore")
 
@@ -604,7 +617,7 @@ async def api_create_club(request: Request, payload: dict, user=Depends(admin_re
 
 
 @app.put("/api/clubs/{club_id}")
-async def api_update_club(club_id: str, request: Request, payload: dict):
+async def api_update_club(club_id: str, request: Request, payload: dict, user=Depends(admin_required)):
     from sqlalchemy.orm.attributes import flag_modified
     async with AsyncSessionLocal() as session:
         # allow id or slug lookup
@@ -827,7 +840,7 @@ async def api_update_club(club_id: str, request: Request, payload: dict):
 
 
 @app.delete("/api/clubs/{club_id}")
-async def api_delete_club(club_id: str):
+async def api_delete_club(club_id: str, user=Depends(admin_required)):
     async with AsyncSessionLocal() as session:
         q = await session.execute(select(Club).where(Club.id == club_id))
         club = q.scalar_one_or_none()
@@ -927,7 +940,7 @@ async def api_get_club(request: Request, club_id: str):
 
 
 @app.post("/api/clubs/{club_id}")
-async def api_update_club_post(club_id: str, request: Request):
+async def api_update_club_post(club_id: str, request: Request, user=Depends(admin_required)):
     payload = await request.json()
     print(f"[DEBUG] Update club {club_id} payload: {payload}")
     return await api_update_club(club_id, request, payload)
