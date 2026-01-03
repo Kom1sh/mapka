@@ -12,19 +12,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, Response, PlainTextResponse
 from xml.sax.saxutils import escape as xml_escape
-from typing import List
 
-from models import Club, Address, Schedule
-from db import AsyncSessionLocal
 import aiofiles
 from sqlalchemy.exc import NoResultFound, IntegrityError
-from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy import select, delete, or_
 from datetime import time as dt_time
 
-from crud import get_clubs, get_club_by_id, create_review_for_club
-from schemas import ClubSchema, ReviewSchema, ReviewCreateSchema
+from models import Club, Address, Schedule
+from db import AsyncSessionLocal
+from crud import create_review_for_club
+from schemas import ReviewSchema, ReviewCreateSchema
 from auth import router as auth_router, admin_required
 
 from fastapi.exception_handlers import RequestValidationError
@@ -35,11 +33,18 @@ app = FastAPI(title="Mapka API")
 app.include_router(auth_router)
 
 # ==========================
-# Yandex Geocoder (server-side)
+# Yandex Geocoder
 # ==========================
-# По твоей просьбе — ключ прямо в коде.
-YANDEX_GEOCODER_API_KEY = "58c38b72-57f7-4946-bc13-a256d341281a"
-_GEOCODE_CACHE: dict[str, tuple[float, float]] = {}  # normalized address -> (lat, lon)
+# ВАЖНО: у тебя ключ настроен с whitelist домена.
+# Это почти всегда означает, что СЕРВЕРНЫЕ запросы к геокодеру будут получать 403,
+# потому что у них нет Referer, который проверяет Яндекс.
+# Поэтому геокодинг делаем на фронте (в админке) через JS API (ymaps.geocode),
+# а бэкенд только ПРИНИМАЕТ lat/lon и пишет их в БД.
+#
+# Ключ оставил тут только для совместимости/будущего (и чтобы не ломать импорт),
+# но по умолчанию в create/update геокодер НЕ вызывается.
+YANDEX_MAPS_API_KEY = "58c38b72-57f7-4946-bc13-a256d341281a"
+
 
 def _to_float(v):
     try:
@@ -53,25 +58,24 @@ def _to_float(v):
     except Exception:
         return None
 
+
 def _norm_addr(addr: str) -> str:
     return " ".join(str(addr or "").strip().lower().split())
 
-async def _geocode_yandex(address: str):
-    """
-    Возвращает (lat, lon) или None.
-    Важно: Yandex Geocoder pos возвращает "lon lat".
+
+async def _geocode_yandex_server_side(address: str):
+    """Серверный геокодер (по умолчанию НЕ используется).
+
+    Если очень захочешь вернуть серверный геокодинг —
+    добавь корректный ключ без referer-ограничений или используй IP allowlist.
     """
     addr = (address or "").strip()
     if not addr:
         return None
 
-    key = _norm_addr(addr)
-    if key in _GEOCODE_CACHE:
-        return _GEOCODE_CACHE[key]
-
     params = {
         "format": "json",
-        "apikey": YANDEX_GEOCODER_API_KEY,
+        "apikey": YANDEX_MAPS_API_KEY,
         "geocode": addr,
         "results": "1",
     }
@@ -87,25 +91,24 @@ async def _geocode_yandex(address: str):
         data = json.loads(raw)
         pos = (
             data.get("response", {})
-                .get("GeoObjectCollection", {})
-                .get("featureMember", [{}])[0]
-                .get("GeoObject", {})
-                .get("Point", {})
-                .get("pos")
+            .get("GeoObjectCollection", {})
+            .get("featureMember", [{}])[0]
+            .get("GeoObject", {})
+            .get("Point", {})
+            .get("pos")
         )
         if not pos:
             return None
 
+        # pos: "lon lat"
         lon_s, lat_s = pos.split()[:2]
         lat = _to_float(lat_s)
         lon = _to_float(lon_s)
         if lat is None or lon is None:
             return None
-
-        _GEOCODE_CACHE[key] = (lat, lon)
         return (lat, lon)
     except Exception as e:
-        print("[WARN] _geocode_yandex failed:", e)
+        print("[WARN] _geocode_yandex_server_side failed:", e)
         return None
 
 
@@ -115,23 +118,22 @@ class CORSMiddlewareAll(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
         except Exception as exc:
-            # Обработка ошибок FastAPI
             if isinstance(exc, FastAPIHTTPException):
                 response = JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
             elif isinstance(exc, RequestValidationError):
                 response = JSONResponse(status_code=422, content={"detail": exc.errors()})
             else:
                 response = JSONResponse(status_code=500, content={"detail": str(exc)})
-        # Всегда добавляем заголовки CORS
+
         response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Methods"] = "*"
         response.headers["Access-Control-Allow-Headers"] = "*"
         return response
 
+
 app.add_middleware(CORSMiddlewareAll)
 
-# CORS - в dev можно "*" , в продакшн укажи конкретный домен(ы)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -147,9 +149,8 @@ app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 STATIC_CLUBS_DIR = os.getenv("STATIC_CLUBS_DIR", "static_clubs")
 os.makedirs(STATIC_CLUBS_DIR, exist_ok=True)
 
+
 def _sitemap_base(request: Request) -> str:
-    # если хочешь зафиксировать канонический домен — задай env SITEMAP_BASE_URL
-    # иначе будет брать домен из запроса (xn--80aa3agq.xn--p1ai / mapkarostov.ru)
     return (os.getenv("SITEMAP_BASE_URL") or str(request.base_url)).rstrip("/")
 
 
@@ -167,27 +168,21 @@ async def robots_txt(request: Request):
         f"Sitemap: {base}/sitemap.xml",
         "",
     ])
-    return PlainTextResponse(
-        txt,
-        headers={"Cache-Control": "no-store, max-age=0"},
-    )
+    return PlainTextResponse(txt, headers={"Cache-Control": "no-store, max-age=0"})
 
 
 @app.get("/sitemap.xml", include_in_schema=False)
 async def sitemap_xml(request: Request):
     base = _sitemap_base(request)
 
-    # Статические/основные страницы (оставь только те, что реально должны индексироваться)
     static_urls = [
         (f"{base}/", None),
         (f"{base}/blog", None),
     ]
 
-    # Кружки из БД: /{slug}
     async with AsyncSessionLocal() as session:
         q = await session.execute(
-            select(Club.slug, Club.updated_at)
-            .where(Club.slug != None)
+            select(Club.slug, Club.updated_at).where(Club.slug != None)
         )
         rows = q.all()
 
@@ -203,15 +198,12 @@ async def sitemap_xml(request: Request):
             parts.append(f"<lastmod>{xml_escape(lastmod)}</lastmod>")
         parts.append("</url>")
 
-    # статические
     for loc, lastmod in static_urls:
         add_url(loc, lastmod)
 
-    # кружки
     for slug, updated_at in rows:
         if not slug:
             continue
-        # updated_at у тебя обычно naive utc; отдадим YYYY-MM-DD (валидно для sitemap)
         lm = None
         if updated_at:
             try:
@@ -231,13 +223,8 @@ async def sitemap_xml(request: Request):
 
 
 def _serialize_club(c, base_origin: str, payload_extra: dict = None):
-    """
-    Надёжная сериализация ORM -> plain dict для фронта.
-    Преобразует relationship schedules -> list(dict), social_links -> dict,
-    image -> absolute url.
-    """
+    """Надёжная сериализация ORM -> plain dict для фронта."""
     try:
-        # image
         image_path = ""
         if getattr(c, "main_image_url", None):
             image_path = c.main_image_url
@@ -250,7 +237,6 @@ def _serialize_club(c, base_origin: str, payload_extra: dict = None):
         if image_path:
             image_url = base_origin.rstrip("/") + image_path if image_path.startswith("/") else image_path
 
-        # address -> location string
         addr = getattr(c, "address", None)
         location = ""
         if addr:
@@ -259,30 +245,24 @@ def _serialize_club(c, base_origin: str, payload_extra: dict = None):
             parts = [p for p in (street.strip(), city.strip()) if p]
             location = ", ".join(parts)
 
-        # tags
         raw_tags = getattr(c, "tags", None)
         tags = list(raw_tags) if raw_tags is not None else []
 
-        # social links
         raw_social = getattr(c, "social_links", None) or {}
         social_links = dict(raw_social) if isinstance(raw_social, dict) else {}
 
-        # schedules: если relationship объекты — привести к list(dict)
         schedules_out = []
         raw_schedules = getattr(c, "schedules", None)
         if raw_schedules:
-            # raw_schedules может быть списком ORM Schedule объектов или уже list of dicts
             for s in raw_schedules:
-                # если это ORM объект — у него атрибуты weekday/start_time/end_time/note
                 try:
-                    # поддержим оба варианта: ORM Schedule или dict
                     if hasattr(s, "weekday") or hasattr(s, "start_time") or hasattr(s, "note"):
                         day = ""
                         wd = getattr(s, "weekday", None)
                         if wd is not None:
-                            wd_map = {0:"Понедельник",1:"Вторник",2:"Среда",3:"Четверг",4:"Пятница",5:"Суббота",6:"Воскресенье"}
+                            wd_map = {0: "Понедельник", 1: "Вторник", 2: "Среда", 3: "Четверг", 4: "Пятница", 5: "Суббота", 6: "Воскресенье"}
                             day = wd_map.get(wd, str(wd))
-                        # составим time строку
+
                         st = getattr(s, "start_time", None)
                         en = getattr(s, "end_time", None)
                         time_str = ""
@@ -304,17 +284,14 @@ def _serialize_club(c, base_origin: str, payload_extra: dict = None):
                         note = getattr(s, "note", None) or ""
                         schedules_out.append({"day": day or "", "time": time_str or "", "note": note or ""})
                     elif isinstance(s, dict):
-                        # если уже dict (связка фронт->API), нормализуем поля
                         schedules_out.append({
                             "day": s.get("day", "") or "",
                             "time": s.get("time", "") or "",
-                            "note": s.get("note", "") or ""
+                            "note": s.get("note", "") or "",
                         })
                 except Exception:
-                    # на случай неожиданного формата — пропустить элемент
                     continue
 
-        # price: оставить price_cents, но полезно дать price_rub тоже
         price_cents = getattr(c, "price_cents", None)
         price_rub = None
         if price_cents is not None:
@@ -323,7 +300,6 @@ def _serialize_club(c, base_origin: str, payload_extra: dict = None):
             except Exception:
                 price_rub = None
 
-        # coords: добавляем, но НЕ ломаем текущий контракт (это просто новые поля)
         lat = getattr(c, "lat", None)
         lon = getattr(c, "lon", None)
         if (lat is None or lon is None) and addr:
@@ -362,7 +338,6 @@ def _serialize_club(c, base_origin: str, payload_extra: dict = None):
 
 
 def _render_club_html_simple(obj):
-    """Очень простой шаблон — можно подменить на весь ваш club.html и подставлять поля."""
     title = obj.get("name", "Кружок")
     desc = obj.get("description", "")
     image = obj.get("image", "")
@@ -370,13 +345,13 @@ def _render_club_html_simple(obj):
     tags = obj.get("tags", [])
     tags_html = " ".join(f'<span class="tag-btn">{t}</span>' for t in tags)
     html = f"""<!doctype html>
-<html lang="ru">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang=\"ru\">
+<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">
 <title>{title}</title></head><body>
 <main>
   <h1>{title}</h1>
   <p>{desc}</p>
-  <img src="{image}" alt="" style="max-width:640px;width:100%;height:auto" />
+  <img src=\"{image}\" alt=\"\" style=\"max-width:640px;width:100%;height:auto\" />
   <p>Адрес: {location}</p>
   <div>Теги: {tags_html}</div>
 </main>
@@ -385,7 +360,6 @@ def _render_club_html_simple(obj):
 
 
 def write_static_club_file(slug, payload):
-    """Записывает/перезаписывает static_clubs/{slug}.html (best-effort)."""
     if not slug:
         return None
     safe = str(slug).replace("/", "_")
@@ -396,7 +370,6 @@ def write_static_club_file(slug, payload):
             f.write(html)
         return fname
     except Exception as e:
-        # не ломаем API при ошибке записи
         print("[WARN] write_static_club_file failed:", e)
         return None
 
@@ -414,11 +387,6 @@ def remove_static_club_file(slug):
 
 
 def _split_location(loc_str: str):
-    """
-    Разделяет location на street и city.
-    Если в строке есть запятая — left = street, right = city (остаток).
-    Иначе — street = loc_str, city = None
-    """
     if not loc_str:
         return None, None
     parts = [p.strip() for p in loc_str.split(",", 1)]
@@ -434,7 +402,6 @@ async def api_create_club(request: Request, payload: dict, user=Depends(admin_re
         raise HTTPException(status_code=400, detail="name is required")
 
     async with AsyncSessionLocal() as session:
-        # Address
         addr_obj = None
         loc = (payload.get("location") or "").strip()
         if loc:
@@ -444,22 +411,12 @@ async def api_create_club(request: Request, payload: dict, user=Depends(admin_re
                 session.add(addr_obj)
                 await session.flush()
 
-        # ===== coords: geocode ONCE on save (create) =====
-        payload_lat = _to_float(payload.get("lat"))
-        payload_lon = _to_float(payload.get("lon"))
-        lat = payload_lat
-        lon = payload_lon
-
-        if (lat is None or lon is None) and loc:
-            geo = await _geocode_yandex(loc)
-            if geo:
-                lat, lon = geo
-
-        if addr_obj is not None:
-            # если координаты есть — пишем и в адрес, чтобы можно было fallback'ать
-            if lat is not None and lon is not None:
-                addr_obj.lat = lat
-                addr_obj.lon = lon
+        # coords: ТОЛЬКО из payload (геокодинг делается в админке на клиенте)
+        lat = _to_float(payload.get("lat"))
+        lon = _to_float(payload.get("lon"))
+        if addr_obj is not None and lat is not None and lon is not None:
+            addr_obj.lat = lat
+            addr_obj.lon = lon
 
         # price
         price_cents = None
@@ -501,31 +458,27 @@ async def api_create_club(request: Request, payload: dict, user=Depends(admin_re
             lon=lon,
         )
         session.add(club)
-        await session.flush()  # ensure club.id available
+        await session.flush()
 
-        # schedules payload handling — robust parsing + filtering empty entries
+        # schedules
         schedules_payload = payload.get("schedules") or []
         weekday_map = {
             "понедельник": 0, "вторник": 1, "среда": 2,
             "четверг": 3, "пятница": 4, "суббота": 5, "воскресенье": 6
         }
-        created = []
         for s in schedules_payload:
             if not isinstance(s, dict):
                 continue
             raw_day = (s.get("day") or "").strip()
             raw_time = (s.get("time") or "").strip()
 
-            # if day looks like a time (contains digits or ':' or '–' etc) and time empty => swap
             if (not raw_time) and any(ch.isdigit() for ch in raw_day):
                 raw_time = raw_day
                 raw_day = ""
 
-            # skip completely empty entries
             if not raw_day and not raw_time:
                 continue
 
-            # interpret weekday if possible
             weekday_val = None
             if raw_day:
                 try:
@@ -533,7 +486,6 @@ async def api_create_club(request: Request, payload: dict, user=Depends(admin_re
                 except Exception:
                     weekday_val = weekday_map.get(raw_day.lower(), None)
 
-            # parse time into start/end if possible
             start_time_obj = None
             end_time_obj = None
             note = None
@@ -541,7 +493,6 @@ async def api_create_club(request: Request, payload: dict, user=Depends(admin_re
                 t = raw_time.replace("–", "-").replace("—", "-")
                 parts = [p.strip() for p in t.split("-", 1)]
                 if len(parts) == 2 and parts[0] and parts[1]:
-                    # try parse HH:MM
                     try:
                         hh, mm = [int(x) for x in parts[0].split(":")]
                         start_time_obj = dt_time(hh, mm)
@@ -557,28 +508,23 @@ async def api_create_club(request: Request, payload: dict, user=Depends(admin_re
                 else:
                     note = raw_time
 
-            # if nothing meaningful (weekday None and no times and no note) -> skip
             if weekday_val is None and not start_time_obj and not end_time_obj and not note:
                 continue
 
-            schedule_row = Schedule(
+            session.add(Schedule(
                 club_id=club.id,
                 weekday=weekday_val,
                 start_time=start_time_obj,
                 end_time=end_time_obj,
                 note=note
-            )
-            session.add(schedule_row)
-            created.append(schedule_row)
+            ))
 
-        # commit
         try:
             await session.commit()
         except IntegrityError as e:
             await session.rollback()
             raise HTTPException(status_code=400, detail=f"DB error: {str(e.orig) if getattr(e,'orig',None) else str(e)}")
 
-        # reload with relations
         q2 = await session.execute(
             select(Club)
             .where(Club.id == club.id)
@@ -604,10 +550,10 @@ async def api_create_club(request: Request, payload: dict, user=Depends(admin_re
 
 
 @app.put("/api/clubs/{club_id}")
-async def api_update_club(club_id: str, request: Request, payload: dict):
+async def api_update_club(club_id: str, request: Request, payload: dict, user=Depends(admin_required)):
     from sqlalchemy.orm.attributes import flag_modified
+
     async with AsyncSessionLocal() as session:
-        # allow id or slug lookup
         where_clause = None
         try:
             parsed_uuid = uuid.UUID(str(club_id))
@@ -623,13 +569,15 @@ async def api_update_club(club_id: str, request: Request, payload: dict):
 
         print(f"[DEBUG] Update club {club_id} payload: {payload}")
 
-        # simple scalars
-        if "name" in payload: club.name = payload.get("name")
-        if "slug" in payload: club.slug = payload.get("slug")
-        if "description" in payload: club.description = payload.get("description")
-        if "image" in payload: club.main_image_url = payload.get("image")
+        if "name" in payload:
+            club.name = payload.get("name")
+        if "slug" in payload:
+            club.slug = payload.get("slug")
+        if "description" in payload:
+            club.description = payload.get("description")
+        if "image" in payload:
+            club.main_image_url = payload.get("image")
 
-        # price
         if "price_rub" in payload:
             try:
                 price_rub = float(payload.get("price_rub") or 0)
@@ -642,12 +590,11 @@ async def api_update_club(club_id: str, request: Request, payload: dict):
             except Exception:
                 club.price_cents = None
 
-        # contacts
-        if "phone" in payload: club.phone = payload.get("phone") or ""
+        if "phone" in payload:
+            club.phone = payload.get("phone") or ""
         if "webSite" in payload or "website" in payload:
             club.webSite = payload.get("webSite") or payload.get("website") or ""
 
-        # tags / social links
         if "tags" in payload:
             tags = payload.get("tags") or []
             if not isinstance(tags, (list, tuple)):
@@ -668,8 +615,7 @@ async def api_update_club(club_id: str, request: Request, payload: dict):
             except Exception:
                 pass
 
-        # ===== location -> address, + geocode on save if needed =====
-        # старый адрес (для понимания, надо ли пере-геокодить)
+        # address
         old_loc_norm = ""
         addr = None
         if club.address_id:
@@ -678,24 +624,26 @@ async def api_update_club(club_id: str, request: Request, payload: dict):
             if addr:
                 old_loc_norm = _norm_addr(", ".join([x for x in [(addr.street or "").strip(), (addr.city or "").strip()] if x]))
 
-        loc = (payload.get("location") or "").strip()
-        street_val, city_val = _split_location(loc)
+        loc = (payload.get("location") or "").strip() if "location" in payload else ""
+        if "location" in payload:
+            street_val, city_val = _split_location(loc)
 
-        if club.address_id and addr:
-            addr.street = street_val
-            addr.city = city_val
-            session.add(addr)
-            await session.flush()
-        elif street_val or city_val:
-            new_addr = Address(street=street_val, city=city_val)
-            session.add(new_addr)
-            await session.flush()
-            club.address_id = new_addr.id
-            addr = new_addr
+            if club.address_id and addr:
+                addr.street = street_val
+                addr.city = city_val
+                session.add(addr)
+                await session.flush()
+            elif street_val or city_val:
+                new_addr = Address(street=street_val, city=city_val)
+                session.add(new_addr)
+                await session.flush()
+                club.address_id = new_addr.id
+                addr = new_addr
 
         new_loc_norm = _norm_addr(loc) if loc else ""
         loc_changed = bool(loc) and (old_loc_norm != new_loc_norm)
 
+        # coords:
         # 1) если пришли lat/lon — используем их
         has_lat = "lat" in payload
         has_lon = "lon" in payload
@@ -709,25 +657,16 @@ async def api_update_club(club_id: str, request: Request, payload: dict):
                 addr.lat = payload_lat
                 addr.lon = payload_lon
         else:
-            # 2) иначе геокодим, если:
-            # - адрес изменился, или
-            # - у клуба нет координат (первые заполнения существующих записей)
-            if loc and (loc_changed or club.lat is None or club.lon is None):
-                geo = await _geocode_yandex(loc)
-                if geo:
-                    club.lat, club.lon = geo
-                    if addr:
-                        addr.lat, addr.lon = geo
-                else:
-                    # если адрес изменился и геокод не сработал — сбросим coords, чтобы фронт мог fallback'нуть
-                    if loc_changed:
-                        club.lat = None
-                        club.lon = None
-                        if addr:
-                            addr.lat = None
-                            addr.lon = None
+            # 2) если адрес изменили, но координаты не прислали — сбрасываем,
+            # чтобы не оставлять «старые» координаты на новый адрес.
+            if loc_changed:
+                club.lat = None
+                club.lon = None
+                if addr:
+                    addr.lat = None
+                    addr.lon = None
 
-        # schedules replacement (if provided) — filter empty rows
+        # schedules replacement
         if "schedules" in payload:
             try:
                 await session.execute(delete(Schedule).where(Schedule.club_id == club.id))
@@ -782,14 +721,13 @@ async def api_update_club(club_id: str, request: Request, payload: dict):
                 if weekday_val is None and not start_time_obj and not end_time_obj and not note:
                     continue
 
-                schedule_row = Schedule(
+                session.add(Schedule(
                     club_id=club.id,
                     weekday=weekday_val,
                     start_time=start_time_obj,
                     end_time=end_time_obj,
                     note=note
-                )
-                session.add(schedule_row)
+                ))
 
         session.add(club)
         try:
@@ -801,7 +739,6 @@ async def api_update_club(club_id: str, request: Request, payload: dict):
             await session.rollback()
             raise HTTPException(status_code=500, detail=f"Commit failed: {e}")
 
-        # reload
         q2 = await session.execute(
             select(Club)
             .where(Club.id == club.id)
@@ -827,7 +764,7 @@ async def api_update_club(club_id: str, request: Request, payload: dict):
 
 
 @app.delete("/api/clubs/{club_id}")
-async def api_delete_club(club_id: str):
+async def api_delete_club(club_id: str, user=Depends(admin_required)):
     async with AsyncSessionLocal() as session:
         q = await session.execute(select(Club).where(Club.id == club_id))
         club = q.scalar_one_or_none()
@@ -836,7 +773,6 @@ async def api_delete_club(club_id: str):
         slug = getattr(club, "slug", None)
         await session.delete(club)
         await session.commit()
-        # удалить статическую страницу (если есть)
         if slug:
             try:
                 remove_static_club_file(slug)
@@ -847,7 +783,6 @@ async def api_delete_club(club_id: str):
 
 @app.post("/api/clubs/{club_id}/reviews", response_model=ReviewSchema)
 async def api_post_review(club_id: str, payload: ReviewCreateSchema):
-    # create_review_for_club должен вернуть объект Review ORM
     try:
         review = await create_review_for_club(club_id, payload)
     except NoResultFound:
@@ -856,25 +791,19 @@ async def api_post_review(club_id: str, payload: ReviewCreateSchema):
 
 
 @app.post("/api/clubs/{club_id}/images")
-async def api_upload_image(club_id: str, file: UploadFile = File(...)):
-    # сохраняем в media/ с уникальным именем и возвращаем url
+async def api_upload_image(club_id: str, file: UploadFile = File(...), user=Depends(admin_required)):
     ext = os.path.splitext(file.filename)[1]
     fname = f"{uuid.uuid4().hex}{ext or '.jpg'}"
     dest_path = os.path.join(MEDIA_DIR, fname)
     async with aiofiles.open(dest_path, "wb") as out:
         content = await file.read()
         await out.write(content)
-    # Здесь можно: создать запись в таблице images (реализуй функцию в crud)
     url = f"/media/{fname}"
     return {"url": url}
 
 
 @app.get("/api/clubs")
 async def api_get_clubs(request: Request, limit: int = 100, offset: int = 0):
-    """
-    Возвращает список клубов — предварительно грузим связи (address, images, schedules, teacher),
-    чтобы избежать ленивых обращений вне сессии.
-    """
     async with AsyncSessionLocal() as session:
         try:
             q = await session.execute(
@@ -905,9 +834,6 @@ async def api_get_clubs(request: Request, limit: int = 100, offset: int = 0):
 
 @app.get("/api/clubs/{club_id}")
 async def api_get_club(request: Request, club_id: str):
-    """
-    Возвращает один клуб по id (и по slug тоже — чтобы не ловить 404 на фронте).
-    """
     async with AsyncSessionLocal() as session:
         q = await session.execute(
             select(Club)
@@ -927,10 +853,10 @@ async def api_get_club(request: Request, club_id: str):
 
 
 @app.post("/api/clubs/{club_id}")
-async def api_update_club_post(club_id: str, request: Request):
+async def api_update_club_post(club_id: str, request: Request, user=Depends(admin_required)):
     payload = await request.json()
     print(f"[DEBUG] Update club {club_id} payload: {payload}")
-    return await api_update_club(club_id, request, payload)
+    return await api_update_club(club_id, request, payload, user=user)
 
 
 @app.get("/club/{slug}")
@@ -938,14 +864,16 @@ async def serve_club_page(slug: str):
     fname = os.path.join(STATIC_CLUBS_DIR, f"{slug}.html")
     if os.path.exists(fname):
         return FileResponse(fname, media_type="text/html")
-    # если нет файла — попробуем сгенерировать на лету из БД
+
     async with AsyncSessionLocal() as session:
-        q = await session.execute(select(Club).where(Club.slug == slug))
+        q = await session.execute(select(Club)\
+            .where(Club.slug == slug)\
+            .options(selectinload(Club.address), selectinload(Club.images), selectinload(Club.schedules), selectinload(Club.teacher))
+        )
         c = q.scalar_one_or_none()
         if not c:
             raise HTTPException(404, "Club not found")
-        base_origin = ""  # not required for static
-        serialized = _serialize_club(c, base_origin)
+        serialized = _serialize_club(c, "")
         html = _render_club_html_simple(serialized)
         try:
             with open(fname, "w", encoding="utf-8") as f:
@@ -955,33 +883,22 @@ async def serve_club_page(slug: str):
         return HTMLResponse(html)
 
 
-
-
 @app.get("/api/admin/geocode-missing")
 @app.post("/api/admin/geocode-missing")
 async def api_admin_geocode_missing(
     request: Request,
     limit: int = 50,
-    sleep_ms: int = 250,
     user=Depends(admin_required),
 ):
-    """
-    Бэкенд-утилита для разовой миграции данных.
+    """Исторический эндпоинт.
 
-    Заполняет координаты (lat/lon) для уже существующих кружков/адресов, где координаты отсутствуют.
-    Это нужно, если вы переключили фронт на работу ТОЛЬКО по координатам из БД (без геокодинга на клиенте).
+    Раньше он делал серверный геокодинг. Сейчас серверный геокодинг выключен,
+    потому что ключ у тебя whitelisted по домену, и сервер получает 403.
 
-    Как использовать:
-      1) Деплой этого main.py + рестарт бэка
-      2) Вызвать (в браузере/терминале) несколько раз, пока updated не станет 0:
-         POST {BASE}/api/admin/geocode-missing?limit=50
-
-    Параметры:
-      - limit: сколько записей обработать за один вызов
-      - sleep_ms: пауза между запросами к геокодеру (бережно к квотам)
+    Эндпоинт возвращает список записей, где координаты отсутствуют.
+    Геокодинг и запись координат делай через админку (кнопки "Заполнить координаты").
     """
     async with AsyncSessionLocal() as session:
-        # Берём пачку клубов вместе с address (без ленивых запросов)
         q = await session.execute(
             select(Club)
             .options(selectinload(Club.address))
@@ -989,20 +906,18 @@ async def api_admin_geocode_missing(
         )
         clubs = q.scalars().all()
 
-        # отберём кандидатов с отсутствующими координатами
-        candidates = []
+        missing = []
         for c in clubs:
             addr = getattr(c, "address", None)
-
-            # location string для геокодинга
             loc_parts = []
             if addr:
                 st = (getattr(addr, "street", None) or "").strip()
                 ct = (getattr(addr, "city", None) or "").strip()
-                if st: loc_parts.append(st)
-                if ct: loc_parts.append(ct)
+                if st:
+                    loc_parts.append(st)
+                if ct:
+                    loc_parts.append(ct)
             loc = ", ".join(loc_parts).strip()
-
             if not loc:
                 continue
 
@@ -1011,60 +926,26 @@ async def api_admin_geocode_missing(
             addr_lat = getattr(addr, "lat", None) if addr else None
             addr_lon = getattr(addr, "lon", None) if addr else None
 
-            missing = (club_lat is None or club_lon is None or addr_lat is None or addr_lon is None)
-            if missing:
-                candidates.append((c, addr, loc))
+            if club_lat is None or club_lon is None or (addr and (addr_lat is None or addr_lon is None)):
+                missing.append({
+                    "id": str(getattr(c, "id", "")),
+                    "slug": getattr(c, "slug", ""),
+                    "location": loc,
+                    "lat": club_lat,
+                    "lon": club_lon,
+                })
 
-        candidates = candidates[: max(0, int(limit or 0))]
-
-        updated_count = 0
-        failed = []
-
-        for c, addr, loc in candidates:
-            geo = await _geocode_yandex(loc)
-            if not geo:
-                failed.append({"id": str(getattr(c, "id", "")), "slug": getattr(c, "slug", ""), "location": loc})
-                continue
-
-            lat, lon = geo
-
-            try:
-                c.lat = lat
-                c.lon = lon
-                session.add(c)
-
-                if addr:
-                    addr.lat = lat
-                    addr.lon = lon
-                    session.add(addr)
-
-                updated_count += 1
-                # flush чтобы ловить возможные ошибки раньше
-                await session.flush()
-            except Exception as e:
-                failed.append({"id": str(getattr(c, "id", "")), "slug": getattr(c, "slug", ""), "location": loc, "error": str(e)})
-                continue
-
-            if sleep_ms:
-                try:
-                    await asyncio.sleep(float(sleep_ms) / 1000.0)
-                except Exception:
-                    pass
-
-        try:
-            await session.commit()
-        except Exception as e:
-            await session.rollback()
-            raise HTTPException(status_code=500, detail=f"Backfill commit failed: {e}")
+        missing = missing[: max(0, int(limit or 0))]
 
         return {
-            "processed": len(candidates),
-            "updated": updated_count,
-            "failed": failed[:20],  # чтобы не раздувать ответ
+            "processed": len(missing),
+            "updated": 0,
+            "failed": missing,
+            "note": "Server-side geocoding disabled. Use AdminPanelClient.jsx buttons to geocode via browser (ymaps.geocode) and save lat/lon into DB.",
         }
-
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
