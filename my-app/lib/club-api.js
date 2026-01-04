@@ -1,77 +1,62 @@
-// lib/club-api.js
+// club-api.js (fixed)
+// Fetch + normalize club data for the club page.
+// IMPORTANT: now includes lat/lon so the map can render without client-side geocoding.
 
-const API_BASE = "https://mapkarostov.ru/api";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://mapkarostov.ru/api";
 
-const DEMO_CLUB = {
-  title: "Футбольная Академия 'Чемпион'",
-  category: "Спорт",
-  minAge: 5,
-  maxAge: 16,
-  price: 5500,
-  priceNotes: "за 12 тренировок",
-  address: "г. Ростов-на-Дону, ул. Ленина, д. 42",
-  phone: "+79991234567",
-  description: "Приглашаем детей от 5 до 16 лет в нашу футбольную школу!",
-  tags: ["Футбол", "Спорт", "Команда"],
-  photos: ["https://dummyimage.com/1200x800/d1d5db/fff.png&text=No+Photo"],
-  schedules: [{ day: "Понедельник", time: "17:00 - 18:30" }],
-  socialLinks: { vk: "https://vk.com", telegram: "https://t.me" },
-};
-
-function normalizeClub(apiData) {
-  if (!apiData) return normalizeClub(DEMO_CLUB);
-
-  const rawPhotos = apiData.image || apiData.photos;
-  let photos = [];
-
-  if (Array.isArray(rawPhotos)) {
-    photos = rawPhotos;
-  } else if (rawPhotos && typeof rawPhotos === 'string') {
-    photos = [rawPhotos];
-  } else {
-    photos = DEMO_CLUB.photos;
+function toNum(v) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v === "string") {
+    const s = v.trim().replace(",", ".");
+    if (!s) return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
   }
+  return null;
+}
 
-  photos = photos.map(p => {
-    if (!p) return "";
-    if (p.startsWith('http')) return p;
-    if (p.startsWith('/')) return "https://mapkarostov.ru" + p;
-    return p;
-  }).filter(Boolean);
+export function normalizeClub(apiData) {
+  const tags = Array.isArray(apiData?.tags) ? apiData.tags : [];
+  const schedules = Array.isArray(apiData?.schedules) ? apiData.schedules : [];
+  const socialLinks = apiData?.socialLinks && typeof apiData.socialLinks === "object" ? apiData.socialLinks : {};
 
   return {
-    title: apiData.name || apiData.title || "Без названия",
-    category: (apiData.tags && apiData.tags[0]) || "Кружок",
-    minAge: apiData.min_age || apiData.minAge || 0,
-    maxAge: apiData.max_age || apiData.maxAge || 18,
-    price: apiData.price_cents ? Math.round(apiData.price_cents / 100) : (apiData.price || 0),
-    priceNotes: apiData.price_note || apiData.priceNotes || "",
-    address: apiData.location || apiData.address_text || apiData.address || "Адрес не указан",
-    phone: apiData.phone || "",
-    description: apiData.description || "",
-    schedules: Array.isArray(apiData.schedules) ? apiData.schedules : [],
-    socialLinks: apiData.social_links || apiData.socialLinks || {},
-    tags: Array.isArray(apiData.tags) ? apiData.tags : [],
-    webSite: apiData.site || apiData.webSite || "",
-    photos
+    id: apiData?.id ?? null,
+    slug: apiData?.slug ?? "",
+    title: apiData?.name ?? "",
+    description: apiData?.description ?? "",
+    imageUrl: apiData?.image ?? "",
+    address: apiData?.location ?? "",
+    // key fix: keep coordinates
+    lat: toNum(apiData?.lat),
+    lon: toNum(apiData?.lon),
+
+    tags,
+    priceRub:
+      apiData?.price_rub !== null && apiData?.price_rub !== undefined
+        ? Number(apiData.price_rub)
+        : apiData?.price_cents !== null && apiData?.price_cents !== undefined
+          ? Math.round(Number(apiData.price_cents)) / 100
+          : 0,
+    phone: apiData?.phone ?? "",
+    website: apiData?.webSite ?? "",
+    socialLinks,
+    schedules,
   };
 }
 
 export async function fetchClubData(slug) {
-  if (!slug) return null;
+  // Fetch list of clubs once (server-side), find by slug.
+  // Use no-store to avoid stale coords after admin updates.
+  const res = await fetch(`${API_BASE}/clubs?limit=5000`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
 
-  try {
-    // revalidate: 3600 — кэширование на 1 час
-    const res = await fetch(`${API_BASE}/clubs`, { next: { revalidate: 3600 } });
-    
-    if (!res.ok) throw new Error("API Error");
-    
-    const list = await res.json();
-    const found = list.find((c) => String(c.slug) === String(slug) || String(c.id) === String(slug));
+  const clubs = await res.json();
+  const found = Array.isArray(clubs) ? clubs.find((c) => c?.slug === slug) : null;
+  if (!found) return null;
 
-    return found ? normalizeClub(found) : null;
-  } catch (e) {
-    console.error("Backend unavailable or network error", e);
-    return normalizeClub(DEMO_CLUB); 
-  }
+  return normalizeClub(found);
 }
