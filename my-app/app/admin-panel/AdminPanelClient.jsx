@@ -1,728 +1,790 @@
-"use client";
+'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from 'react';
 
-// ===============================
-// Настройки
-// ===============================
-// Ключ Яндекс.Карт (JS API). Можно держать в фронте, но считай его публичным.
-// Если в Яндексе стоит ограничение по HTTP Referer на mapka.рф —
-// это НЕ защитит от полного злоупотребления (Referer можно подделать),
-// но сильно снижает риск случайного слива ключа.
-const YANDEX_MAPS_API_KEY = "58c38b72-57f7-4946-bc13-a256d341281a";
+// Пользователь попросил прикрепить CSS прямо к компоненту.
+// Инжектим стили в <head> один раз (и параллельно можно держать admin-panel.css).
+const ADMIN_PANEL_CSS = String.raw`
+:root{--accent:#2b87d4;--accent2:#1f6fb2;--muted:#667085;--bg:#f4f6f8;--card:#ffffff;--border:#e6e9ec;--shadow:0 10px 28px rgba(16,24,40,.08)}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; margin:0;background:var(--bg);color:#111;overflow:hidden}
 
-// Анти-бан: задержка между запросами геокодера при массовой обработке
-const BATCH_SLEEP_MS = 250;
+header{background:var(--card);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:12px}
+header h1{font-size:16px;margin:0;letter-spacing:.2px}
 
-// ===============================
-// Utils
-// ===============================
-async function fetchJson(url, options = {}) {
-  const res = await fetch(url, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
-  const text = await res.text();
-  let data;
+.wrap{display:flex;height:calc(100vh - 56px)}
+
+.left{width:360px;background:var(--card);border-right:1px solid var(--border);overflow:auto;padding:12px;scrollbar-gutter:stable}
+.left .toolbar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+
+.btn{background:var(--accent);color:white;border:none;padding:8px 10px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px;transition:transform .08s ease, background .16s ease, box-shadow .16s ease;box-shadow:0 6px 14px rgba(43,135,212,.14)}
+.btn:hover{background:var(--accent2)}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(43,135,212,.4);box-shadow:none}
+.btn.ghost:hover{background:#eef6ff}
+
+.list{display:flex;flex-direction:column;gap:10px}
+.item{padding:12px;border-radius:14px;border:1px solid #eef1f4;background:#fbfcfe;cursor:pointer;display:flex;align-items:flex-start;gap:10px;transition:box-shadow .16s ease, border-color .16s ease, transform .16s ease}
+.item:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(16,24,40,.06);border-color:rgba(43,135,212,.25)}
+.item .meta{flex:1;min-width:0}
+.item .meta h4{margin:0;font-size:14px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .meta p{margin:6px 0 0;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item.selected{box-shadow:0 14px 34px rgba(43,135,212,0.14);border-color:rgba(43,135,212,0.26);background:#f7fbff}
+.pin{width:10px;height:10px;border-radius:999px;margin-top:4px;flex:0 0 auto;border:2px solid rgba(255,255,255,.8);box-shadow:0 6px 18px rgba(16,24,40,.18)}
+
+.main{flex:1;padding:18px;overflow:auto;scrollbar-gutter:stable}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start}
+.card{background:var(--card);border-radius:16px;padding:14px;border:1px solid #eef1f4;box-shadow:0 8px 20px rgba(16,24,40,.05)}
+
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+input[type=text],input[type=number],textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--border);font-size:14px;outline:none;transition:border-color .16s ease, box-shadow .16s ease;background:#fff}
+input[type=text]:focus,input[type=number]:focus,textarea:focus{border-color:rgba(43,135,212,.55);box-shadow:0 0 0 4px rgba(43,135,212,.12)}
+textarea{min-height:140px;resize:vertical}
+
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.small{width:180px;max-width:100%}
+
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tag{background:#eef6ff;color:var(--accent);padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid rgba(43,135,212,.18)}
+
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.preview{border-radius:12px;overflow:hidden;border:1px solid var(--border);height:180px;background:#e9eef3;display:flex;align-items:center;justify-content:center}
+.muted{color:var(--muted);font-size:13px;line-height:1.35}
+
+.toast{position:fixed;right:18px;bottom:18px;background:#111;color:#fff;padding:10px 14px;border-radius:10px;opacity:0;transform:translateY(10px);transition:all .22s;z-index:50;max-width:520px}
+.toast.show{opacity:1;transform:translateY(0)}
+
+.search{display:flex;gap:8px;margin-bottom:10px}
+.search input{flex:1;padding:10px 12px;border-radius:12px;border:1px solid var(--border)}
+
+.muted-log{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:12px;color:#344054;line-height:1.35}
+
+/* nice scrollbars (webkit) */
+.left::-webkit-scrollbar,.main::-webkit-scrollbar{width:10px;height:10px}
+.left::-webkit-scrollbar-thumb,.main::-webkit-scrollbar-thumb{background:rgba(16,24,40,.18);border-radius:999px;border:3px solid transparent;background-clip:padding-box}
+.left::-webkit-scrollbar-track,.main::-webkit-scrollbar-track{background:transparent}
+
+@media (max-width: 1100px){
+  .wrap{height:auto;min-height:100vh}
+  body{overflow:auto}
+  .grid{grid-template-columns:1fr}
+  .left{width:340px}
+}
+`;
+
+function useEnsureAdminPanelCss() {
+  useEffect(() => {
+    const id = 'mapka-admin-panel-inline-css';
+    if (typeof document === 'undefined') return;
+    if (document.getElementById(id)) return;
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = ADMIN_PANEL_CSS;
+    document.head.appendChild(style);
+  }, []);
+}
+
+/**
+ * AdminPanelClient
+ * - Тянет /api/clubs
+ * - Создание/редактирование/удаление
+ * - Клиентский геокодинг через JS API (whitelist домена)
+ * - Сохраняет lat/lon в БД (через PUT/POST)
+ */
+
+const isBrowser = typeof window !== 'undefined';
+
+function safeJsonParse(str, fallback) {
   try {
-    data = text ? JSON.parse(text) : null;
+    return JSON.parse(str);
   } catch {
-    data = text;
+    return fallback;
   }
+}
+
+function toastFactory(setToastMsg) {
+  let t;
+  return (msg) => {
+    setToastMsg(msg);
+    clearTimeout(t);
+    t = setTimeout(() => setToastMsg(''), 2200);
+  };
+}
+
+function normAddr(s) {
+  return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function getBaseApiUrl() {
+  if (!isBrowser) return '';
+  // если фронт и API на одном домене — оставляем "" и будем дергать относительные /api/...
+  return '';
+}
+
+async function apiFetch(path, opts = {}) {
+  const base = getBaseApiUrl();
+  const res = await fetch(base + path, {
+    credentials: 'include',
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(opts.headers || {}),
+    },
+  });
   if (!res.ok) {
-    const msg = (data && data.detail) || (typeof data === "string" ? data : null) || `HTTP ${res.status}`;
-    throw new Error(msg);
-  }
-  return data;
-}
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-function toNumOrEmpty(v) {
-  if (v === null || v === undefined) return "";
-  if (typeof v === "number" && Number.isFinite(v)) return String(v);
-  const s = String(v).trim().replace(",", ".");
-  if (!s) return "";
-  const n = Number(s);
-  return Number.isFinite(n) ? String(n) : "";
-}
-
-function normalizeTags(tagsLike) {
-  if (Array.isArray(tagsLike)) return tagsLike;
-  if (!tagsLike) return [];
-  if (typeof tagsLike === "string") {
-    return tagsLike
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-  }
-  return [];
-}
-
-// ===============================
-// Yandex Maps loader + geocode
-// ===============================
-let ymapsLoaderPromise = null;
-
-function loadYmaps() {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("Yandex Maps доступен только в браузере"));
-  }
-
-  // уже загружено
-  if (window.ymaps && typeof window.ymaps.ready === "function" && typeof window.ymaps.geocode === "function") {
-    return new Promise((resolve) => window.ymaps.ready(resolve));
-  }
-
-  if (ymapsLoaderPromise) return ymapsLoaderPromise;
-
-  ymapsLoaderPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector("script[data-ymaps='2.1']");
-    if (existing) {
-      // ждём ready
-      const wait = () => {
-        if (window.ymaps && typeof window.ymaps.ready === "function") {
-          window.ymaps.ready(resolve);
-        } else {
-          setTimeout(wait, 50);
-        }
-      };
-      wait();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.dataset.ymaps = "2.1";
-    script.async = true;
-    script.src = `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(YANDEX_MAPS_API_KEY)}&lang=ru_RU`;
-
-    script.onload = () => {
+    let detail = '';
+    try {
+      const j = await res.json();
+      detail = j?.detail ? JSON.stringify(j.detail) : JSON.stringify(j);
+    } catch {
       try {
-        if (!window.ymaps || typeof window.ymaps.ready !== "function") {
-          reject(new Error("Yandex Maps скрипт загрузился, но ymaps не найден"));
-          return;
-        }
-        window.ymaps.ready(resolve);
-      } catch (e) {
-        reject(e);
+        detail = await res.text();
+      } catch {
+        detail = '';
       }
-    };
-    script.onerror = () => reject(new Error("Не удалось загрузить Yandex Maps JS API"));
+    }
+    const err = new Error(`HTTP ${res.status} ${res.statusText}${detail ? `: ${detail}` : ''}`);
+    err.status = res.status;
+    throw err;
+  }
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('application/json')) return res.json();
+  return res.text();
+}
 
-    document.head.appendChild(script);
+/**
+ * Подключение JS API Яндекса.
+ * Важно: ключ должен быть разрешён по домену в кабинете.
+ */
+async function ensureYandexMapsLoaded(apiKey) {
+  if (!isBrowser) return;
+  if (window.ymaps && window.ymaps.ready) return;
+
+  // уже грузится
+  if (window.__YM_LOADING__) {
+    await window.__YM_LOADING__;
+    return;
+  }
+
+  window.__YM_LOADING__ = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.async = true;
+    s.src = `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(apiKey)}&lang=ru_RU`;
+    s.onload = () => {
+      if (!window.ymaps || !window.ymaps.ready) {
+        reject(new Error('Yandex Maps API loaded, but ymaps is unavailable'));
+        return;
+      }
+      window.ymaps.ready(resolve);
+    };
+    s.onerror = () => reject(new Error('Failed to load Yandex Maps API script'));
+    document.head.appendChild(s);
   });
 
-  return ymapsLoaderPromise;
+  await window.__YM_LOADING__;
 }
 
-async function geocodeYandex(address) {
-  const q = (address || "").trim();
-  if (!q) return null;
+async function geocodeViaYmaps(address) {
+  const addr = String(address || '').trim();
+  if (!addr) return null;
 
-  await loadYmaps();
+  // cache in window (per session)
+  const key = normAddr(addr);
+  window.__GEOCODE_CACHE__ = window.__GEOCODE_CACHE__ || {};
+  if (window.__GEOCODE_CACHE__[key]) return window.__GEOCODE_CACHE__[key];
 
-  // ymaps.geocode возвращает Promise-like объект
-  const res = await window.ymaps.geocode(q, { results: 1 });
-  const first = res?.geoObjects?.get?.(0);
+  const res = await window.ymaps.geocode(addr, { results: 1 });
+  const first = res.geoObjects.get(0);
   if (!first) return null;
 
-  const coords = first.geometry?.getCoordinates?.();
+  const coords = first.geometry.getCoordinates(); // [lat, lon]
   if (!Array.isArray(coords) || coords.length < 2) return null;
 
-  // В JS API 2.1 координаты приходят как [lat, lon]
-  const lat = Number(coords[0]);
-  const lon = Number(coords[1]);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-  return { lat, lon };
+  const out = { lat: coords[0], lon: coords[1] };
+  window.__GEOCODE_CACHE__[key] = out;
+  return out;
 }
 
-// ===============================
-// Component
-// ===============================
+function buildPayload(form) {
+  const priceRubNum = (() => {
+    const v = String(form.price_rub ?? '').trim().replace(',', '.');
+    if (!v) return 0;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  })();
+
+  const socialLinks = safeJsonParse(form.socialLinksText || '{}', {});
+  const schedules = safeJsonParse(form.schedulesText || '[]', []);
+  const tags = String(form.tagsText || '')
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  // lat/lon: сервер ждёт lat/lon (float) или пусто
+  const lat = String(form.lat ?? '').trim();
+  const lon = String(form.lon ?? '').trim();
+
+  return {
+    name: String(form.name || '').trim(),
+    slug: String(form.slug || '').trim(),
+    description: String(form.description || '').trim(),
+    image: String(form.image || '').trim(),
+    location: String(form.location || '').trim(),
+    ...(lat && lon ? { lat: Number(lat), lon: Number(lon) } : {}),
+    tags,
+    isFavorite: !!form.isFavorite,
+    price_rub: priceRubNum,
+    phone: String(form.phone || '').trim(),
+    webSite: String(form.webSite || '').trim(),
+    socialLinks,
+    schedules,
+  };
+}
+
 export default function AdminPanelClient() {
+  useEnsureAdminPanelCss();
+  // ВАЖНО: этот ключ подходит только если whitelist по домену настроен.
+  // Если захочешь — вынесем в env NEXT_PUBLIC_YANDEX_MAPS_KEY.
+  const YANDEX_JS_API_KEY = '58c38b72-57f7-4946-bc13-a256d341281a';
+
   const [clubs, setClubs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
   const [selectedId, setSelectedId] = useState(null);
-  const [isNew, setIsNew] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [toastMsg, setToastMsg] = useState('');
+  const toast = useMemo(() => toastFactory(setToastMsg), []);
 
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState("");
+  const [log, setLog] = useState('');
+  const [form, setForm] = useState({
+    id: '',
+    name: '',
+    slug: '',
+    description: '',
+    image: '',
+    location: '',
+    lat: '',
+    lon: '',
+    tagsText: '',
+    isFavorite: false,
+    price_rub: '',
+    phone: '',
+    webSite: '',
+    socialLinksText: '{}',
+    schedulesText: '[]',
+  });
 
-  const [batchRunning, setBatchRunning] = useState(false);
-  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0, ok: 0, fail: 0 });
+  const selectedClub = useMemo(() => clubs.find((c) => c.id === selectedId) || null, [clubs, selectedId]);
 
-  const originalLocationRef = useRef("");
-  const coordsTouchedRef = useRef(false);
-
-  const emptyForm = useMemo(
-    () => ({
-      name: "",
-      slug: "",
-      description: "",
-      image: "",
-      location: "",
-      lat: "",
-      lon: "",
-      tags: "",
-      price_rub: "",
-      phone: "",
-      webSite: "",
-      socialLinks: {},
-      schedules: [],
-    }),
-    []
-  );
-
-  const [form, setForm] = useState(emptyForm);
-
-  async function reload() {
+  async function loadClubs() {
     setLoading(true);
-    setError("");
     try {
-      const data = await fetchJson("/api/clubs?limit=5000");
+      const data = await apiFetch('/api/clubs');
       setClubs(Array.isArray(data) ? data : []);
+      setLog((prev) => prev + `\n[OK] loaded clubs: ${Array.isArray(data) ? data.length : 0}`);
+
+      // если выбранный пропал — сброс
+      if (selectedId && Array.isArray(data) && !data.some((x) => x.id === selectedId)) {
+        setSelectedId(null);
+      }
     } catch (e) {
-      setError(String(e?.message || e));
+      console.error(e);
+      setLog((prev) => prev + `\n[ERR] load clubs: ${e.message}`);
+      toast('Ошибка загрузки /api/clubs');
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    reload();
+    loadClubs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const selectedClub = useMemo(() => {
-    if (!selectedId) return null;
-    return clubs.find((c) => String(c.id) === String(selectedId)) || null;
-  }, [clubs, selectedId]);
-
-  function startNew() {
-    setIsNew(true);
-    setSelectedId(null);
-    originalLocationRef.current = "";
-    coordsTouchedRef.current = false;
-    setForm(emptyForm);
-  }
-
-  function editClub(c) {
-    setIsNew(false);
-    setSelectedId(c.id);
-    originalLocationRef.current = (c.location || "").trim();
-    coordsTouchedRef.current = false;
-
+  // при выборе клуба — заполнить форму
+  useEffect(() => {
+    if (!selectedClub) return;
     setForm({
-      name: c.name || "",
-      slug: c.slug || "",
-      description: c.description || "",
-      image: c.image || "",
-      location: c.location || "",
-      lat: toNumOrEmpty(c.lat),
-      lon: toNumOrEmpty(c.lon),
-      tags: Array.isArray(c.tags) ? c.tags.join(", ") : "",
-      price_rub: c.price_rub != null ? String(c.price_rub) : "",
-      phone: c.phone || "",
-      webSite: c.webSite || "",
-      socialLinks: c.socialLinks || {},
-      schedules: Array.isArray(c.schedules) ? c.schedules : [],
+      id: selectedClub.id,
+      name: selectedClub.name || '',
+      slug: selectedClub.slug || '',
+      description: selectedClub.description || '',
+      image: selectedClub.image || '',
+      location: selectedClub.location || '',
+      lat: selectedClub.lat != null ? String(selectedClub.lat) : '',
+      lon: selectedClub.lon != null ? String(selectedClub.lon) : '',
+      tagsText: Array.isArray(selectedClub.tags) ? selectedClub.tags.join(', ') : '',
+      isFavorite: !!selectedClub.isFavorite,
+      price_rub: selectedClub.price_rub != null ? String(selectedClub.price_rub) : '',
+      phone: selectedClub.phone || '',
+      webSite: selectedClub.webSite || '',
+      socialLinksText: JSON.stringify(selectedClub.socialLinks || {}, null, 2),
+      schedulesText: JSON.stringify(selectedClub.schedules || [], null, 2),
     });
+  }, [selectedClub]);
+
+  const filtered = useMemo(() => {
+    const q = normAddr(search);
+    if (!q) return clubs;
+    return clubs.filter((c) => {
+      const t = `${c?.name || ''} ${c?.slug || ''} ${c?.location || ''}`;
+      return normAddr(t).includes(q);
+    });
+  }, [clubs, search]);
+
+  function setField(key, value) {
+    setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function removeClub(c) {
-    if (!c?.id) return;
-    if (!confirm(`Удалить кружок: ${c.name}?`)) return;
-    setSaving(true);
-    setStatus("Удаляем...");
-    try {
-      await fetchJson(`/api/clubs/${c.id}`, { method: "DELETE" });
-      await reload();
-      setStatus("Удалено");
-      if (String(selectedId) === String(c.id)) startNew();
-    } catch (e) {
-      setStatus("");
-      alert(String(e?.message || e));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function normalizePayload(curForm) {
-    const tags = normalizeTags(curForm.tags);
-
-    const payload = {
-      name: (curForm.name || "").trim(),
-      slug: (curForm.slug || "").trim(),
-      description: curForm.description || "",
-      image: (curForm.image || "").trim(),
-      location: (curForm.location || "").trim(),
-      tags,
-      price_rub: curForm.price_rub !== "" ? Number(String(curForm.price_rub).replace(",", ".")) : null,
-      phone: curForm.phone || "",
-      webSite: curForm.webSite || "",
-      socialLinks: typeof curForm.socialLinks === "object" && curForm.socialLinks ? curForm.socialLinks : {},
-      schedules: Array.isArray(curForm.schedules) ? curForm.schedules : [],
-    };
-
-    const latN = Number(String(curForm.lat || "").replace(",", "."));
-    const lonN = Number(String(curForm.lon || "").replace(",", "."));
-    if (Number.isFinite(latN) && Number.isFinite(lonN)) {
-      payload.lat = latN;
-      payload.lon = lonN;
-    }
-
-    return payload;
-  }
-
-  async function ensureCoordsByLocation(payload, opts = { force: false }) {
-    const loc = (payload.location || "").trim();
-    if (!loc) return payload;
-
-    const hasCoords = typeof payload.lat === "number" && typeof payload.lon === "number";
-
-    const locationChanged = originalLocationRef.current !== "" && originalLocationRef.current !== loc;
-    const need = opts.force || !hasCoords || (locationChanged && !coordsTouchedRef.current);
-
-    if (!need) return payload;
-
-    setStatus("Геокодим адрес через Яндекс...");
-    const geo = await geocodeYandex(loc);
-    if (!geo) {
-      setStatus("Геокодинг не дал результата (сохранил без координат)");
-      return payload;
-    }
-
-    // обновим форму, чтобы пользователь видел
-    setForm((prev) => ({ ...prev, lat: String(geo.lat), lon: String(geo.lon) }));
-
-    return { ...payload, lat: geo.lat, lon: geo.lon };
-  }
-
-  async function saveClub() {
-    const payload0 = normalizePayload(form);
-
-    if (!payload0.name) {
-      alert("Название обязательно");
+  async function doSave({ forceGeocodeIfMissing = true } = {}) {
+    if (!form.name.trim()) {
+      toast('Название обязательно');
       return;
     }
 
-    setSaving(true);
-    setStatus("Сохраняем...");
-
+    setLoading(true);
     try {
-      const payload = await ensureCoordsByLocation(payload0);
+      let next = { ...form };
 
-      const method = isNew ? "POST" : "PUT";
-      const url = isNew ? "/api/clubs" : `/api/clubs/${selectedId}`;
-
-      const saved = await fetchJson(url, {
-        method,
-        body: JSON.stringify(payload),
-      });
-
-      // обновим "оригинальный" адрес после сохранения
-      originalLocationRef.current = (saved?.location || payload.location || "").trim();
-      coordsTouchedRef.current = false;
-
-      setStatus("Сохранено");
-      await reload();
-
-      // если был новый — открыть его
-      if (isNew && saved?.id) {
-        setIsNew(false);
-        setSelectedId(saved.id);
+      // если адрес меняли — фронт обычно чистит lat/lon
+      const hasCoords = String(next.lat || '').trim() && String(next.lon || '').trim();
+      if (!hasCoords && forceGeocodeIfMissing && next.location.trim()) {
+        setLog((p) => p + `\n[INFO] geocode (before save) for: ${next.location}`);
+        await ensureYandexMapsLoaded(YANDEX_JS_API_KEY);
+        const geo = await geocodeViaYmaps(next.location);
+        if (geo) {
+          next = { ...next, lat: String(geo.lat), lon: String(geo.lon) };
+          setForm(next);
+          setLog((p) => p + `\n[OK] geocode result: lat=${geo.lat} lon=${geo.lon}`);
+        } else {
+          setLog((p) => p + `\n[WARN] geocode returned null`);
+        }
       }
+
+      const payload = buildPayload(next);
+
+      // create vs update
+      let result;
+      if (!next.id) {
+        result = await apiFetch('/api/clubs', { method: 'POST', body: JSON.stringify(payload) });
+      } else {
+        result = await apiFetch(`/api/clubs/${encodeURIComponent(next.id)}`, { method: 'PUT', body: JSON.stringify(payload) });
+      }
+
+      toast('Сохранено');
+      setLog((p) => p + `\n[OK] saved club: ${result?.id || ''}`);
+      await loadClubs();
+
+      // после save — выделим сохранённый
+      if (result?.id) setSelectedId(result.id);
     } catch (e) {
-      setStatus("");
-      alert(String(e?.message || e));
+      console.error(e);
+      toast('Ошибка сохранения');
+      setLog((p) => p + `\n[ERR] save: ${e.message}`);
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   }
 
-  async function geocodeCurrentAndApply({ saveNow }) {
-    const loc = (form.location || "").trim();
-    if (!loc) {
-      alert("Сначала заполните адрес");
+  async function deleteSelected() {
+    if (!selectedClub?.id) return;
+    if (!confirm(`Удалить "${selectedClub.name}"?`)) return;
+
+    setLoading(true);
+    try {
+      await apiFetch(`/api/clubs/${encodeURIComponent(selectedClub.id)}`, { method: 'DELETE' });
+      toast('Удалено');
+      setSelectedId(null);
+      await loadClubs();
+    } catch (e) {
+      console.error(e);
+      toast('Ошибка удаления');
+      setLog((p) => p + `\n[ERR] delete: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function createNew() {
+    setSelectedId(null);
+    setForm({
+      id: '',
+      name: '',
+      slug: '',
+      description: '',
+      image: '',
+      location: '',
+      lat: '',
+      lon: '',
+      tagsText: '',
+      isFavorite: false,
+      price_rub: '',
+      phone: '',
+      webSite: '',
+      socialLinksText: '{\n  \"vk\": \"\",\n  \"telegram\": \"\"\n}',
+      schedulesText: '[\n  {\n    \"day\": \"Понедельник\",\n    \"time\": \"09:00-21:00\",\n    \"note\": \"\"\n  }\n]',
+    });
+    toast('Новая карточка');
+  }
+
+  async function geocodeToFormOnly() {
+    const addr = String(form.location || '').trim();
+    if (!addr) {
+      toast('Нет адреса');
       return;
     }
-    setSaving(true);
+    setLoading(true);
     try {
-      setStatus("Геокодим адрес через Яндекс...");
-      const geo = await geocodeYandex(loc);
+      setLog((p) => p + `\n[INFO] geocode (to form): ${addr}`);
+      await ensureYandexMapsLoaded(YANDEX_JS_API_KEY);
+      const geo = await geocodeViaYmaps(addr);
       if (!geo) {
-        setStatus("Геокодинг не дал результата");
+        toast('Геокодинг не дал результата');
+        setLog((p) => p + `\n[WARN] geocode returned null`);
         return;
       }
-
-      coordsTouchedRef.current = true; // считаем, что пользователь явно захотел эти координаты
-      setForm((p) => ({ ...p, lat: String(geo.lat), lon: String(geo.lon) }));
-
-      if (saveNow && !isNew && selectedId) {
-        setStatus("Сохраняем координаты...");
-        await fetchJson(`/api/clubs/${selectedId}`, {
-          method: "PUT",
-          body: JSON.stringify({ lat: geo.lat, lon: geo.lon, location: loc }),
-        });
-        originalLocationRef.current = loc;
-        coordsTouchedRef.current = false;
-        setStatus("Координаты обновлены");
-        await reload();
-      } else {
-        setStatus("Координаты проставлены в форме — нажмите «Сохранить»");
-      }
+      setField('lat', String(geo.lat));
+      setField('lon', String(geo.lon));
+      toast('Координаты проставлены в форму');
+      setLog((p) => p + `\n[OK] geocode: lat=${geo.lat} lon=${geo.lon}`);
     } catch (e) {
-      setStatus("");
-      alert(String(e?.message || e));
+      console.error(e);
+      toast('Ошибка геокодинга');
+      setLog((p) => p + `\n[ERR] geocode: ${e.message}`);
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   }
 
-  async function batchGeocode({ forceAll }) {
-    if (batchRunning) return;
-
-    const candidates = (clubs || []).filter((c) => {
-      const loc = (c.location || "").trim();
-      if (!loc) return false;
-      if (forceAll) return true;
-      return c.lat == null || c.lon == null;
-    });
-
-    if (!candidates.length) {
-      alert(forceAll ? "Нет кружков для пересчёта (нет адресов)" : "Нет кружков без координат");
-      return;
+  async function geocodeAndSave() {
+    await geocodeToFormOnly();
+    // если координаты в форме появились — сохраняем
+    const hasCoords = String(form.lat || '').trim() && String(form.lon || '').trim();
+    if (hasCoords) {
+      await doSave({ forceGeocodeIfMissing: false });
     }
+  }
 
-    if (forceAll && !confirm(`Пересчитать координаты для ВСЕХ кружков (${candidates.length})? Это потратит лимит геокодера.`)) {
-      return;
+  async function fillMissingCoords() {
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/admin/geocode-missing?limit=200&sleep_ms=200`, { method: 'POST' });
+      setLog((p) => p + `\n[OK] backend backfill: processed=${res?.processed} updated=${res?.updated} failed=${res?.failed?.length || 0}`);
+      toast(`Заполнено: ${res?.updated || 0}`);
+      await loadClubs();
+    } catch (e) {
+      console.error(e);
+      toast('Ошибка /api/admin/geocode-missing');
+      setLog((p) => p + `\n[ERR] backend backfill: ${e.message}`);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    setBatchRunning(true);
-    setBatchProgress({ done: 0, total: candidates.length, ok: 0, fail: 0 });
-    setStatus(forceAll ? "Пересчитываем координаты для всех..." : "Заполняем координаты (пустые)...");
+  async function correctionAllClientSide() {
+    // Клиентская коррекция: для всех клубов без координат — геокодим в браузере и сохраняем
+    setLoading(true);
+    let updated = 0;
+    const failed = [];
+    try {
+      await ensureYandexMapsLoaded(YANDEX_JS_API_KEY);
 
-    let ok = 0;
-    let fail = 0;
+      const list = [...clubs];
+      for (const c of list) {
+        const has = c?.lat != null && c?.lon != null;
+        const loc = String(c?.location || '').trim();
+        if (has || !loc) continue;
 
-    for (let i = 0; i < candidates.length; i++) {
-      const c = candidates[i];
-      setBatchProgress((p) => ({ ...p, done: i, ok, fail }));
-
-      try {
-        const geo = await geocodeYandex(c.location);
+        const geo = await geocodeViaYmaps(loc);
         if (!geo) {
-          fail++;
-        } else {
-          await fetchJson(`/api/clubs/${c.id}`, {
-            method: "PUT",
-            body: JSON.stringify({ lat: geo.lat, lon: geo.lon, location: (c.location || "").trim() }),
-          });
-          ok++;
+          failed.push({ id: c.id, slug: c.slug, location: loc });
+          continue;
         }
-      } catch {
-        fail++;
+
+        const payload = { location: loc, lat: geo.lat, lon: geo.lon };
+        try {
+          await apiFetch(`/api/clubs/${encodeURIComponent(c.id)}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+          });
+          updated += 1;
+        } catch (e) {
+          failed.push({ id: c.id, slug: c.slug, location: loc, error: e.message });
+        }
+
+        // чтобы не спамить API
+        await new Promise((r) => setTimeout(r, 180));
       }
 
-      if (BATCH_SLEEP_MS) await sleep(BATCH_SLEEP_MS);
+      toast(`Коррекция: обновлено ${updated}`);
+      setLog((p) => p + `\n[OK] client correction done: updated=${updated}, failed=${failed.length}`);
+      if (failed.length) {
+        setLog((p) => p + `\n[FAILED] ` + JSON.stringify(failed.slice(0, 10), null, 2));
+      }
+      await loadClubs();
+    } catch (e) {
+      console.error(e);
+      toast('Ошибка клиентской коррекции');
+      setLog((p) => p + `\n[ERR] client correction: ${e.message}`);
+    } finally {
+      setLoading(false);
     }
-
-    setBatchProgress({ done: candidates.length, total: candidates.length, ok, fail });
-    setStatus(`Готово: ok=${ok}, fail=${fail}`);
-    await reload();
-    setBatchRunning(false);
   }
 
-  // ===============================
-  // UI
-  // ===============================
-  if (loading) {
-    return <div style={{ padding: 16 }}>Загрузка...</div>;
+  function onChangeLocation(v) {
+    const prevLoc = String(form.location || '');
+    setField('location', v);
+    if (normAddr(prevLoc) !== normAddr(v)) {
+      // адрес изменился — очищаем coords, чтобы пересчитались при сохранении
+      setField('lat', '');
+      setField('lon', '');
+    }
   }
 
   return (
-    <div style={{ padding: 16, display: "grid", gridTemplateColumns: "360px 1fr", gap: 16 }}>
-      <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <button onClick={startNew} disabled={saving || batchRunning}>
-            + Новый
-          </button>
-          <button onClick={() => batchGeocode({ forceAll: false })} disabled={saving || batchRunning}>
-            Заполнить координаты
-          </button>
-          <button onClick={() => batchGeocode({ forceAll: true })} disabled={saving || batchRunning}>
-            Коррекция (все)
-          </button>
+    <>
+      <header>
+        <h1>Mapka • Admin панель</h1>
+        <button className="btn" onClick={createNew} disabled={loading}>
+          + Новый
+        </button>
+        <button className="btn ghost" onClick={fillMissingCoords} disabled={loading}>
+          Заполнить координаты
+        </button>
+        <button className="btn ghost" onClick={correctionAllClientSide} disabled={loading}>
+          Коррекция (все)
+        </button>
+        <div style={{ marginLeft: 'auto' }} className="muted">
+          {loading ? 'Загрузка…' : `Кружков: ${clubs.length}`}
         </div>
+      </header>
 
-        {batchRunning && (
-          <div style={{ marginBottom: 12, fontSize: 13 }}>
-            Обработка: {batchProgress.done}/{batchProgress.total} • ok={batchProgress.ok} • fail={batchProgress.fail}
+      <div className="wrap">
+        <aside className="left">
+          <div className="search">
+            <input
+              type="text"
+              placeholder="Поиск по названию / адресу / slug"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <button className="btn ghost" onClick={loadClubs} disabled={loading} title="Обновить список">
+              ↻
+            </button>
           </div>
-        )}
 
-        {error && <div style={{ color: "crimson", marginBottom: 12 }}>{error}</div>}
-
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>
-          Подсказка: геокодинг делаем в браузере через JS API Яндекса, чтобы работал whitelist домена.
-          Бэкенд только сохраняет lat/lon в БД.
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: "75vh", overflow: "auto" }}>
-          {clubs.map((c) => {
-            const active = String(c.id) === String(selectedId);
-            const hasCoords = c.lat != null && c.lon != null;
-            return (
-              <div
-                key={c.id}
-                onClick={() => editClub(c)}
-                style={{
-                  border: "1px solid #eee",
-                  borderRadius: 10,
-                  padding: 10,
-                  cursor: "pointer",
-                  background: active ? "#f5f7ff" : "white",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                  <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {c.name || "(без названия)"}
+          <div className="list">
+            {filtered.map((c) => {
+              const missing = c?.lat == null || c?.lon == null;
+              return (
+                <div
+                  key={c.id}
+                  className={`item ${selectedId === c.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedId(c.id)}
+                >
+                  <div className="pin" style={missing ? { background: 'rgba(227,77,77,.22)', borderColor: 'rgba(227,77,77,.7)' } : undefined} />
+                  <div className="meta">
+                    <h4>{c.name || '(без названия)'}</h4>
+                    <p>
+                      {c.location || ''}
+                      <br />
+                      <span className="muted">
+                        lat: {c.lat ?? '—'} • lon: {c.lon ?? '—'}
+                      </span>
+                    </p>
                   </div>
-                  <div title={hasCoords ? "Координаты есть" : "Координат нет"}>
-                    {hasCoords ? "📍" : "⚠️"}
-                  </div>
-                </div>
-                <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>{c.location || ""}</div>
-                <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
-                  lat: {c.lat ?? "—"} • lon: {c.lon ?? "—"}
-                </div>
-                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+
                   <button
+                    className="btn ghost"
+                    style={{ padding: '6px 8px' }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      removeClub(c);
+                      setSelectedId(c.id);
+                      setTimeout(() => deleteSelected(), 0);
                     }}
-                    disabled={saving || batchRunning}
+                    title="Удалить"
                   >
                     Удалить
                   </button>
+                </div>
+              );
+            })}
+
+            {!filtered.length && <div className="muted">Ничего не найдено</div>}
+          </div>
+        </aside>
+
+        <main className="main">
+          {!selectedClub && (
+            <div className="card">
+              <h2 style={{ margin: 0 }}>Выбери кружок слева или нажми “+ Новый”.</h2>
+              <p className="muted" style={{ marginTop: 10 }}>
+                Подсказка: геокодинг делаем в браузере через JS API Яндекса, чтобы работал whitelist домена. Бэкенд
+                только сохраняет lat/lon в БД.
+              </p>
+              <pre className="muted-log" style={{ marginTop: 12 }}>{log.trim()}</pre>
+            </div>
+          )}
+
+          {selectedClub && (
+            <div className="grid">
+              <div className="card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <h2 style={{ margin: 0 }}>Редактирование: {selectedClub.name}</h2>
+                  <div className="actions" style={{ marginTop: 0 }}>
+                    <button className="btn ghost" onClick={geocodeAndSave} disabled={loading}>
+                      Коррекция геокоординат
+                    </button>
+                    <button className="btn" onClick={() => doSave()} disabled={loading}>
+                      Сохранить
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ height: 12 }} />
+
+                <div className="row">
+                  <div style={{ flex: 1 }}>
+                    <label>Название</label>
+                    <input type="text" value={form.name} onChange={(e) => setField('name', e.target.value)} />
+                  </div>
+                  <div style={{ width: 320 }}>
+                    <label>Slug</label>
+                    <input type="text" value={form.slug} onChange={(e) => setField('slug', e.target.value)} />
+                  </div>
+                </div>
+
+                <div style={{ height: 12 }} />
+
+                <label>Описание</label>
+                <textarea value={form.description} onChange={(e) => setField('description', e.target.value)} />
+
+                <div style={{ height: 12 }} />
+
+                <div className="row">
+                  <div style={{ flex: 1 }}>
+                    <label>Картинка (URL)</label>
+                    <input type="text" value={form.image} onChange={(e) => setField('image', e.target.value)} />
+                  </div>
+                  <div style={{ width: 320 }}>
+                    <label>Теги (через запятую)</label>
+                    <input type="text" value={form.tagsText} onChange={(e) => setField('tagsText', e.target.value)} />
+                    <div className="tags">
+                      {String(form.tagsText || '')
+                        .split(',')
+                        .map((t) => t.trim())
+                        .filter(Boolean)
+                        .slice(0, 8)
+                        .map((t) => (
+                          <span key={t} className="tag">
+                            {t}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ height: 12 }} />
+
+                <label>Адрес</label>
+                <input type="text" value={form.location} onChange={(e) => onChangeLocation(e.target.value)} />
+                <div className="muted" style={{ marginTop: 6 }}>
+                  Если меняешь адрес — координаты очищаются и будут пересчитаны при сохранении.
+                </div>
+
+                <div style={{ height: 12 }} />
+
+                <div className="row">
+                  <div style={{ flex: 1 }}>
+                    <label>Широта (lat)</label>
+                    <input type="number" value={form.lat} onChange={(e) => setField('lat', e.target.value)} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label>Долгота (lon)</label>
+                    <input type="number" value={form.lon} onChange={(e) => setField('lon', e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="actions">
+                  <button className="btn ghost" onClick={geocodeToFormOnly} disabled={loading}>
+                    Геокодировать адрес (в форму)
+                  </button>
+                  <button className="btn" onClick={geocodeAndSave} disabled={loading}>
+                    Геокодировать и сохранить
+                  </button>
+                  <button className="btn ghost" onClick={deleteSelected} disabled={loading}>
+                    Удалить
+                  </button>
+                </div>
+
+                <div style={{ height: 12 }} />
+
+                <div className="row">
+                  <div style={{ flex: 1 }}>
+                    <label>Цена (руб)</label>
+                    <input type="number" value={form.price_rub} onChange={(e) => setField('price_rub', e.target.value)} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label>Телефон</label>
+                    <input type="text" value={form.phone} onChange={(e) => setField('phone', e.target.value)} />
+                  </div>
+                </div>
+
+                <div style={{ height: 12 }} />
+
+                <label>Сайт</label>
+                <input type="text" value={form.webSite} onChange={(e) => setField('webSite', e.target.value)} />
+
+                <div style={{ height: 12 }} />
+
+                <label>Соц.сети (JSON)</label>
+                <textarea value={form.socialLinksText} onChange={(e) => setField('socialLinksText', e.target.value)} />
+
+                <div style={{ height: 12 }} />
+
+                <label>Расписание (JSON array)</label>
+                <textarea value={form.schedulesText} onChange={(e) => setField('schedulesText', e.target.value)} />
+
+                <div style={{ height: 12 }} />
+
+                <label>Debug log</label>
+                <pre className="muted-log">{log.trim()}</pre>
+              </div>
+
+              <div className="card">
+                <h3 style={{ marginTop: 0 }}>Превью</h3>
+                <div className="preview">
+                  {form.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={form.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <span className="muted">Нет картинки</span>
+                  )}
+                </div>
+
+                <div style={{ height: 12 }} />
+
+                <div className="card" style={{ border: '1px solid rgba(230,233,236,.95)' }}>
+                  <div className="muted">ID</div>
+                  <div style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', fontSize: 12 }}>
+                    {form.id || '—'}
+                  </div>
+                </div>
+
+                <div style={{ height: 12 }} />
+
+                <div className="muted">
+                  <div>• Красный индикатор слева = нет координат</div>
+                  <div>• “Заполнить координаты” — серверная миграция (если серверный геокод включён)</div>
+                  <div>• “Коррекция (все)” — клиентский геокод в браузере с сохранением в БД</div>
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          )}
+        </main>
       </div>
 
-      <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <h2 style={{ margin: 0 }}>{isNew ? "Новый кружок" : selectedClub ? `Редактирование: ${selectedClub.name}` : "Редактор"}</h2>
-          <div style={{ display: "flex", gap: 8 }}>
-            {!isNew && selectedId && (
-              <button onClick={() => geocodeCurrentAndApply({ saveNow: true })} disabled={saving || batchRunning}>
-                Коррекция геокоординат
-              </button>
-            )}
-            <button onClick={saveClub} disabled={saving || batchRunning}>
-              {saving ? "Сохраняю..." : "Сохранить"}
-            </button>
-          </div>
-        </div>
-
-        {status && <div style={{ marginTop: 8, fontSize: 13, opacity: 0.9 }}>{status}</div>}
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            Название
-            <input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            Slug
-            <input value={form.slug} onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))} />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "1 / -1" }}>
-            Описание
-            <textarea
-              value={form.description}
-              rows={4}
-              onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-            />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            Картинка (URL)
-            <input value={form.image} onChange={(e) => setForm((p) => ({ ...p, image: e.target.value }))} />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            Теги (через запятую)
-            <input value={form.tags} onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))} />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "1 / -1" }}>
-            Адрес
-            <input
-              value={form.location}
-              onChange={(e) => {
-                const v = e.target.value;
-                setForm((p) => ({ ...p, location: v, lat: "", lon: "" }));
-                coordsTouchedRef.current = false;
-              }}
-              placeholder="просп. Королёва, 10/4, Ростов-на-Дону"
-            />
-            <div style={{ fontSize: 12, opacity: 0.75 }}>
-              Если меняешь адрес — координаты очищаются и будут пересчитаны при сохранении.
-            </div>
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            Широта (lat)
-            <input
-              value={form.lat}
-              onChange={(e) => {
-                coordsTouchedRef.current = true;
-                setForm((p) => ({ ...p, lat: e.target.value }));
-              }}
-              placeholder="55.12345"
-            />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            Долгота (lon)
-            <input
-              value={form.lon}
-              onChange={(e) => {
-                coordsTouchedRef.current = true;
-                setForm((p) => ({ ...p, lon: e.target.value }));
-              }}
-              placeholder="39.12345"
-            />
-          </label>
-
-          <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
-            <button onClick={() => geocodeCurrentAndApply({ saveNow: false })} disabled={saving || batchRunning}>
-              Геокодировать адрес (в форму)
-            </button>
-            {!isNew && selectedId && (
-              <button onClick={() => geocodeCurrentAndApply({ saveNow: true })} disabled={saving || batchRunning}>
-                Геокодировать и сохранить
-              </button>
-            )}
-          </div>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            Цена (руб)
-            <input value={form.price_rub} onChange={(e) => setForm((p) => ({ ...p, price_rub: e.target.value }))} />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            Телефон
-            <input value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            Сайт
-            <input value={form.webSite} onChange={(e) => setForm((p) => ({ ...p, webSite: e.target.value }))} />
-          </label>
-
-          <div style={{ gridColumn: "1 / -1", borderTop: "1px solid #eee", marginTop: 6, paddingTop: 10 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>Соц.сети (JSON)</div>
-            <textarea
-              rows={4}
-              value={JSON.stringify(form.socialLinks || {}, null, 2)}
-              onChange={(e) => {
-                try {
-                  const obj = JSON.parse(e.target.value || "{}") || {};
-                  setForm((p) => ({ ...p, socialLinks: obj }));
-                } catch {
-                  // ignore parse errors while typing
-                }
-              }}
-              style={{ width: "100%" }}
-            />
-          </div>
-
-          <div style={{ gridColumn: "1 / -1", borderTop: "1px solid #eee", marginTop: 6, paddingTop: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontWeight: 600 }}>Расписание</div>
-              <button
-                onClick={() => setForm((p) => ({ ...p, schedules: [...(p.schedules || []), { day: "", time: "", note: "" }] }))}
-                disabled={saving || batchRunning}
-              >
-                + Добавить
-              </button>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-              {(form.schedules || []).map((s, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "140px 180px 1fr 110px",
-                    gap: 8,
-                    alignItems: "center",
-                  }}
-                >
-                  <input
-                    placeholder="День"
-                    value={s.day || ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setForm((p) => {
-                        const next = [...(p.schedules || [])];
-                        next[idx] = { ...next[idx], day: v };
-                        return { ...p, schedules: next };
-                      });
-                    }}
-                  />
-                  <input
-                    placeholder="Время"
-                    value={s.time || ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setForm((p) => {
-                        const next = [...(p.schedules || [])];
-                        next[idx] = { ...next[idx], time: v };
-                        return { ...p, schedules: next };
-                      });
-                    }}
-                  />
-                  <input
-                    placeholder="Примечание"
-                    value={s.note || ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setForm((p) => {
-                        const next = [...(p.schedules || [])];
-                        next[idx] = { ...next[idx], note: v };
-                        return { ...p, schedules: next };
-                      });
-                    }}
-                  />
-                  <button
-                    onClick={() =>
-                      setForm((p) => {
-                        const next = [...(p.schedules || [])];
-                        next.splice(idx, 1);
-                        return { ...p, schedules: next };
-                      })
-                    }
-                    disabled={saving || batchRunning}
-                  >
-                    Удалить
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <div className={`toast ${toastMsg ? 'show' : ''}`}>{toastMsg}</div>
+    </>
   );
 }
