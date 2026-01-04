@@ -1,165 +1,79 @@
-// club-api.js
-// Robust club data loader for /[slug] pages.
-//
-// Key points:
-// - Slug changes must appear immediately (no stale cache)
-// - Works even if NEXT_PUBLIC_API_BASE is set to origin OR origin + "/api"
-// - Tries direct /api/clubs/{slugOrId} and falls back to list /api/clubs
+// lib/club-api.js
 
-const RAW_BASE = (process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_ORIGIN || "").trim();
+const API_BASE = "https://mapkarostov.ru/api";
 
-function normalizeBase(raw) {
-  if (!raw) return "";
-  let base = String(raw).trim();
-  base = base.replace(/\/+$/, "");
-  // if someone configured BASE as ".../api" — strip it to avoid "/api/api/..."
-  base = base.replace(/\/api\/?$/, "");
-  return base;
-}
+const DEMO_CLUB = {
+  title: "Футбольная Академия 'Чемпион'",
+  category: "Спорт",
+  minAge: 5,
+  maxAge: 16,
+  price: 5500,
+  priceNotes: "за 12 тренировок",
+  address: "г. Ростов-на-Дону, ул. Ленина, д. 42",
+  phone: "+79991234567",
+  description: "Приглашаем детей от 5 до 16 лет в нашу футбольную школу!",
+  tags: ["Футбол", "Спорт", "Команда"],
+  photos: ["https://dummyimage.com/1200x800/d1d5db/fff.png&text=No+Photo"],
+  schedules: [{ day: "Понедельник", time: "17:00 - 18:30" }],
+  socialLinks: { vk: "https://vk.com", telegram: "https://t.me" },
+};
 
-const API_ORIGIN = normalizeBase(RAW_BASE);
+function normalizeClub(apiData) {
+  if (!apiData) return normalizeClub(DEMO_CLUB);
 
-function apiUrl(path) {
-  if (!path) return API_ORIGIN || "";
-  if (/^https?:\/\//i.test(path)) return path;
-  const p = path.startsWith("/") ? path : `/${path}`;
-  return API_ORIGIN ? `${API_ORIGIN}${p}` : p;
-}
-
-async function safeJson(res) {
-  try {
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
-
-function toNumberOrNull(v) {
-  if (v === null || v === undefined) return null;
-  if (typeof v === "string" && v.trim() === "") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-function normalizeClub(apiClub) {
-  if (!apiClub || typeof apiClub !== "object") return null;
-
-  const id = apiClub.id != null ? String(apiClub.id) : "";
-  const slug = apiClub.slug != null ? String(apiClub.slug) : "";
-  const title =
-    apiClub.name != null
-      ? String(apiClub.name)
-      : apiClub.title != null
-        ? String(apiClub.title)
-        : "";
-  const description = apiClub.description != null ? String(apiClub.description) : "";
-  const address =
-    apiClub.location != null
-      ? String(apiClub.location)
-      : apiClub.address != null
-        ? String(apiClub.address)
-        : "";
-  const image = apiClub.image != null ? String(apiClub.image) : "";
-
-  const lat = toNumberOrNull(apiClub.lat);
-  const lon = toNumberOrNull(apiClub.lon);
-
-  let priceAmount = 0;
-  if (apiClub.price_rub != null && apiClub.price_rub !== "") {
-    const pr = Number(apiClub.price_rub);
-    priceAmount = Number.isFinite(pr) ? pr : 0;
-  } else if (apiClub.price_cents != null && apiClub.price_cents !== "") {
-    const pc = Number(apiClub.price_cents);
-    priceAmount = Number.isFinite(pc) ? Math.round(pc) / 100 : 0;
-  }
-
-  const website = apiClub.webSite || apiClub.website || "";
-  const phone = apiClub.phone || "";
-
+  const rawPhotos = apiData.image || apiData.photos;
   let photos = [];
-  if (Array.isArray(apiClub.photos)) {
-    photos = apiClub.photos.filter(Boolean).map(String);
-  } else if (Array.isArray(apiClub.images)) {
-    photos = apiClub.images
-      .map((x) => (typeof x === "string" ? x : x?.url))
-      .filter(Boolean)
-      .map(String);
-  } else if (image) {
-    photos = [image];
+
+  if (Array.isArray(rawPhotos)) {
+    photos = rawPhotos;
+  } else if (rawPhotos && typeof rawPhotos === 'string') {
+    photos = [rawPhotos];
+  } else {
+    photos = DEMO_CLUB.photos;
   }
 
-  const rating = toNumberOrNull(apiClub.rating) ?? 4.7;
-  const reviews = Array.isArray(apiClub.reviews) ? apiClub.reviews : [];
+  photos = photos.map(p => {
+    if (!p) return "";
+    if (p.startsWith('http')) return p;
+    if (p.startsWith('/')) return "https://mapkarostov.ru" + p;
+    return p;
+  }).filter(Boolean);
 
   return {
-    id,
-    slug,
-    title,
-    category: apiClub.category ? String(apiClub.category) : "",
-    description,
-    address,
-    rating,
-    reviews,
-    photos,
-    price: {
-      type: apiClub.price_type ? String(apiClub.price_type) : "",
-      amount: priceAmount,
-      unit: "₽",
-    },
-    contacts: {
-      phone: String(phone),
-      website: String(website),
-    },
-    // IMPORTANT: keep both shapes, because different components might use either:
-    // - club.coordinates.lat/lon
-    // - club.lat/lon
-    coordinates: { lat, lon },
-    lat,
-    lon,
-    raw: apiClub,
+    title: apiData.name || apiData.title || "Без названия",
+    category: (apiData.tags && apiData.tags[0]) || "Кружок",
+    minAge: apiData.min_age || apiData.minAge || 0,
+    maxAge: apiData.max_age || apiData.maxAge || 18,
+    price: apiData.price_cents ? Math.round(apiData.price_cents / 100) : (apiData.price || 0),
+    priceNotes: apiData.price_note || apiData.priceNotes || "",
+    address: apiData.location || apiData.address_text || apiData.address || "Адрес не указан",
+    lat: apiData.lat ?? apiData.latitude ?? null,
+    lon: apiData.lon ?? apiData.lng ?? apiData.longitude ?? null,
+    phone: apiData.phone || "",
+    description: apiData.description || "",
+    schedules: Array.isArray(apiData.schedules) ? apiData.schedules : [],
+    socialLinks: apiData.social_links || apiData.socialLinks || {},
+    tags: Array.isArray(apiData.tags) ? apiData.tags : [],
+    webSite: apiData.site || apiData.webSite || "",
+    photos
   };
 }
 
-export async function fetchClubData(slugOrId) {
-  const key = String(slugOrId ?? "").trim();
-  if (!key) return null;
+export async function fetchClubData(slug) {
+  if (!slug) return null;
 
-  const encoded = encodeURIComponent(key);
-
-  // 1) Direct endpoint (fast-path)
   try {
-    const res = await fetch(apiUrl(`/api/clubs/${encoded}`), {
-      cache: "no-store",
-      next: { revalidate: 0 },
-    });
-    if (res && res.ok) {
-      const data = await safeJson(res);
-      const norm = normalizeClub(data);
-      if (norm) return norm;
-    }
+    // revalidate: 3600 — кэширование на 1 час
+    const res = await fetch(`${API_BASE}/clubs`, { next: { revalidate: 3600 } });
+    
+    if (!res.ok) throw new Error("API Error");
+    
+    const list = await res.json();
+    const found = list.find((c) => String(c.slug) === String(slug) || String(c.id) === String(slug));
+
+    return found ? normalizeClub(found) : null;
   } catch (e) {
-    console.warn("[club-api] direct fetch failed:", e);
-  }
-
-  // 2) Fallback: list + search (more robust)
-  try {
-    const res = await fetch(apiUrl(`/api/clubs?limit=5000&offset=0`), {
-      cache: "no-store",
-      next: { revalidate: 0 },
-    });
-    if (!res || !res.ok) return null;
-
-    const list = await safeJson(res);
-    if (!Array.isArray(list)) return null;
-
-    const found = list.find(
-      (c) => String(c?.slug ?? "") === key || String(c?.id ?? "") === key
-    );
-    if (!found) return null;
-
-    return normalizeClub(found);
-  } catch (e) {
-    console.warn("[club-api] list fetch failed:", e);
-    return null;
+    console.error("Backend unavailable or network error", e);
+    return normalizeClub(DEMO_CLUB); 
   }
 }
