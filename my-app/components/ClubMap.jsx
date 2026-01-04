@@ -58,16 +58,58 @@ export default function ClubMap({ address, title = 'Адрес', lat, lon }) {
     map.addChild(new YMapDefaultSchemeLayer());
     map.addChild(new YMapDefaultFeaturesLayer());
 
-    const pin = document.createElement('div');
-    pin.style.width = '14px';
-    pin.style.height = '14px';
-    pin.style.borderRadius = '999px';
-    pin.style.background = '#2b87d4';
-    pin.style.border = '3px solid #fff';
-    pin.style.boxShadow = '0 8px 22px rgba(0,0,0,.18)';
-    pin.title = address || '';
+    // Bigger marker + always-visible label (space on club page is not a problem)
+    const marker = document.createElement('div');
+    marker.style.transform = 'translate(-50%, -100%)'; // anchor bottom-center to coordinates
+    marker.style.display = 'flex';
+    marker.style.flexDirection = 'column';
+    marker.style.alignItems = 'center';
+    marker.style.pointerEvents = 'none';
+    marker.style.userSelect = 'none';
+    marker.style.webkitUserSelect = 'none';
 
-    map.addChild(new YMapMarker({ coordinates: [lonNum, latNum] }, pin));
+    const labelText = (title && title !== 'Адрес') ? String(title) : 'Место на карте';
+
+    const label = document.createElement('div');
+    label.textContent = labelText;
+    label.style.maxWidth = '240px';
+    label.style.whiteSpace = 'nowrap';
+    label.style.overflow = 'hidden';
+    label.style.textOverflow = 'ellipsis';
+    label.style.fontSize = '12px';
+    label.style.fontWeight = '700';
+    label.style.lineHeight = '1';
+    label.style.padding = '7px 10px';
+    label.style.borderRadius = '999px';
+    label.style.background = '#fff';
+    label.style.color = '#111';
+    label.style.border = '1px solid rgba(0,0,0,.08)';
+    label.style.boxShadow = '0 12px 26px rgba(0,0,0,.18)';
+
+    const tail = document.createElement('div');
+    tail.style.width = '0';
+    tail.style.height = '0';
+    tail.style.marginTop = '-1px';
+    tail.style.borderLeft = '7px solid transparent';
+    tail.style.borderRight = '7px solid transparent';
+    tail.style.borderTop = '9px solid #fff';
+    tail.style.filter = 'drop-shadow(0 7px 10px rgba(0,0,0,.14))';
+
+    const dot = document.createElement('div');
+    dot.style.width = '18px';
+    dot.style.height = '18px';
+    dot.style.borderRadius = '999px';
+    dot.style.background = '#2b87d4';
+    dot.style.border = '4px solid #fff';
+    dot.style.boxShadow = '0 12px 28px rgba(0,0,0,.22)';
+
+    marker.appendChild(label);
+    marker.appendChild(tail);
+    marker.appendChild(dot);
+
+    marker.title = [labelText, address].filter(Boolean).join(' — ');
+
+    map.addChild(new YMapMarker({ coordinates: [lonNum, latNum], zIndex: 2000 }, marker));
 
     mapInstance.current = map;
     last.current = { lat: latNum, lon: lonNum };
