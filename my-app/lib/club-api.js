@@ -1,79 +1,120 @@
 // lib/club-api.js
+//
+// ✅ FIX: slug updates become instant
+// Раньше страница кружка брала список /api/clubs с revalidate=3600 и искала там slug.
+// После смены slug в админке список мог быть закеширован => кружок «не находился» => Next отдавал 404.
+//
+// Теперь fetchClubData() сначала идёт в /api/clubs/{slug} c cache:"no-store" (всегда свежие данные).
+// Фолбэк на список оставлен на случай временных проблем.
 
-const API_BASE = "https://mapkarostov.ru/api";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  // основной домен (punycode): https://xn--80aa3agq.xn--p1ai
+  "https://xn--80aa3agq.xn--p1ai/api";
 
-const DEMO_CLUB = {
-  title: "Футбольная Академия 'Чемпион'",
-  category: "Спорт",
-  minAge: 5,
-  maxAge: 16,
-  price: 5500,
-  priceNotes: "за 12 тренировок",
-  address: "г. Ростов-на-Дону, ул. Ленина, д. 42",
-  phone: "+79991234567",
-  description: "Приглашаем детей от 5 до 16 лет в нашу футбольную школу!",
-  tags: ["Футбол", "Спорт", "Команда"],
-  photos: ["https://dummyimage.com/1200x800/d1d5db/fff.png&text=No+Photo"],
-  schedules: [{ day: "Понедельник", time: "17:00 - 18:30" }],
-  socialLinks: { vk: "https://vk.com", telegram: "https://t.me" },
-};
-
-function normalizeClub(apiData) {
-  if (!apiData) return normalizeClub(DEMO_CLUB);
-
-  const rawPhotos = apiData.image || apiData.photos;
-  let photos = [];
-
-  if (Array.isArray(rawPhotos)) {
-    photos = rawPhotos;
-  } else if (rawPhotos && typeof rawPhotos === 'string') {
-    photos = [rawPhotos];
-  } else {
-    photos = DEMO_CLUB.photos;
+function safeJsonParse(str, fallback) {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return fallback;
   }
+}
 
-  photos = photos.map(p => {
-    if (!p) return "";
-    if (p.startsWith('http')) return p;
-    if (p.startsWith('/')) return "https://mapkarostov.ru" + p;
-    return p;
-  }).filter(Boolean);
+function normalizeClub(raw) {
+  if (!raw || typeof raw !== "object") return null;
+
+  const title = raw.title || raw.name || "";
+  const address = raw.address || raw.location || "";
+
+  // фото: backend отдаёт image (главная), и иногда images[]
+  const photos = Array.isArray(raw.photos)
+    ? raw.photos
+    : Array.isArray(raw.images)
+      ? raw.images
+          .map((x) => (typeof x === "string" ? x : x?.url))
+          .filter(Boolean)
+      : raw.image
+        ? [raw.image]
+        : [];
+
+  const social = raw.socialLinks || raw.social_links || raw.social || {};
+  const schedules = Array.isArray(raw.schedules)
+    ? raw.schedules
+    : safeJsonParse(raw.schedules, []);
+
+  const lat =
+    raw.lat != null && raw.lat !== "" ? Number(raw.lat) : null;
+  const lon =
+    raw.lon != null && raw.lon !== "" ? Number(raw.lon) : null;
 
   return {
-    title: apiData.name || apiData.title || "Без названия",
-    category: (apiData.tags && apiData.tags[0]) || "Кружок",
-    minAge: apiData.min_age || apiData.minAge || 0,
-    maxAge: apiData.max_age || apiData.maxAge || 18,
-    price: apiData.price_cents ? Math.round(apiData.price_cents / 100) : (apiData.price || 0),
-    priceNotes: apiData.price_note || apiData.priceNotes || "",
-    address: apiData.location || apiData.address_text || apiData.address || "Адрес не указан",
-    lat: apiData.lat ?? apiData.latitude ?? null,
-    lon: apiData.lon ?? apiData.lng ?? apiData.longitude ?? null,
-    phone: apiData.phone || "",
-    description: apiData.description || "",
-    schedules: Array.isArray(apiData.schedules) ? apiData.schedules : [],
-    socialLinks: apiData.social_links || apiData.socialLinks || {},
-    tags: Array.isArray(apiData.tags) ? apiData.tags : [],
-    webSite: apiData.site || apiData.webSite || "",
-    photos
+    // то, что нужно странице кружка
+    id: raw.id,
+    slug: raw.slug,
+    title,
+    address,
+    description: raw.description || "",
+    image: raw.image || photos[0] || "",
+    photos,
+    price: raw.price_rub ?? raw.price ?? null,
+    tags: Array.isArray(raw.tags) ? raw.tags : [],
+    phone: raw.phone || "",
+    website: raw.webSite || raw.website || "",
+    socialLinks: typeof social === "object" && social ? social : {},
+    schedules,
+    // coords
+    lat: Number.isFinite(lat) ? lat : null,
+    lon: Number.isFinite(lon) ? lon : null,
+
+    // не ломаем потенциальные поля (если где-то ещё используются)
+    _raw: raw,
   };
 }
 
-export async function fetchClubData(slug) {
-  if (!slug) return null;
+async function fetchJson(url, init) {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const err = new Error(`HTTP ${res.status} for ${url}: ${text}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
 
+export async function fetchClubs({ limit = 5000, offset = 0 } = {}) {
+  const url = `${API_BASE}/clubs?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`;
+  // список можно кэшировать — он не критичен для обновления slug страницы
+  const data = await fetchJson(url, { next: { revalidate: 60 } });
+  if (!Array.isArray(data)) return [];
+  return data.map(normalizeClub).filter(Boolean);
+}
+
+export async function fetchClubData(slugOrId) {
+  const key = String(slugOrId || "").trim();
+  if (!key) return null;
+
+  const encoded = encodeURIComponent(key);
+
+  // 1) ✅ прямой запрос (ВСЕГДА свежий) — решает проблему смены slug
   try {
-    // revalidate: 3600 — кэширование на 1 час
-    const res = await fetch(`${API_BASE}/clubs`, { next: { revalidate: 3600 } });
-    
-    if (!res.ok) throw new Error("API Error");
-    
-    const list = await res.json();
-    const found = list.find((c) => String(c.slug) === String(slug) || String(c.id) === String(slug));
-
-    return found ? normalizeClub(found) : null;
+    const directUrl = `${API_BASE}/clubs/${encoded}`;
+    const raw = await fetchJson(directUrl, { cache: "no-store" });
+    return normalizeClub(raw);
   } catch (e) {
-    console.error("Backend unavailable or network error", e);
-    return normalizeClub(DEMO_CLUB); 
+    // если 404 — попробуем фолбэк на список (вдруг это id/старый формат)
+    if (e?.status && e.status !== 404) {
+      // не-404 ошибки могут быть временными
+      // пойдём в фолбэк ниже
+    }
+  }
+
+  // 2) фолбэк: ищем в списке
+  try {
+    const clubs = await fetchClubs();
+    return clubs.find((c) => c?.slug === key || String(c?.id) === key) || null;
+  } catch {
+    return null;
   }
 }
