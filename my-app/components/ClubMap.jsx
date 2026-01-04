@@ -1,71 +1,114 @@
 'use client';
-import { useMemo, useRef } from 'react';
+
+import { useEffect, useMemo, useRef } from 'react';
 import Script from 'next/script';
 
-// ВАЖНО:
-// - Геокодинг на фронте больше не делаем (экономим лимит).
-// - Координаты приходят с бэка: club.lat / club.lon (lat, lon).
-const MAP_API_KEY = '58c38b72-57f7-4946-bc13-a256d341281a';
+const API_KEY =
+  process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY ||
+  '58c38b72-57f7-4946-bc13-a256d341281a';
 
-export default function ClubMap({ address, title, lat, lon, coords }) {
+function toNum(v) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string') {
+    const s = v.trim().replace(',', '.');
+    if (!s) return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/**
+ * Карта на странице кружка.
+ * Важно: НЕТ геокодинга на клиенте — только координаты (lat/lon) из БД.
+ * Порядок для Yandex Maps v3: [lon, lat]
+ */
+export default function ClubMap({ address, title = 'Адрес', lat, lon }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
+  const last = useRef({ lat: null, lon: null });
 
-  // coords ожидаем как [lng, lat] (если прокидываешь готовые)
-  // либо lat/lon (как приходит из API)
-  const point = useMemo(() => {
-    if (Array.isArray(coords) && coords.length === 2) {
-      const [lng, lt] = coords.map(Number);
-      if (!Number.isNaN(lng) && !Number.isNaN(lt)) return [lng, lt];
-    }
-    if (lat != null && lon != null) {
-      const lt = Number(lat);
-      const lg = Number(lon);
-      if (!Number.isNaN(lg) && !Number.isNaN(lt)) return [lg, lt];
-    }
-    return null;
-  }, [coords, lat, lon]);
+  const latNum = useMemo(() => toNum(lat), [lat]);
+  const lonNum = useMemo(() => toNum(lon), [lon]);
+  const hasCoords = Number.isFinite(latNum) && Number.isFinite(lonNum);
 
-  const initMap = async () => {
+  const initOrUpdate = async () => {
+    if (!hasCoords) return;
     if (!window.ymaps3 || !mapRef.current) return;
+
+    // если координаты поменялись — пересоздадим карту (самый надёжный способ)
+    const changed = last.current.lat !== latNum || last.current.lon !== lonNum;
+    if (mapInstance.current && changed) {
+      try {
+        mapRef.current.innerHTML = '';
+      } catch {}
+      mapInstance.current = null;
+    }
     if (mapInstance.current) return;
 
-    try {
-      await window.ymaps3.ready;
-      const { YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer, YMapMarker } = window.ymaps3;
+    await window.ymaps3.ready;
 
-      // Ростов-на-Дону — дефолтный центр, если координат нет
-      const fallbackCenter = [39.711515, 47.236171];
-      const center = point || fallbackCenter;
+    const { YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer, YMapMarker } = window.ymaps3;
 
-      mapInstance.current = new YMap(mapRef.current, {
-        location: { center, zoom: point ? 16 : 12 },
-      });
-      mapInstance.current.addChild(new YMapDefaultSchemeLayer({}));
-      mapInstance.current.addChild(new YMapDefaultFeaturesLayer({}));
+    const map = new YMap(mapRef.current, {
+      location: { center: [lonNum, latNum], zoom: 16 },
+    });
 
-      if (point) {
-        const safeTitle = (title || '').trim() || (address || '').trim() || 'Кружок';
+    map.addChild(new YMapDefaultSchemeLayer());
+    map.addChild(new YMapDefaultFeaturesLayer());
 
-        const el = document.createElement('div');
-        el.className = 'club-marker';
-        el.innerHTML = `<div class="club-marker-label">${safeTitle}</div><div class="club-marker-dot"></div>`;
+    const pin = document.createElement('div');
+    pin.style.width = '14px';
+    pin.style.height = '14px';
+    pin.style.borderRadius = '999px';
+    pin.style.background = '#2b87d4';
+    pin.style.border = '3px solid #fff';
+    pin.style.boxShadow = '0 8px 22px rgba(0,0,0,.18)';
+    pin.title = address || '';
 
-        mapInstance.current.addChild(new YMapMarker({ coordinates: point }, el));
-      }
-    } catch (e) {
-      console.warn('Map init error:', e);
-    }
+    map.addChild(new YMapMarker({ coordinates: [lonNum, latNum] }, pin));
+
+    mapInstance.current = map;
+    last.current = { lat: latNum, lon: lonNum };
   };
+
+  useEffect(() => {
+    initOrUpdate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latNum, lonNum, hasCoords]);
+
+  useEffect(() => {
+    return () => {
+      try {
+        if (mapRef.current) mapRef.current.innerHTML = '';
+      } catch {}
+      mapInstance.current = null;
+    };
+  }, []);
 
   return (
     <>
-      <Script src={`https://api-maps.yandex.ru/v3/?apikey=${MAP_API_KEY}&lang=ru_RU`} onLoad={initMap} />
+      <Script
+        src={`https://api-maps.yandex.ru/v3/?apikey=${API_KEY}&lang=ru_RU`}
+        strategy="afterInteractive"
+        onLoad={initOrUpdate}
+      />
+
       <div className="section-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="map-wrapper" id="clubMap" ref={mapRef}></div>
+        <div className="map-wrapper" id="clubMap" ref={mapRef} />
+
         <div style={{ padding: '16px' }}>
-          <div style={{ fontWeight: 600, marginBottom: '4px', fontSize: '14px' }}>Адрес:</div>
+          <div style={{ fontWeight: 600, marginBottom: '4px', fontSize: '14px' }}>
+            {title}:
+          </div>
           <div style={{ color: '#555', fontSize: '15px' }}>{address || '—'}</div>
+
+          {!hasCoords ? (
+            <div style={{ marginTop: 10, fontSize: 12, color: '#888' }}>
+              Координаты не заполнены — зайди в админку и обнови геокоординаты для этого кружка.
+            </div>
+          ) : null}
         </div>
       </div>
     </>

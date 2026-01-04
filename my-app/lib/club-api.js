@@ -47,6 +47,8 @@ function normalizeClub(apiData) {
     price: apiData.price_cents ? Math.round(apiData.price_cents / 100) : (apiData.price || 0),
     priceNotes: apiData.price_note || apiData.priceNotes || "",
     address: apiData.location || apiData.address_text || apiData.address || "Адрес не указан",
+    lat: apiData.lat ?? apiData.latitude ?? null,
+    lon: apiData.lon ?? apiData.lng ?? apiData.longitude ?? null,
     phone: apiData.phone || "",
     description: apiData.description || "",
     schedules: Array.isArray(apiData.schedules) ? apiData.schedules : [],

@@ -7,10 +7,6 @@ import ClubGallery from '@/components/ClubGallery';
 import ClubMap from '@/components/ClubMap';
 import ClubActions from '@/components/ClubActions';
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-export const fetchCache = 'force-no-store'
-
 export async function generateMetadata({ params }) {
   const resolvedParams = await params;
   const club = await fetchClubData(resolvedParams.slug);
@@ -163,7 +159,7 @@ export default async function Page({ params }) {
           </div>
 
           {/* Map */}
-          <ClubMap address={club.address} title={club.title} />
+          <ClubMap address={club.address} title={club.title}  lat={club.lat} lon={club.lon} />
         </div>
 
         {/* Sidebar + Mobile bottom bar */}
