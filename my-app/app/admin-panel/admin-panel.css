@@ -64,3 +64,26 @@ textarea{min-height:140px;resize:vertical}
   .grid{grid-template-columns:1fr}
   .left{width:340px}
 }
+
+/* --- UX upgrades: socials + schedule editors --- */
+:root{--danger:#e74c3c}
+.btn.danger{background:var(--danger)}
+
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{padding:8px;border-top:1px solid #eef1f3;font-size:13px;vertical-align:middle}
+.table th{color:var(--muted);font-weight:600;text-align:left}
+
+.timeRow{display:flex;align-items:center;gap:8px}
+.timeRow input{width:140px}
+
+.kv{display:flex;flex-direction:column;gap:8px}
+.kvRow{display:flex;gap:8px;align-items:center}
+.kvRow .kvKey{width:140px}
+.kvRow .kvVal{flex:1}
+
+/* prettier checkboxes */
+input[type=checkbox]{accent-color:var(--accent)}
+
+/* align styling for time/select controls */
+input[type=time], select{padding:10px 12px;border-radius:12px;border:1px solid var(--border);font-size:14px;outline:none;transition:border-color .16s ease, box-shadow .16s ease;background:#fff}
+input[type=time]:focus, select:focus{border-color:rgba(43,135,212,.55);box-shadow:0 0 0 4px rgba(43,135,212,.12)}

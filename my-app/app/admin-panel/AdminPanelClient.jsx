@@ -1,99 +1,44 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
-// Пользователь попросил прикрепить CSS прямо к компоненту.
-// Инжектим стили в <head> один раз (и параллельно можно держать admin-panel.css).
-const ADMIN_PANEL_CSS = String.raw`
-:root{--accent:#2b87d4;--accent2:#1f6fb2;--muted:#667085;--bg:#f4f6f8;--card:#ffffff;--border:#e6e9ec;--shadow:0 10px 28px rgba(16,24,40,.08)}
-*{box-sizing:border-box}
-html,body{height:100%}
-body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; margin:0;background:var(--bg);color:#111;overflow:hidden}
+// ==================================
+// Config
+// ==================================
+// ВАЖНО: для Yandex Maps JS API ключ должен быть с ограничением по HTTP Referer (mapka.рф / xn--80aa3agq.xn--p1ai).
+// Тогда хранить ключ в клиентском коде (в админке) — допустимо.
+const YANDEX_JS_API_KEY =
+  process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY || '58c38b72-57f7-4946-bc13-a256d341281a';
 
-header{background:var(--card);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:12px}
-header h1{font-size:16px;margin:0;letter-spacing:.2px}
+const API_BASE = ''; // same-origin
 
-.wrap{display:flex;height:calc(100vh - 56px)}
+const WEEKDAYS_RU = [
+  'Понедельник',
+  'Вторник',
+  'Среда',
+  'Четверг',
+  'Пятница',
+  'Суббота',
+  'Воскресенье',
+];
 
-.left{width:360px;background:var(--card);border-right:1px solid var(--border);overflow:auto;padding:12px;scrollbar-gutter:stable}
-.left .toolbar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+const SOCIAL_FIELDS = [
+  { key: 'vk', label: 'VK' },
+  { key: 'telegram', label: 'Telegram' },
+  { key: 'whatsapp', label: 'WhatsApp' },
+  { key: 'instagram', label: 'Instagram' },
+  { key: 'youtube', label: 'YouTube' },
+  { key: 'tiktok', label: 'TikTok' },
+];
+const SOCIAL_KEYS_SET = new Set(SOCIAL_FIELDS.map((x) => x.key));
 
-.btn{background:var(--accent);color:white;border:none;padding:8px 10px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px;transition:transform .08s ease, background .16s ease, box-shadow .16s ease;box-shadow:0 6px 14px rgba(43,135,212,.14)}
-.btn:hover{background:var(--accent2)}
-.btn:active{transform:translateY(1px)}
-.btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(43,135,212,.4);box-shadow:none}
-.btn.ghost:hover{background:#eef6ff}
-
-.list{display:flex;flex-direction:column;gap:10px}
-.item{padding:12px;border-radius:14px;border:1px solid #eef1f4;background:#fbfcfe;cursor:pointer;display:flex;align-items:flex-start;gap:10px;transition:box-shadow .16s ease, border-color .16s ease, transform .16s ease}
-.item:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(16,24,40,.06);border-color:rgba(43,135,212,.25)}
-.item .meta{flex:1;min-width:0}
-.item .meta h4{margin:0;font-size:14px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item .meta p{margin:6px 0 0;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item.selected{box-shadow:0 14px 34px rgba(43,135,212,0.14);border-color:rgba(43,135,212,0.26);background:#f7fbff}
-.pin{width:10px;height:10px;border-radius:999px;margin-top:4px;flex:0 0 auto;border:2px solid rgba(255,255,255,.8);box-shadow:0 6px 18px rgba(16,24,40,.18)}
-
-.main{flex:1;padding:18px;overflow:auto;scrollbar-gutter:stable}
-.grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start}
-.card{background:var(--card);border-radius:16px;padding:14px;border:1px solid #eef1f4;box-shadow:0 8px 20px rgba(16,24,40,.05)}
-
-label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
-input[type=text],input[type=number],textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--border);font-size:14px;outline:none;transition:border-color .16s ease, box-shadow .16s ease;background:#fff}
-input[type=text]:focus,input[type=number]:focus,textarea:focus{border-color:rgba(43,135,212,.55);box-shadow:0 0 0 4px rgba(43,135,212,.12)}
-textarea{min-height:140px;resize:vertical}
-
-.row{display:flex;gap:10px;flex-wrap:wrap}
-.small{width:180px;max-width:100%}
-
-.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-.tag{background:#eef6ff;color:var(--accent);padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid rgba(43,135,212,.18)}
-
-.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
-.preview{border-radius:12px;overflow:hidden;border:1px solid var(--border);height:180px;background:#e9eef3;display:flex;align-items:center;justify-content:center}
-.muted{color:var(--muted);font-size:13px;line-height:1.35}
-
-.toast{position:fixed;right:18px;bottom:18px;background:#111;color:#fff;padding:10px 14px;border-radius:10px;opacity:0;transform:translateY(10px);transition:all .22s;z-index:50;max-width:520px}
-.toast.show{opacity:1;transform:translateY(0)}
-
-.search{display:flex;gap:8px;margin-bottom:10px}
-.search input{flex:1;padding:10px 12px;border-radius:12px;border:1px solid var(--border)}
-
-.muted-log{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:12px;color:#344054;line-height:1.35}
-
-/* nice scrollbars (webkit) */
-.left::-webkit-scrollbar,.main::-webkit-scrollbar{width:10px;height:10px}
-.left::-webkit-scrollbar-thumb,.main::-webkit-scrollbar-thumb{background:rgba(16,24,40,.18);border-radius:999px;border:3px solid transparent;background-clip:padding-box}
-.left::-webkit-scrollbar-track,.main::-webkit-scrollbar-track{background:transparent}
-
-@media (max-width: 1100px){
-  .wrap{height:auto;min-height:100vh}
-  body{overflow:auto}
-  .grid{grid-template-columns:1fr}
-  .left{width:340px}
+// ==================================
+// Small utils
+// ==================================
+function toastShow(setToast, msg) {
+  setToast(msg);
+  setTimeout(() => setToast(''), 2400);
 }
-`;
-
-function useEnsureAdminPanelCss() {
-  useEffect(() => {
-    const id = 'mapka-admin-panel-inline-css';
-    if (typeof document === 'undefined') return;
-    if (document.getElementById(id)) return;
-    const style = document.createElement('style');
-    style.id = id;
-    style.textContent = ADMIN_PANEL_CSS;
-    document.head.appendChild(style);
-  }, []);
-}
-
-/**
- * AdminPanelClient
- * - Тянет /api/clubs
- * - Создание/редактирование/удаление
- * - Клиентский геокодинг через JS API (whitelist домена)
- * - Сохраняет lat/lon в БД (через PUT/POST)
- */
-
-const isBrowser = typeof window !== 'undefined';
 
 function safeJsonParse(str, fallback) {
   try {
@@ -103,160 +48,201 @@ function safeJsonParse(str, fallback) {
   }
 }
 
-function toastFactory(setToastMsg) {
-  let t;
-  return (msg) => {
-    setToastMsg(msg);
-    clearTimeout(t);
-    t = setTimeout(() => setToastMsg(''), 2200);
-  };
+function toNumberOrNull(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim().replace(',', '.');
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
 }
 
-function normAddr(s) {
-  return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+function normalizeAddr(s) {
+  return String(s || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
 }
 
-function getBaseApiUrl() {
-  if (!isBrowser) return '';
-  // если фронт и API на одном домене — оставляем "" и будем дергать относительные /api/...
+function parseTimeRange(timeStr) {
+  const t = String(timeStr || '').trim();
+  if (!t) return { start: '', end: '' };
+  const cleaned = t.replace(/–|—/g, '-').replace(/\s+/g, '');
+  // 10:00-22:00
+  let m = cleaned.match(/^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})$/);
+  if (m) return { start: m[1].padStart(5, '0'), end: m[2].padStart(5, '0') };
+  // 10:00
+  m = cleaned.match(/^(\d{1,2}:\d{2})$/);
+  if (m) return { start: m[1].padStart(5, '0'), end: '' };
+  return { start: '', end: '' };
+}
+
+function buildTimeString(start, end) {
+  const s = String(start || '').trim();
+  const e = String(end || '').trim();
+  if (s && e) return `${s}-${e}`;
+  if (s) return s;
+  if (e) return e;
   return '';
 }
 
-async function apiFetch(path, opts = {}) {
-  const base = getBaseApiUrl();
-  const res = await fetch(base + path, {
-    credentials: 'include',
-    ...opts,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(opts.headers || {}),
-    },
-  });
-  if (!res.ok) {
-    let detail = '';
-    try {
-      const j = await res.json();
-      detail = j?.detail ? JSON.stringify(j.detail) : JSON.stringify(j);
-    } catch {
-      try {
-        detail = await res.text();
-      } catch {
-        detail = '';
-      }
-    }
-    const err = new Error(`HTTP ${res.status} ${res.statusText}${detail ? `: ${detail}` : ''}`);
-    err.status = res.status;
-    throw err;
-  }
-  const ct = res.headers.get('content-type') || '';
-  if (ct.includes('application/json')) return res.json();
-  return res.text();
-}
+function initScheduleRowsFromClub(club) {
+  const base = WEEKDAYS_RU.map((d) => ({ day: d, enabled: false, start: '', end: '', note: '' }));
+  const list = Array.isArray(club?.schedules) ? club.schedules : [];
 
-/**
- * Подключение JS API Яндекса.
- * Важно: ключ должен быть разрешён по домену в кабинете.
- */
-async function ensureYandexMapsLoaded(apiKey) {
-  if (!isBrowser) return;
-  if (window.ymaps && window.ymaps.ready) return;
+  for (const item of list) {
+    const dayRaw = String(item?.day || '').trim();
+    const dayNorm = normalizeAddr(dayRaw);
+    const idx = base.findIndex((x) => normalizeAddr(x.day) === dayNorm);
+    if (idx === -1) continue;
 
-  // уже грузится
-  if (window.__YM_LOADING__) {
-    await window.__YM_LOADING__;
-    return;
-  }
-
-  window.__YM_LOADING__ = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.async = true;
-    s.src = `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(apiKey)}&lang=ru_RU`;
-    s.onload = () => {
-      if (!window.ymaps || !window.ymaps.ready) {
-        reject(new Error('Yandex Maps API loaded, but ymaps is unavailable'));
-        return;
-      }
-      window.ymaps.ready(resolve);
+    const { start, end } = parseTimeRange(item?.time);
+    base[idx] = {
+      ...base[idx],
+      enabled: true,
+      start,
+      end,
+      note: String(item?.note || ''),
     };
-    s.onerror = () => reject(new Error('Failed to load Yandex Maps API script'));
-    document.head.appendChild(s);
-  });
+  }
 
-  await window.__YM_LOADING__;
+  return base;
 }
 
-async function geocodeViaYmaps(address) {
-  const addr = String(address || '').trim();
-  if (!addr) return null;
-
-  // cache in window (per session)
-  const key = normAddr(addr);
-  window.__GEOCODE_CACHE__ = window.__GEOCODE_CACHE__ || {};
-  if (window.__GEOCODE_CACHE__[key]) return window.__GEOCODE_CACHE__[key];
-
-  const res = await window.ymaps.geocode(addr, { results: 1 });
-  const first = res.geoObjects.get(0);
-  if (!first) return null;
-
-  const coords = first.geometry.getCoordinates(); // [lat, lon]
-  if (!Array.isArray(coords) || coords.length < 2) return null;
-
-  const out = { lat: coords[0], lon: coords[1] };
-  window.__GEOCODE_CACHE__[key] = out;
+function schedulesToPayload(rows) {
+  const out = [];
+  for (const r of Array.isArray(rows) ? rows : []) {
+    if (!r?.enabled) continue;
+    const time = buildTimeString(r.start, r.end);
+    const note = String(r.note || '').trim();
+    if (!time && !note) continue;
+    out.push({ day: r.day, time, note });
+  }
   return out;
 }
 
-function buildPayload(form) {
-  const priceRubNum = (() => {
-    const v = String(form.price_rub ?? '').trim().replace(',', '.');
-    if (!v) return 0;
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  })();
+function initSocialFromClub(club) {
+  const src = club?.socialLinks && typeof club.socialLinks === 'object' ? club.socialLinks : {};
+  const links = {};
+  const extras = [];
 
-  const socialLinks = safeJsonParse(form.socialLinksText || '{}', {});
-  const schedules = safeJsonParse(form.schedulesText || '[]', []);
-  const tags = String(form.tagsText || '')
-    .split(',')
-    .map((t) => t.trim())
-    .filter(Boolean);
+  for (const [k, v] of Object.entries(src)) {
+    const key = String(k || '').trim();
+    const val = String(v ?? '').trim();
+    if (!key) continue;
+    if (SOCIAL_KEYS_SET.has(key)) links[key] = val;
+    else extras.push({ key, value: val });
+  }
 
-  // lat/lon: сервер ждёт lat/lon (float) или пусто
-  const lat = String(form.lat ?? '').trim();
-  const lon = String(form.lon ?? '').trim();
+  // ensure known keys exist for nicer UI
+  for (const f of SOCIAL_FIELDS) {
+    if (!(f.key in links)) links[f.key] = '';
+  }
 
-  return {
-    name: String(form.name || '').trim(),
-    slug: String(form.slug || '').trim(),
-    description: String(form.description || '').trim(),
-    image: String(form.image || '').trim(),
-    location: String(form.location || '').trim(),
-    ...(lat && lon ? { lat: Number(lat), lon: Number(lon) } : {}),
-    tags,
-    isFavorite: !!form.isFavorite,
-    price_rub: priceRubNum,
-    phone: String(form.phone || '').trim(),
-    webSite: String(form.webSite || '').trim(),
-    socialLinks,
-    schedules,
-  };
+  return { links, extras };
 }
 
+function buildSocialPayload(links, extras) {
+  const out = {};
+  const srcLinks = links && typeof links === 'object' ? links : {};
+  for (const [k, v] of Object.entries(srcLinks)) {
+    const key = String(k || '').trim();
+    const val = String(v ?? '').trim();
+    if (!key || !val) continue;
+    out[key] = val;
+  }
+  for (const row of Array.isArray(extras) ? extras : []) {
+    const key = String(row?.key || '').trim();
+    const val = String(row?.value ?? '').trim();
+    if (!key || !val) continue;
+    out[key] = val;
+  }
+  return out;
+}
+
+async function loadYandexMapsScript() {
+  if (typeof window === 'undefined') return;
+  if (window.ymaps) return;
+
+  const existing = document.getElementById('ymaps-script');
+  if (existing) {
+    await new Promise((resolve) => {
+      existing.addEventListener('load', resolve, { once: true });
+      existing.addEventListener('error', resolve, { once: true });
+    });
+    return;
+  }
+
+  await new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.id = 'ymaps-script';
+    s.async = true;
+    s.src = `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(YANDEX_JS_API_KEY)}&lang=ru_RU`;
+    s.onload = resolve;
+    s.onerror = resolve;
+    document.head.appendChild(s);
+  });
+}
+
+async function geocodeInBrowser(address) {
+  const addr = String(address || '').trim();
+  if (!addr) return null;
+
+  await loadYandexMapsScript();
+  if (!window.ymaps) return null;
+
+  try {
+    await window.ymaps.ready();
+    const res = await window.ymaps.geocode(addr, { results: 1 });
+    const geoObject = res?.geoObjects?.get(0);
+    if (!geoObject) return null;
+
+    const coords = geoObject.geometry.getCoordinates();
+    // ymaps returns [lat, lon]
+    const lat = Number(coords?.[0]);
+    const lon = Number(coords?.[1]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return { lat, lon };
+  } catch {
+    return null;
+  }
+}
+
+// ==================================
+// Component
+// ==================================
 export default function AdminPanelClient() {
-  useEnsureAdminPanelCss();
-  // ВАЖНО: этот ключ подходит только если whitelist по домену настроен.
-  // Если захочешь — вынесем в env NEXT_PUBLIC_YANDEX_MAPS_KEY.
-  const YANDEX_JS_API_KEY = '58c38b72-57f7-4946-bc13-a256d341281a';
+  // inject a tiny fallback style set (на случай если css файл не подключился)
+  useEffect(() => {
+    const id = 'admin-panel-inline-css';
+    if (document.getElementById(id)) return;
+    const style = document.createElement('style');
+    style.id = id;
+    style.innerHTML = `
+:root{--accent:#2b87d4;--muted:#666;--danger:#d33}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{padding:8px;border-top:1px solid #eef1f3;font-size:13px;vertical-align:middle}
+.table th{color:var(--muted);font-weight:600;text-align:left}
+.timeRow{display:flex;align-items:center;gap:8px}
+.timeRow input{width:140px}
+.socialGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:980px){.socialGrid{grid-template-columns:1fr}}
+.extraRow{display:flex;gap:8px;align-items:center}
+.extraRow input.key{width:160px}
+.btn.danger{background:var(--danger)}
+`;
+    document.head.appendChild(style);
+  }, []);
 
   const [clubs, setClubs] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState('');
-  const [toastMsg, setToastMsg] = useState('');
-  const toast = useMemo(() => toastFactory(setToastMsg), []);
-
+  const [toast, setToast] = useState('');
   const [log, setLog] = useState('');
-  const [form, setForm] = useState({
+
+  const selectedClub = useMemo(() => clubs.find((c) => String(c.id) === String(selectedId)) || null, [clubs, selectedId]);
+
+  const [form, setForm] = useState(() => ({
     id: '',
     name: '',
     slug: '',
@@ -266,384 +252,498 @@ export default function AdminPanelClient() {
     lat: '',
     lon: '',
     tagsText: '',
-    isFavorite: false,
     price_rub: '',
     phone: '',
     webSite: '',
-    socialLinksText: '{}',
-    schedulesText: '[]',
-  });
+    socialLinks: Object.fromEntries(SOCIAL_FIELDS.map((f) => [f.key, ''])),
+    socialExtras: [],
+    schedulesRows: WEEKDAYS_RU.map((d) => ({ day: d, enabled: false, start: '', end: '', note: '' })),
+  }));
 
-  const selectedClub = useMemo(() => clubs.find((c) => c.id === selectedId) || null, [clubs, selectedId]);
+  const lastLocationRef = useRef('');
 
-  async function loadClubs() {
+  // ----------------------------------
+  // Fetch
+  // ----------------------------------
+  const fetchClubs = async () => {
     setLoading(true);
     try {
-      const data = await apiFetch('/api/clubs');
+      const r = await fetch(`${API_BASE}/api/clubs?limit=5000`, { credentials: 'include' });
+      if (!r.ok) throw new Error(await r.text());
+      const data = await r.json();
       setClubs(Array.isArray(data) ? data : []);
-      setLog((prev) => prev + `\n[OK] loaded clubs: ${Array.isArray(data) ? data.length : 0}`);
-
-      // если выбранный пропал — сброс
-      if (selectedId && Array.isArray(data) && !data.some((x) => x.id === selectedId)) {
-        setSelectedId(null);
+      if (!selectedId && Array.isArray(data) && data.length) {
+        setSelectedId(data[0].id);
       }
     } catch (e) {
       console.error(e);
-      setLog((prev) => prev + `\n[ERR] load clubs: ${e.message}`);
-      toast('Ошибка загрузки /api/clubs');
+      toastShow(setToast, 'Не удалось загрузить список кружков');
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    loadClubs();
+    fetchClubs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // при выборе клуба — заполнить форму
+  // ----------------------------------
+  // When select club -> fill form
+  // ----------------------------------
   useEffect(() => {
     if (!selectedClub) return;
-    setForm({
-      id: selectedClub.id,
+
+    const { links, extras } = initSocialFromClub(selectedClub);
+    const scheduleRows = initScheduleRowsFromClub(selectedClub);
+
+    const next = {
+      id: selectedClub.id || '',
       name: selectedClub.name || '',
       slug: selectedClub.slug || '',
       description: selectedClub.description || '',
       image: selectedClub.image || '',
       location: selectedClub.location || '',
-      lat: selectedClub.lat != null ? String(selectedClub.lat) : '',
-      lon: selectedClub.lon != null ? String(selectedClub.lon) : '',
+      lat: selectedClub.lat ?? '',
+      lon: selectedClub.lon ?? '',
       tagsText: Array.isArray(selectedClub.tags) ? selectedClub.tags.join(', ') : '',
-      isFavorite: !!selectedClub.isFavorite,
-      price_rub: selectedClub.price_rub != null ? String(selectedClub.price_rub) : '',
+      price_rub: selectedClub.price_rub ?? (selectedClub.price_cents != null ? (Number(selectedClub.price_cents) / 100).toFixed(2) : ''),
       phone: selectedClub.phone || '',
-      webSite: selectedClub.webSite || '',
-      socialLinksText: JSON.stringify(selectedClub.socialLinks || {}, null, 2),
-      schedulesText: JSON.stringify(selectedClub.schedules || [], null, 2),
-    });
+      webSite: selectedClub.webSite || selectedClub.website || '',
+      socialLinks: links,
+      socialExtras: extras,
+      schedulesRows: scheduleRows,
+    };
+
+    lastLocationRef.current = String(next.location || '');
+    setForm(next);
   }, [selectedClub]);
 
   const filtered = useMemo(() => {
-    const q = normAddr(search);
+    const q = search.trim().toLowerCase();
     if (!q) return clubs;
     return clubs.filter((c) => {
-      const t = `${c?.name || ''} ${c?.slug || ''} ${c?.location || ''}`;
-      return normAddr(t).includes(q);
+      const s = `${c.name || ''} ${c.slug || ''} ${c.location || ''}`.toLowerCase();
+      return s.includes(q);
     });
   }, [clubs, search]);
 
-  function setField(key, value) {
+  // ----------------------------------
+  // Mutators
+  // ----------------------------------
+  const setField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-  }
+  };
 
-  async function doSave({ forceGeocodeIfMissing = true } = {}) {
-    if (!form.name.trim()) {
-      toast('Название обязательно');
-      return;
-    }
+  const onLocationChange = (value) => {
+    setForm((prev) => {
+      const prevLoc = String(prev.location || '');
+      const nextLoc = String(value || '');
+      const changed = normalizeAddr(prevLoc) !== normalizeAddr(nextLoc);
+      return {
+        ...prev,
+        location: nextLoc,
+        // если адрес изменился — сбрасываем координаты, чтобы их пересчитать
+        lat: changed ? '' : prev.lat,
+        lon: changed ? '' : prev.lon,
+      };
+    });
+  };
 
-    setLoading(true);
-    try {
-      let next = { ...form };
+  const setSocialLink = (key, value) => {
+    const k = String(key || '').trim();
+    setForm((prev) => ({
+      ...prev,
+      socialLinks: {
+        ...(prev.socialLinks || {}),
+        [k]: value,
+      },
+    }));
+  };
 
-      // если адрес меняли — фронт обычно чистит lat/lon
-      const hasCoords = String(next.lat || '').trim() && String(next.lon || '').trim();
-      if (!hasCoords && forceGeocodeIfMissing && next.location.trim()) {
-        setLog((p) => p + `\n[INFO] geocode (before save) for: ${next.location}`);
-        await ensureYandexMapsLoaded(YANDEX_JS_API_KEY);
-        const geo = await geocodeViaYmaps(next.location);
-        if (geo) {
-          next = { ...next, lat: String(geo.lat), lon: String(geo.lon) };
-          setForm(next);
-          setLog((p) => p + `\n[OK] geocode result: lat=${geo.lat} lon=${geo.lon}`);
-        } else {
-          setLog((p) => p + `\n[WARN] geocode returned null`);
+  const addSocialExtra = () => {
+    setForm((prev) => ({
+      ...prev,
+      socialExtras: [...(prev.socialExtras || []), { key: '', value: '' }],
+    }));
+  };
+
+  const setSocialExtra = (idx, patch) => {
+    setForm((prev) => {
+      const arr = [...(prev.socialExtras || [])];
+      arr[idx] = { ...(arr[idx] || { key: '', value: '' }), ...patch };
+      return { ...prev, socialExtras: arr };
+    });
+  };
+
+  const removeSocialExtra = (idx) => {
+    setForm((prev) => {
+      const arr = [...(prev.socialExtras || [])];
+      arr.splice(idx, 1);
+      return { ...prev, socialExtras: arr };
+    });
+  };
+
+  const setScheduleRow = (idx, patch) => {
+    setForm((prev) => {
+      const rows = [...(prev.schedulesRows || [])];
+      rows[idx] = { ...(rows[idx] || {}), ...patch };
+      // если выключили день — очищаем поля
+      if (patch.enabled === false) {
+        rows[idx].start = '';
+        rows[idx].end = '';
+        rows[idx].note = '';
+      }
+      return { ...prev, schedulesRows: rows };
+    });
+  };
+
+  const quickCopyWeekdays = () => {
+    setForm((prev) => {
+      const rows = [...(prev.schedulesRows || [])];
+      const mon = rows.find((r) => normalizeAddr(r.day) === 'понедельник');
+      if (!mon?.enabled) return prev;
+      for (const r of rows) {
+        const d = normalizeAddr(r.day);
+        if (['понедельник', 'вторник', 'среда', 'четверг', 'пятница'].includes(d) && r.enabled) {
+          r.start = mon.start;
+          r.end = mon.end;
         }
       }
+      return { ...prev, schedulesRows: rows };
+    });
+    toastShow(setToast, 'Скопировал время с Пн на будни');
+  };
 
-      const payload = buildPayload(next);
+  // ----------------------------------
+  // Build payload
+  // ----------------------------------
+  function buildPayload(cur) {
+    const price_rub_num = toNumberOrNull(cur.price_rub);
+    const price_cents = price_rub_num != null ? Math.round(price_rub_num * 100) : null;
 
-      // create vs update
-      let result;
-      if (!next.id) {
-        result = await apiFetch('/api/clubs', { method: 'POST', body: JSON.stringify(payload) });
-      } else {
-        result = await apiFetch(`/api/clubs/${encodeURIComponent(next.id)}`, { method: 'PUT', body: JSON.stringify(payload) });
-      }
+    const latNum = toNumberOrNull(cur.lat);
+    const lonNum = toNumberOrNull(cur.lon);
 
-      toast('Сохранено');
-      setLog((p) => p + `\n[OK] saved club: ${result?.id || ''}`);
-      await loadClubs();
+    const tags = String(cur.tagsText || '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
 
-      // после save — выделим сохранённый
-      if (result?.id) setSelectedId(result.id);
-    } catch (e) {
-      console.error(e);
-      toast('Ошибка сохранения');
-      setLog((p) => p + `\n[ERR] save: ${e.message}`);
-    } finally {
-      setLoading(false);
-    }
+    const socialLinks = buildSocialPayload(cur.socialLinks, cur.socialExtras);
+    const schedules = schedulesToPayload(cur.schedulesRows);
+
+    return {
+      name: String(cur.name || '').trim(),
+      slug: String(cur.slug || '').trim(),
+      description: String(cur.description || ''),
+      image: String(cur.image || '').trim(),
+      location: String(cur.location || '').trim(),
+      ...(latNum != null && lonNum != null ? { lat: latNum, lon: lonNum } : {}),
+      tags,
+      isFavorite: false,
+      price_rub: price_rub_num != null ? price_rub_num : null,
+      price_cents,
+      phone: String(cur.phone || '').trim(),
+      webSite: String(cur.webSite || '').trim(),
+      socialLinks,
+      schedules,
+    };
   }
 
-  async function deleteSelected() {
-    if (!selectedClub?.id) return;
-    if (!confirm(`Удалить "${selectedClub.name}"?`)) return;
-
-    setLoading(true);
-    try {
-      await apiFetch(`/api/clubs/${encodeURIComponent(selectedClub.id)}`, { method: 'DELETE' });
-      toast('Удалено');
-      setSelectedId(null);
-      await loadClubs();
-    } catch (e) {
-      console.error(e);
-      toast('Ошибка удаления');
-      setLog((p) => p + `\n[ERR] delete: ${e.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function createNew() {
-    setSelectedId(null);
-    setForm({
-      id: '',
-      name: '',
-      slug: '',
+  // ----------------------------------
+  // CRUD
+  // ----------------------------------
+  const createNew = async () => {
+    const slug = `club-${Math.random().toString(16).slice(2, 8)}`;
+    const empty = {
+      name: 'Новый кружок',
+      slug,
       description: '',
       image: '',
       location: '',
       lat: '',
       lon: '',
       tagsText: '',
-      isFavorite: false,
       price_rub: '',
       phone: '',
       webSite: '',
-      socialLinksText: '{\n  \"vk\": \"\",\n  \"telegram\": \"\"\n}',
-      schedulesText: '[\n  {\n    \"day\": \"Понедельник\",\n    \"time\": \"09:00-21:00\",\n    \"note\": \"\"\n  }\n]',
-    });
-    toast('Новая карточка');
-  }
+      socialLinks: Object.fromEntries(SOCIAL_FIELDS.map((f) => [f.key, ''])),
+      socialExtras: [],
+      schedulesRows: WEEKDAYS_RU.map((d) => ({ day: d, enabled: false, start: '', end: '', note: '' })),
+    };
 
-  async function geocodeToFormOnly() {
-    const addr = String(form.location || '').trim();
-    if (!addr) {
-      toast('Нет адреса');
+    try {
+      const payload = buildPayload({ ...empty, name: empty.name, slug: empty.slug });
+      const r = await fetch(`${API_BASE}/api/clubs`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const created = await r.json();
+      toastShow(setToast, 'Создан');
+      await fetchClubs();
+      setSelectedId(created.id);
+    } catch (e) {
+      console.error(e);
+      toastShow(setToast, 'Ошибка при создании');
+    }
+  };
+
+  const saveForm = async () => {
+    if (!selectedClub) return;
+
+    const payload = buildPayload(form);
+
+    // если адрес изменился и координат нет — автоматически геокодим (в браузере)
+    const prevLoc = lastLocationRef.current;
+    const nextLoc = String(form.location || '');
+    const locationChanged = normalizeAddr(prevLoc) !== normalizeAddr(nextLoc);
+
+    if ((payload.lat == null || payload.lon == null) && nextLoc) {
+      // в случае изменения адреса или отсутствия coords
+      if (locationChanged || selectedClub.lat == null || selectedClub.lon == null) {
+        toastShow(setToast, 'Геокодим адрес…');
+        const geo = await geocodeInBrowser(nextLoc);
+        if (geo) {
+          payload.lat = geo.lat;
+          payload.lon = geo.lon;
+          setForm((prev) => ({ ...prev, lat: String(geo.lat), lon: String(geo.lon) }));
+        }
+      }
+    }
+
+    try {
+      const r = await fetch(`${API_BASE}/api/clubs/${encodeURIComponent(selectedClub.id)}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const updated = await r.json();
+      toastShow(setToast, 'Сохранено');
+
+      lastLocationRef.current = String(updated.location || form.location || '');
+
+      // update list without full reload
+      setClubs((prev) => prev.map((c) => (String(c.id) === String(updated.id) ? updated : c)));
+    } catch (e) {
+      console.error(e);
+      toastShow(setToast, 'Ошибка при сохранении');
+    }
+  };
+
+  const deleteClub = async (clubId) => {
+    if (!clubId) return;
+    if (!confirm('Удалить кружок?')) return;
+    try {
+      const r = await fetch(`${API_BASE}/api/clubs/${encodeURIComponent(clubId)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!r.ok) throw new Error(await r.text());
+      toastShow(setToast, 'Удалено');
+      await fetchClubs();
+      setSelectedId(null);
+    } catch (e) {
+      console.error(e);
+      toastShow(setToast, 'Ошибка при удалении');
+    }
+  };
+
+  // ----------------------------------
+  // Геокодинг кнопки (одного)
+  // ----------------------------------
+  const geocodeToForm = async () => {
+    if (!form.location) {
+      toastShow(setToast, 'Укажи адрес');
       return;
     }
-    setLoading(true);
-    try {
-      setLog((p) => p + `\n[INFO] geocode (to form): ${addr}`);
-      await ensureYandexMapsLoaded(YANDEX_JS_API_KEY);
-      const geo = await geocodeViaYmaps(addr);
+    toastShow(setToast, 'Геокодим…');
+    const geo = await geocodeInBrowser(form.location);
+    if (!geo) {
+      toastShow(setToast, 'Не удалось геокодировать');
+      return;
+    }
+    setField('lat', String(geo.lat));
+    setField('lon', String(geo.lon));
+    toastShow(setToast, 'Координаты проставлены');
+  };
+
+  const geocodeAndSave = async () => {
+    await geocodeToForm();
+    await saveForm();
+  };
+
+  // ----------------------------------
+  // Коррекция координат (по одному)
+  // ----------------------------------
+  const correctSelectedCoords = async () => {
+    if (!selectedClub) return;
+    if (!form.location) {
+      toastShow(setToast, 'Адрес пустой');
+      return;
+    }
+    toastShow(setToast, 'Корректируем…');
+    const geo = await geocodeInBrowser(form.location);
+    if (!geo) {
+      toastShow(setToast, 'Не удалось геокодировать');
+      return;
+    }
+    setForm((prev) => ({ ...prev, lat: String(geo.lat), lon: String(geo.lon) }));
+    await saveForm();
+  };
+
+  // ----------------------------------
+  // Bulk correction in browser (no backend geocoder)
+  // ----------------------------------
+  const correctAllClientSide = async () => {
+    if (!confirm('Прогнать коррекцию координат по всем кружкам? Это сделает запросы в Yandex из браузера и сохранит lat/lon в БД.')) return;
+
+    setLog('Старт коррекции…\n');
+    await loadYandexMapsScript();
+    if (!window.ymaps) {
+      toastShow(setToast, 'Yandex Maps JS API не загрузился');
+      return;
+    }
+
+    const list = [...clubs];
+    let ok = 0;
+    let fail = 0;
+
+    for (let i = 0; i < list.length; i++) {
+      const c = list[i];
+      const loc = String(c.location || '').trim();
+      if (!loc) continue;
+
+      // только если нет coords или ты хочешь «пересчитать всем» — сейчас пересчитываем всем
+      const geo = await geocodeInBrowser(loc);
       if (!geo) {
-        toast('Геокодинг не дал результата');
-        setLog((p) => p + `\n[WARN] geocode returned null`);
-        return;
+        fail++;
+        setLog((p) => p + `✗ ${c.slug || c.id}: geocode failed\n`);
+        continue;
       }
-      setField('lat', String(geo.lat));
-      setField('lon', String(geo.lon));
-      toast('Координаты проставлены в форму');
-      setLog((p) => p + `\n[OK] geocode: lat=${geo.lat} lon=${geo.lon}`);
-    } catch (e) {
-      console.error(e);
-      toast('Ошибка геокодинга');
-      setLog((p) => p + `\n[ERR] geocode: ${e.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }
 
-  async function geocodeAndSave() {
-    await geocodeToFormOnly();
-    // если координаты в форме появились — сохраняем
-    const hasCoords = String(form.lat || '').trim() && String(form.lon || '').trim();
-    if (hasCoords) {
-      await doSave({ forceGeocodeIfMissing: false });
-    }
-  }
+      try {
+        const r = await fetch(`${API_BASE}/api/clubs/${encodeURIComponent(c.id)}`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat: geo.lat, lon: geo.lon, location: loc }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        const updated = await r.json();
+        ok++;
+        setClubs((prev) => prev.map((x) => (String(x.id) === String(updated.id) ? updated : x)));
+        setLog((p) => p + `✓ ${updated.slug || updated.id}: ${geo.lat.toFixed(6)}, ${geo.lon.toFixed(6)}\n`);
+      } catch (e) {
+        fail++;
+        setLog((p) => p + `✗ ${c.slug || c.id}: save failed\n`);
+      }
 
-  async function fillMissingCoords() {
-    setLoading(true);
+      // маленькая пауза чтобы не спамить
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 180));
+    }
+
+    toastShow(setToast, `Готово: ok=${ok}, fail=${fail}`);
+  };
+
+  // ----------------------------------
+  // Bulk fill missing coords via backend util (если вдруг нужно)
+  // ----------------------------------
+  const fillMissingCoords = async () => {
     try {
-      const res = await apiFetch(`/api/admin/geocode-missing?limit=200&sleep_ms=200`, { method: 'POST' });
-      setLog((p) => p + `\n[OK] backend backfill: processed=${res?.processed} updated=${res?.updated} failed=${res?.failed?.length || 0}`);
-      toast(`Заполнено: ${res?.updated || 0}`);
-      await loadClubs();
+      setLog('Запускаю /api/admin/geocode-missing…\n');
+      const r = await fetch(`${API_BASE}/api/admin/geocode-missing?limit=200&sleep_ms=200`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await r.json();
+      setLog((p) => p + JSON.stringify(data, null, 2) + '\n');
+      await fetchClubs();
+      toastShow(setToast, 'Готово');
     } catch (e) {
       console.error(e);
-      toast('Ошибка /api/admin/geocode-missing');
-      setLog((p) => p + `\n[ERR] backend backfill: ${e.message}`);
-    } finally {
-      setLoading(false);
+      toastShow(setToast, 'Ошибка');
     }
-  }
+  };
 
-  async function correctionAllClientSide() {
-    // Клиентская коррекция: для всех клубов без координат — геокодим в браузере и сохраняем
-    setLoading(true);
-    let updated = 0;
-    const failed = [];
-    try {
-      await ensureYandexMapsLoaded(YANDEX_JS_API_KEY);
-
-      const list = [...clubs];
-      for (const c of list) {
-        const has = c?.lat != null && c?.lon != null;
-        const loc = String(c?.location || '').trim();
-        if (has || !loc) continue;
-
-        const geo = await geocodeViaYmaps(loc);
-        if (!geo) {
-          failed.push({ id: c.id, slug: c.slug, location: loc });
-          continue;
-        }
-
-        const payload = { location: loc, lat: geo.lat, lon: geo.lon };
-        try {
-          await apiFetch(`/api/clubs/${encodeURIComponent(c.id)}`, {
-            method: 'PUT',
-            body: JSON.stringify(payload),
-          });
-          updated += 1;
-        } catch (e) {
-          failed.push({ id: c.id, slug: c.slug, location: loc, error: e.message });
-        }
-
-        // чтобы не спамить API
-        await new Promise((r) => setTimeout(r, 180));
-      }
-
-      toast(`Коррекция: обновлено ${updated}`);
-      setLog((p) => p + `\n[OK] client correction done: updated=${updated}, failed=${failed.length}`);
-      if (failed.length) {
-        setLog((p) => p + `\n[FAILED] ` + JSON.stringify(failed.slice(0, 10), null, 2));
-      }
-      await loadClubs();
-    } catch (e) {
-      console.error(e);
-      toast('Ошибка клиентской коррекции');
-      setLog((p) => p + `\n[ERR] client correction: ${e.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function onChangeLocation(v) {
-    const prevLoc = String(form.location || '');
-    setField('location', v);
-    if (normAddr(prevLoc) !== normAddr(v)) {
-      // адрес изменился — очищаем coords, чтобы пересчитались при сохранении
-      setField('lat', '');
-      setField('lon', '');
-    }
-  }
-
+  // ----------------------------------
+  // UI
+  // ----------------------------------
   return (
     <>
       <header>
-        <h1>Mapka • Admin панель</h1>
-        <button className="btn" onClick={createNew} disabled={loading}>
-          + Новый
-        </button>
-        <button className="btn ghost" onClick={fillMissingCoords} disabled={loading}>
-          Заполнить координаты
-        </button>
-        <button className="btn ghost" onClick={correctionAllClientSide} disabled={loading}>
-          Коррекция (все)
-        </button>
-        <div style={{ marginLeft: 'auto' }} className="muted">
-          {loading ? 'Загрузка…' : `Кружков: ${clubs.length}`}
-        </div>
+        <h1>Mapka — Admin</h1>
+        <div className="muted">Подсказка: геокодинг делаем в браузере через Yandex Maps JS API. Бэкенд только сохраняет lat/lon в БД.</div>
       </header>
 
       <div className="wrap">
         <aside className="left">
-          <div className="search">
-            <input
-              type="text"
-              placeholder="Поиск по названию / адресу / slug"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <button className="btn ghost" onClick={loadClubs} disabled={loading} title="Обновить список">
-              ↻
+          <div className="toolbar">
+            <button className="btn" onClick={createNew} disabled={loading}>
+              + Новый
+            </button>
+            <button className="btn ghost" onClick={fillMissingCoords} title="Бэкенд-утилита (если нужно)">
+              Заполнить координаты
+            </button>
+            <button className="btn ghost" onClick={correctAllClientSide} title="Коррекция координат всем (в браузере)">
+              Коррекция (все)
             </button>
           </div>
 
+          <div className="search">
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Поиск…" />
+          </div>
+
           <div className="list">
-            {filtered.map((c) => {
-              const missing = c?.lat == null || c?.lon == null;
-              return (
-                <div
-                  key={c.id}
-                  className={`item ${selectedId === c.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedId(c.id)}
-                >
-                  <div className="pin" style={missing ? { background: 'rgba(227,77,77,.22)', borderColor: 'rgba(227,77,77,.7)' } : undefined} />
-                  <div className="meta">
-                    <h4>{c.name || '(без названия)'}</h4>
-                    <p>
-                      {c.location || ''}
-                      <br />
-                      <span className="muted">
-                        lat: {c.lat ?? '—'} • lon: {c.lon ?? '—'}
-                      </span>
-                    </p>
-                  </div>
-
-                  <button
-                    className="btn ghost"
-                    style={{ padding: '6px 8px' }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedId(c.id);
-                      setTimeout(() => deleteSelected(), 0);
-                    }}
-                    title="Удалить"
-                  >
-                    Удалить
-                  </button>
+            {filtered.map((c) => (
+              <div
+                key={c.id}
+                className={`item ${String(c.id) === String(selectedId) ? 'selected' : ''}`}
+                onClick={() => setSelectedId(c.id)}
+              >
+                <div className="meta">
+                  <h4>{c.name || '—'}</h4>
+                  <p>
+                    {(c.location || '').slice(0, 80)}
+                    {(c.location || '').length > 80 ? '…' : ''}
+                  </p>
+                  <p className="muted">
+                    lat: {c.lat ?? '—'} • lon: {c.lon ?? '—'}
+                  </p>
                 </div>
-              );
-            })}
-
-            {!filtered.length && <div className="muted">Ничего не найдено</div>}
+                <div style={{ marginLeft: 'auto' }}>📍</div>
+              </div>
+            ))}
           </div>
         </aside>
 
         <main className="main">
-          {!selectedClub && (
+          {!selectedClub ? (
             <div className="card">
-              <h2 style={{ margin: 0 }}>Выбери кружок слева или нажми “+ Новый”.</h2>
-              <p className="muted" style={{ marginTop: 10 }}>
-                Подсказка: геокодинг делаем в браузере через JS API Яндекса, чтобы работал whitelist домена. Бэкенд
-                только сохраняет lat/lon в БД.
-              </p>
-              <pre className="muted-log" style={{ marginTop: 12 }}>{log.trim()}</pre>
+              <div className="muted">Выбери кружок слева или создай новый.</div>
             </div>
-          )}
-
-          {selectedClub && (
+          ) : (
             <div className="grid">
-              <div className="card">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <h2 style={{ margin: 0 }}>Редактирование: {selectedClub.name}</h2>
-                  <div className="actions" style={{ marginTop: 0 }}>
-                    <button className="btn ghost" onClick={geocodeAndSave} disabled={loading}>
+              <section className="card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <h2 style={{ margin: 0, fontSize: 18 }}>Редактирование: {selectedClub.name}</h2>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn ghost" onClick={correctSelectedCoords}>
                       Коррекция геокоординат
                     </button>
-                    <button className="btn" onClick={() => doSave()} disabled={loading}>
+                    <button className="btn" onClick={saveForm}>
                       Сохранить
                     </button>
                   </div>
                 </div>
 
-                <div style={{ height: 12 }} />
-
-                <div className="row">
+                <div className="row" style={{ marginTop: 14 }}>
                   <div style={{ flex: 1 }}>
                     <label>Название</label>
                     <input type="text" value={form.name} onChange={(e) => setField('name', e.target.value)} />
@@ -654,29 +754,32 @@ export default function AdminPanelClient() {
                   </div>
                 </div>
 
-                <div style={{ height: 12 }} />
+                <div style={{ marginTop: 12 }}>
+                  <label>Описание</label>
+                  <textarea value={form.description} onChange={(e) => setField('description', e.target.value)} />
+                </div>
 
-                <label>Описание</label>
-                <textarea value={form.description} onChange={(e) => setField('description', e.target.value)} />
-
-                <div style={{ height: 12 }} />
-
-                <div className="row">
+                <div className="row" style={{ marginTop: 12 }}>
                   <div style={{ flex: 1 }}>
                     <label>Картинка (URL)</label>
                     <input type="text" value={form.image} onChange={(e) => setField('image', e.target.value)} />
                   </div>
                   <div style={{ width: 320 }}>
                     <label>Теги (через запятую)</label>
-                    <input type="text" value={form.tagsText} onChange={(e) => setField('tagsText', e.target.value)} />
+                    <input
+                      type="text"
+                      value={form.tagsText}
+                      onChange={(e) => setField('tagsText', e.target.value)}
+                      placeholder="спорт, музыка, танцы"
+                    />
                     <div className="tags">
                       {String(form.tagsText || '')
                         .split(',')
                         .map((t) => t.trim())
                         .filter(Boolean)
-                        .slice(0, 8)
+                        .slice(0, 12)
                         .map((t) => (
-                          <span key={t} className="tag">
+                          <span className="tag" key={t}>
                             {t}
                           </span>
                         ))}
@@ -684,45 +787,43 @@ export default function AdminPanelClient() {
                   </div>
                 </div>
 
-                <div style={{ height: 12 }} />
-
-                <label>Адрес</label>
-                <input type="text" value={form.location} onChange={(e) => onChangeLocation(e.target.value)} />
-                <div className="muted" style={{ marginTop: 6 }}>
-                  Если меняешь адрес — координаты очищаются и будут пересчитаны при сохранении.
+                <div style={{ marginTop: 12 }}>
+                  <label>Адрес</label>
+                  <input
+                    type="text"
+                    value={form.location}
+                    onChange={(e) => onLocationChange(e.target.value)}
+                    placeholder="Улица, дом, Город"
+                  />
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    Если меняешь адрес — координаты очищаются и будут пересчитаны при сохранении.
+                  </div>
                 </div>
 
-                <div style={{ height: 12 }} />
-
-                <div className="row">
+                <div className="row" style={{ marginTop: 12 }}>
                   <div style={{ flex: 1 }}>
                     <label>Широта (lat)</label>
-                    <input type="number" value={form.lat} onChange={(e) => setField('lat', e.target.value)} />
+                    <input type="text" value={form.lat} onChange={(e) => setField('lat', e.target.value)} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <label>Долгота (lon)</label>
-                    <input type="number" value={form.lon} onChange={(e) => setField('lon', e.target.value)} />
+                    <input type="text" value={form.lon} onChange={(e) => setField('lon', e.target.value)} />
                   </div>
                 </div>
 
                 <div className="actions">
-                  <button className="btn ghost" onClick={geocodeToFormOnly} disabled={loading}>
+                  <button className="btn ghost" onClick={geocodeToForm}>
                     Геокодировать адрес (в форму)
                   </button>
-                  <button className="btn" onClick={geocodeAndSave} disabled={loading}>
+                  <button className="btn ghost" onClick={geocodeAndSave}>
                     Геокодировать и сохранить
-                  </button>
-                  <button className="btn ghost" onClick={deleteSelected} disabled={loading}>
-                    Удалить
                   </button>
                 </div>
 
-                <div style={{ height: 12 }} />
-
-                <div className="row">
+                <div className="row" style={{ marginTop: 12 }}>
                   <div style={{ flex: 1 }}>
                     <label>Цена (руб)</label>
-                    <input type="number" value={form.price_rub} onChange={(e) => setField('price_rub', e.target.value)} />
+                    <input type="text" value={form.price_rub} onChange={(e) => setField('price_rub', e.target.value)} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <label>Телефон</label>
@@ -730,61 +831,158 @@ export default function AdminPanelClient() {
                   </div>
                 </div>
 
-                <div style={{ height: 12 }} />
+                <div style={{ marginTop: 12 }}>
+                  <label>Сайт</label>
+                  <input type="text" value={form.webSite} onChange={(e) => setField('webSite', e.target.value)} />
+                </div>
 
-                <label>Сайт</label>
-                <input type="text" value={form.webSite} onChange={(e) => setField('webSite', e.target.value)} />
+                {/* Social links */}
+                <div className="card" style={{ marginTop: 14 }}>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>Соцсети</h3>
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    Вставляй полные ссылки (https://…). Пустые поля не сохраняются.
+                  </div>
 
-                <div style={{ height: 12 }} />
+                  <div className="socialGrid" style={{ marginTop: 10 }}>
+                    {SOCIAL_FIELDS.map((f) => (
+                      <div key={f.key}>
+                        <label>{f.label}</label>
+                        <input
+                          type="text"
+                          value={form.socialLinks?.[f.key] || ''}
+                          onChange={(e) => setSocialLink(f.key, e.target.value)}
+                          placeholder="https://…"
+                        />
+                      </div>
+                    ))}
+                  </div>
 
-                <label>Соц.сети (JSON)</label>
-                <textarea value={form.socialLinksText} onChange={(e) => setField('socialLinksText', e.target.value)} />
+                  <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div className="muted">Другие ссылки (если нужно)</div>
+                    <button className="btn ghost" onClick={addSocialExtra}>
+                      + Добавить
+                    </button>
+                  </div>
 
-                <div style={{ height: 12 }} />
-
-                <label>Расписание (JSON array)</label>
-                <textarea value={form.schedulesText} onChange={(e) => setField('schedulesText', e.target.value)} />
-
-                <div style={{ height: 12 }} />
-
-                <label>Debug log</label>
-                <pre className="muted-log">{log.trim()}</pre>
-              </div>
-
-              <div className="card">
-                <h3 style={{ marginTop: 0 }}>Превью</h3>
-                <div className="preview">
-                  {form.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={form.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <span className="muted">Нет картинки</span>
+                  {Array.isArray(form.socialExtras) && form.socialExtras.length > 0 && (
+                    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {form.socialExtras.map((row, idx) => (
+                        <div key={idx} className="extraRow">
+                          <input
+                            className="key"
+                            type="text"
+                            value={row.key}
+                            onChange={(e) => setSocialExtra(idx, { key: e.target.value })}
+                            placeholder="ключ (например: ok)"
+                          />
+                          <input
+                            type="text"
+                            value={row.value}
+                            onChange={(e) => setSocialExtra(idx, { value: e.target.value })}
+                            placeholder="https://…"
+                          />
+                          <button className="btn danger" onClick={() => removeSocialExtra(idx)} title="Удалить строку">
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
 
-                <div style={{ height: 12 }} />
+                {/* Schedules */}
+                <div className="card" style={{ marginTop: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <h3 style={{ margin: 0, fontSize: 16 }}>Расписание</h3>
+                    <button className="btn ghost" onClick={quickCopyWeekdays} title="Копирует время с Понедельника на активные будни">
+                      Скопировать Пн → будни
+                    </button>
+                  </div>
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    Отметь дни, выставь время и (опционально) примечание.
+                  </div>
 
-                <div className="card" style={{ border: '1px solid rgba(230,233,236,.95)' }}>
-                  <div className="muted">ID</div>
-                  <div style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', fontSize: 12 }}>
-                    {form.id || '—'}
+                  <div style={{ marginTop: 10, overflowX: 'auto' }}>
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: 190 }}>День</th>
+                          <th style={{ width: 340 }}>Время</th>
+                          <th>Примечание</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(form.schedulesRows || []).map((r, idx) => (
+                          <tr key={r.day}>
+                            <td>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: 0, color: '#111' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={!!r.enabled}
+                                  onChange={(e) => setScheduleRow(idx, { enabled: e.target.checked })}
+                                />
+                                {r.day}
+                              </label>
+                            </td>
+                            <td>
+                              <div className="timeRow">
+                                <input
+                                  type="time"
+                                  value={r.start}
+                                  disabled={!r.enabled}
+                                  onChange={(e) => setScheduleRow(idx, { start: e.target.value })}
+                                />
+                                <span className="muted">—</span>
+                                <input
+                                  type="time"
+                                  value={r.end}
+                                  disabled={!r.enabled}
+                                  onChange={(e) => setScheduleRow(idx, { end: e.target.value })}
+                                />
+                              </div>
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                value={r.note}
+                                disabled={!r.enabled}
+                                onChange={(e) => setScheduleRow(idx, { note: e.target.value })}
+                                placeholder="например: только по записи"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
-                <div style={{ height: 12 }} />
-
-                <div className="muted">
-                  <div>• Красный индикатор слева = нет координат</div>
-                  <div>• “Заполнить координаты” — серверная миграция (если серверный геокод включён)</div>
-                  <div>• “Коррекция (все)” — клиентский геокод в браузере с сохранением в БД</div>
+                <div className="actions" style={{ marginTop: 14 }}>
+                  <button className="btn danger" onClick={() => deleteClub(selectedClub.id)}>
+                    Удалить
+                  </button>
                 </div>
-              </div>
+              </section>
+
+              <aside className="card">
+                <h3 style={{ margin: 0, fontSize: 16 }}>Логи</h3>
+                <div className="muted" style={{ marginTop: 6 }}>
+                  Тут видно, что сделала коррекция (все) и утилита заполнения.
+                </div>
+                <div className="muted-log" style={{ marginTop: 10, maxHeight: 420, overflow: 'auto' }}>
+                  {log || '—'}
+                </div>
+
+                <div style={{ marginTop: 14 }} className="preview">
+                  {form.image ? <img src={form.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div className="muted">preview</div>}
+                </div>
+              </aside>
             </div>
           )}
         </main>
       </div>
 
-      <div className={`toast ${toastMsg ? 'show' : ''}`}>{toastMsg}</div>
+      <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
     </>
   );
 }
