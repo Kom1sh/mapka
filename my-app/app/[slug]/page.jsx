@@ -7,11 +7,6 @@ import ClubGallery from '@/components/ClubGallery';
 import ClubMap from '@/components/ClubMap';
 import ClubActions from '@/components/ClubActions';
 
-// Slug может меняться из админки. Чтобы новый slug сразу открывался (без ребилда и часового кэша),
-// делаем страницу динамической.
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 export async function generateMetadata({ params }) {
   const resolvedParams = await params;
   const club = await fetchClubData(resolvedParams.slug);
