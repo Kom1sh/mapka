@@ -59,6 +59,12 @@ class Club(Base):
     updated_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
     tags = Column(MutableList.as_mutable(JSON), nullable=True, default=list)
 
+    # ✅ new fields for badges
+    category = Column(String(255), nullable=True)
+    min_age = Column(Integer, nullable=True)
+    max_age = Column(Integer, nullable=True)
+    price_notes = Column(Text, nullable=True)
+
     images = relationship("Image", back_populates="club", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="club", cascade="all, delete-orphan")
     schedules = relationship("Schedule", back_populates="club", cascade="all, delete-orphan")

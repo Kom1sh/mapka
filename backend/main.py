@@ -59,6 +59,20 @@ def _to_float(v):
         return None
 
 
+def _to_int(v):
+    try:
+        if v is None:
+            return None
+        if isinstance(v, str):
+            vv = v.strip().replace(',', '.')
+            if vv == '' or vv.lower() in ('null', 'undefined'):
+                return None
+            v = vv
+        return int(float(v))
+    except Exception:
+        return None
+
+
 def _norm_addr(addr: str) -> str:
     return " ".join(str(addr or "").strip().lower().split())
 
@@ -317,6 +331,10 @@ def _serialize_club(c, base_origin: str, payload_extra: dict = None):
             "lon": lon,
             "isFavorite": False,
             "tags": tags,
+            "category": getattr(c, "category", "") or "",
+            "minAge": getattr(c, "min_age", None),
+            "maxAge": getattr(c, "max_age", None),
+            "priceNotes": getattr(c, "price_notes", "") or "",
             "price_cents": price_cents,
             "price_rub": price_rub,
             "phone": getattr(c, "phone", "") or "",
@@ -449,6 +467,10 @@ async def api_create_club(request: Request, payload: dict, user=Depends(admin_re
             price_cents=price_cents,
             address_id=getattr(addr_obj, "id", None),
             tags=list(tags),
+            category=(payload.get("category") or "").strip() or None,
+            min_age=_to_int(payload.get("minAge") or payload.get("min_age")),
+            max_age=_to_int(payload.get("maxAge") or payload.get("max_age")),
+            price_notes=(payload.get("priceNotes") or payload.get("price_notes") or "").strip() or None,
             phone=phone,
             webSite=webSite,
             social_links=dict(social_links),
@@ -594,6 +616,22 @@ async def api_update_club(club_id: str, request: Request, payload: dict, user=De
             club.phone = payload.get("phone") or ""
         if "webSite" in payload or "website" in payload:
             club.webSite = payload.get("webSite") or payload.get("website") or ""
+
+        # ✅ new fields: category / age / price notes
+        if "category" in payload:
+            v = payload.get("category")
+            club.category = (str(v).strip() if v is not None else None) or None
+
+        if "minAge" in payload or "min_age" in payload:
+            club.min_age = _to_int(payload.get("minAge") if "minAge" in payload else payload.get("min_age"))
+
+        if "maxAge" in payload or "max_age" in payload:
+            club.max_age = _to_int(payload.get("maxAge") if "maxAge" in payload else payload.get("max_age"))
+
+        if "priceNotes" in payload or "price_notes" in payload:
+            v = payload.get("priceNotes") if "priceNotes" in payload else payload.get("price_notes")
+            club.price_notes = (str(v).strip() if v is not None else None) or None
+
 
         if "tags" in payload:
             tags = payload.get("tags") or []

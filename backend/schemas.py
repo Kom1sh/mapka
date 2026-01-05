@@ -51,12 +51,24 @@ class ClubSchema(BaseModel):
     name: str
     slug: Optional[str]
     description: Optional[str]
+    phone: Optional[str] = None
+    webSite: Optional[str] = None
+
+    # ✅ new fields
+    category: Optional[str] = None
+    min_age: Optional[int] = None
+    max_age: Optional[int] = None
+    price_notes: Optional[str] = None
+
     main_image_url: Optional[str]
     price_cents: Optional[int]
     currency: Optional[str]
     group_size: Optional[int]
     lat: Optional[float]
     lon: Optional[float]
+    tags: List[str] = []
+
+    social_links: Optional[dict] = None
     images: List[ImageSchema] = []
     reviews: List[ReviewSchema] = []
     schedules: List[ScheduleSchema] = []
