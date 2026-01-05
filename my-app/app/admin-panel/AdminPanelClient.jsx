@@ -5,8 +5,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 // ==================================
 // Config
 // ==================================
-// ВАЖНО: для Yandex Maps JS API ключ должен быть с ограничением по HTTP Referer (mapka.рф / xn--80aa3agq.xn--p1ai).
-// Тогда хранить ключ в клиентском коде (в админке) — допустимо.
 const YANDEX_JS_API_KEY =
   process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY || '58c38b72-57f7-4946-bc13-a256d341281a';
 
@@ -52,8 +50,15 @@ function toNumberOrNull(v) {
   if (v === null || v === undefined) return null;
   const s = String(v).trim().replace(',', '.');
   if (!s) return null;
+  if (s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined') return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
+}
+
+function toIntOrNull(v) {
+  const n = toNumberOrNull(v);
+  if (n === null) return null;
+  return Math.max(0, Math.round(n));
 }
 
 function normalizeAddr(s) {
@@ -240,7 +245,10 @@ export default function AdminPanelClient() {
   const [toast, setToast] = useState('');
   const [log, setLog] = useState('');
 
-  const selectedClub = useMemo(() => clubs.find((c) => String(c.id) === String(selectedId)) || null, [clubs, selectedId]);
+  const selectedClub = useMemo(
+    () => clubs.find((c) => String(c.id) === String(selectedId)) || null,
+    [clubs, selectedId]
+  );
 
   const [form, setForm] = useState(() => ({
     id: '',
@@ -252,6 +260,10 @@ export default function AdminPanelClient() {
     lat: '',
     lon: '',
     tagsText: '',
+    category: '',      // ✅ NEW
+    minAge: '',        // ✅ NEW
+    maxAge: '',        // ✅ NEW
+    priceNotes: '',    // ✅ NEW
     price_rub: '',
     phone: '',
     webSite: '',
@@ -307,7 +319,16 @@ export default function AdminPanelClient() {
       lat: selectedClub.lat ?? '',
       lon: selectedClub.lon ?? '',
       tagsText: Array.isArray(selectedClub.tags) ? selectedClub.tags.join(', ') : '',
-      price_rub: selectedClub.price_rub ?? (selectedClub.price_cents != null ? (Number(selectedClub.price_cents) / 100).toFixed(2) : ''),
+
+      // ✅ NEW: category + age + price notes
+      category: selectedClub.category ?? '',
+      minAge: selectedClub.minAge ?? selectedClub.min_age ?? '',
+      maxAge: selectedClub.maxAge ?? selectedClub.max_age ?? '',
+      priceNotes: selectedClub.priceNotes ?? selectedClub.price_notes ?? '',
+
+      price_rub:
+        selectedClub.price_rub ??
+        (selectedClub.price_cents != null ? (Number(selectedClub.price_cents) / 100).toFixed(2) : ''),
       phone: selectedClub.phone || '',
       webSite: selectedClub.webSite || selectedClub.website || '',
       socialLinks: links,
@@ -433,6 +454,12 @@ export default function AdminPanelClient() {
     const socialLinks = buildSocialPayload(cur.socialLinks, cur.socialExtras);
     const schedules = schedulesToPayload(cur.schedulesRows);
 
+    // ✅ NEW fields
+    const category = String(cur.category || '').trim();
+    const minAge = toIntOrNull(cur.minAge);
+    const maxAge = toIntOrNull(cur.maxAge);
+    const priceNotes = String(cur.priceNotes || '').trim();
+
     return {
       name: String(cur.name || '').trim(),
       slug: String(cur.slug || '').trim(),
@@ -442,6 +469,13 @@ export default function AdminPanelClient() {
       ...(latNum != null && lonNum != null ? { lat: latNum, lon: lonNum } : {}),
       tags,
       isFavorite: false,
+
+      // ✅ NEW fields for club page badges
+      category: category || null,
+      minAge,
+      maxAge,
+      priceNotes: priceNotes || null,
+
       price_rub: price_rub_num != null ? price_rub_num : null,
       price_cents,
       phone: String(cur.phone || '').trim(),
@@ -465,6 +499,10 @@ export default function AdminPanelClient() {
       lat: '',
       lon: '',
       tagsText: '',
+      category: '',
+      minAge: '',
+      maxAge: '',
+      priceNotes: '',
       price_rub: '',
       phone: '',
       webSite: '',
@@ -503,7 +541,6 @@ export default function AdminPanelClient() {
     const locationChanged = normalizeAddr(prevLoc) !== normalizeAddr(nextLoc);
 
     if ((payload.lat == null || payload.lon == null) && nextLoc) {
-      // в случае изменения адреса или отсутствия coords
       if (locationChanged || selectedClub.lat == null || selectedClub.lon == null) {
         toastShow(setToast, 'Геокодим адрес…');
         const geo = await geocodeInBrowser(nextLoc);
@@ -598,10 +635,10 @@ export default function AdminPanelClient() {
   };
 
   // ----------------------------------
-  // Bulk correction in browser (no backend geocoder)
+  // Bulk correction in browser
   // ----------------------------------
   const correctAllClientSide = async () => {
-    if (!confirm('Прогнать коррекцию координат по всем кружкам? Это сделает запросы в Yandex из браузера и сохранит lat/lon в БД.')) return;
+    if (!confirm('Прогнать коррекцию координат по всем кружкам?')) return;
 
     setLog('Старт коррекции…\n');
     await loadYandexMapsScript();
@@ -619,7 +656,6 @@ export default function AdminPanelClient() {
       const loc = String(c.location || '').trim();
       if (!loc) continue;
 
-      // только если нет coords или ты хочешь «пересчитать всем» — сейчас пересчитываем всем
       const geo = await geocodeInBrowser(loc);
       if (!geo) {
         fail++;
@@ -644,7 +680,6 @@ export default function AdminPanelClient() {
         setLog((p) => p + `✗ ${c.slug || c.id}: save failed\n`);
       }
 
-      // маленькая пауза чтобы не спамить
       // eslint-disable-next-line no-await-in-loop
       await new Promise((r) => setTimeout(r, 180));
     }
@@ -653,7 +688,7 @@ export default function AdminPanelClient() {
   };
 
   // ----------------------------------
-  // Bulk fill missing coords via backend util (если вдруг нужно)
+  // Bulk fill missing coords via backend util
   // ----------------------------------
   const fillMissingCoords = async () => {
     try {
@@ -679,7 +714,9 @@ export default function AdminPanelClient() {
     <>
       <header>
         <h1>Mapka — Admin</h1>
-        <div className="muted">Подсказка: геокодинг делаем в браузере через Yandex Maps JS API. Бэкенд только сохраняет lat/lon в БД.</div>
+        <div className="muted">
+          Добавлены поля: Категория, Возраст (min/max), Примечание к цене.
+        </div>
       </header>
 
       <div className="wrap">
@@ -751,6 +788,27 @@ export default function AdminPanelClient() {
                   <div style={{ width: 320 }}>
                     <label>Slug</label>
                     <input type="text" value={form.slug} onChange={(e) => setField('slug', e.target.value)} />
+                  </div>
+                </div>
+
+                {/* ✅ NEW: Category + Age */}
+                <div className="row" style={{ marginTop: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label>Категория (для бейджа на странице)</label>
+                    <input
+                      type="text"
+                      value={form.category}
+                      onChange={(e) => setField('category', e.target.value)}
+                      placeholder="например: Спорт / Танцы / Робототехника"
+                    />
+                  </div>
+                  <div style={{ width: 160 }}>
+                    <label>Возраст от</label>
+                    <input type="number" value={form.minAge} onChange={(e) => setField('minAge', e.target.value)} placeholder="7" />
+                  </div>
+                  <div style={{ width: 160 }}>
+                    <label>Возраст до</label>
+                    <input type="number" value={form.maxAge} onChange={(e) => setField('maxAge', e.target.value)} placeholder="12" />
                   </div>
                 </div>
 
@@ -826,14 +884,25 @@ export default function AdminPanelClient() {
                     <input type="text" value={form.price_rub} onChange={(e) => setField('price_rub', e.target.value)} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <label>Телефон</label>
-                    <input type="text" value={form.phone} onChange={(e) => setField('phone', e.target.value)} />
+                    <label>Примечание к цене</label>
+                    <input
+                      type="text"
+                      value={form.priceNotes}
+                      onChange={(e) => setField('priceNotes', e.target.value)}
+                      placeholder='например: "за занятие" / "абонемент"'
+                    />
                   </div>
                 </div>
 
-                <div style={{ marginTop: 12 }}>
-                  <label>Сайт</label>
-                  <input type="text" value={form.webSite} onChange={(e) => setField('webSite', e.target.value)} />
+                <div className="row" style={{ marginTop: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label>Телефон</label>
+                    <input type="text" value={form.phone} onChange={(e) => setField('phone', e.target.value)} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label>Сайт</label>
+                    <input type="text" value={form.webSite} onChange={(e) => setField('webSite', e.target.value)} />
+                  </div>
                 </div>
 
                 {/* Social links */}
@@ -974,7 +1043,11 @@ export default function AdminPanelClient() {
                 </div>
 
                 <div style={{ marginTop: 14 }} className="preview">
-                  {form.image ? <img src={form.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div className="muted">preview</div>}
+                  {form.image ? (
+                    <img src={form.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <div className="muted">preview</div>
+                  )}
                 </div>
               </aside>
             </div>
