@@ -11,13 +11,40 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         {children}
-        
+
         {/* Подключаем скрипт Яндекс Карт */}
         {/* strategy="beforeInteractive" загружает скрипт в начале, чтобы карта была готова быстрее */}
-        <Script 
-          src="https://api-maps.yandex.ru/v3/?apikey=58c38b72-57f7-4946-bc13-a256d341281a&lang=ru_RU" 
+        <Script
+          src="https://api-maps.yandex.ru/v3/?apikey=58c38b72-57f7-4946-bc13-a256d341281a&lang=ru_RU"
           strategy="beforeInteractive"
         />
+
+        {/* Yandex.Metrika counter */}
+        <Script id="yandex-metrika" strategy="afterInteractive">
+          {`
+            (function(m,e,t,r,i,k,a){
+                m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+                m[i].l=1*new Date();
+                for (var j = 0; j < document.scripts.length; j++) {
+                  if (document.scripts[j].src === r) { return; }
+                }
+                k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+            })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=105798797', 'ym');
+
+            ym(105798797, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
+          `}
+        </Script>
+
+        <noscript>
+          <div>
+            <img
+              src="https://mc.yandex.ru/watch/105798797"
+              style={{ position: 'absolute', left: '-9999px' }}
+              alt=""
+            />
+          </div>
+        </noscript>
+        {/* /Yandex.Metrika counter */}
       </body>
     </html>
   );
