@@ -21,6 +21,53 @@ function safeJsonParse(str, fallback) {
   }
 }
 
+function toNum(v) {
+  if (v == null || v === "") return null;
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function pickFirst(...vals) {
+  for (const v of vals) {
+    if (v != null && v !== "") return v;
+  }
+  return null;
+}
+
+function normalizeTags(rawTags) {
+  if (!Array.isArray(rawTags)) return [];
+  return rawTags
+    .map((t) =>
+      typeof t === "string"
+        ? t.trim()
+        : typeof t?.name === "string"
+          ? t.name.trim()
+          : ""
+    )
+    .filter(Boolean);
+}
+
+function normalizeCategory(raw) {
+  // backend может отдавать строку или объект {name}
+  const c = raw?.category;
+  const v =
+    (typeof c === "string" ? c : typeof c?.name === "string" ? c.name : null) ||
+    raw?.category_name ||
+    raw?.type ||
+    raw?.direction ||
+    raw?.section ||
+    raw?.kind ||
+    null;
+
+  return typeof v === "string" ? v.trim() : "";
+}
+
 function normalizeClub(raw) {
   if (!raw || typeof raw !== "object") return null;
 
@@ -43,10 +90,21 @@ function normalizeClub(raw) {
     ? raw.schedules
     : safeJsonParse(raw.schedules, []);
 
-  const lat =
-    raw.lat != null && raw.lat !== "" ? Number(raw.lat) : null;
-  const lon =
-    raw.lon != null && raw.lon !== "" ? Number(raw.lon) : null;
+  const lat = raw.lat != null && raw.lat !== "" ? Number(raw.lat) : null;
+  const lon = raw.lon != null && raw.lon !== "" ? Number(raw.lon) : null;
+
+  // ✅ ДОБАВИЛИ нормализацию полей (чтобы не было "undefined" и пустых бейджей)
+  const category = normalizeCategory(raw);
+  const minAge = toNum(
+    pickFirst(raw.minAge, raw.min_age, raw.age_min, raw.ageFrom, raw.age_from)
+  );
+  const maxAge = toNum(
+    pickFirst(raw.maxAge, raw.max_age, raw.age_max, raw.ageTo, raw.age_to)
+  );
+  const priceNotes =
+    pickFirst(raw.priceNotes, raw.price_notes, raw.price_note, raw.note_price) ||
+    "";
+  const tags = normalizeTags(raw.tags);
 
   return {
     // то, что нужно странице кружка
@@ -54,15 +112,26 @@ function normalizeClub(raw) {
     slug: raw.slug,
     title,
     address,
+
+    category,
+
     description: raw.description || "",
     image: raw.image || photos[0] || "",
     photos,
+
     price: raw.price_rub ?? raw.price ?? null,
-    tags: Array.isArray(raw.tags) ? raw.tags : [],
+    priceNotes,
+
+    minAge,
+    maxAge,
+
+    tags,
+
     phone: raw.phone || "",
     website: raw.webSite || raw.website || "",
     socialLinks: typeof social === "object" && social ? social : {},
     schedules,
+
     // coords
     lat: Number.isFinite(lat) ? lat : null,
     lon: Number.isFinite(lon) ? lon : null,
@@ -84,7 +153,9 @@ async function fetchJson(url, init) {
 }
 
 export async function fetchClubs({ limit = 5000, offset = 0 } = {}) {
-  const url = `${API_BASE}/clubs?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`;
+  const url = `${API_BASE}/clubs?limit=${encodeURIComponent(
+    limit
+  )}&offset=${encodeURIComponent(offset)}`;
   // список можно кэшировать — он не критичен для обновления slug страницы
   const data = await fetchJson(url, { next: { revalidate: 60 } });
   if (!Array.isArray(data)) return [];
@@ -113,7 +184,9 @@ export async function fetchClubData(slugOrId) {
   // 2) фолбэк: ищем в списке
   try {
     const clubs = await fetchClubs();
-    return clubs.find((c) => c?.slug === key || String(c?.id) === key) || null;
+    return (
+      clubs.find((c) => c?.slug === key || String(c?.id) === key) || null
+    );
   } catch {
     return null;
   }
