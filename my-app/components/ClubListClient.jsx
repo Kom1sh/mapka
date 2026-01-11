@@ -149,6 +149,51 @@ export default function ClubListClient({ initialClubs = [] }) {
 
   const STATE_ORDER = ["peek", "split", "full"];
 
+  // 🔧 Viewport sync helper (used on old browsers without dvh)
+  const syncViewportRef = useRef(() => {});
+
+  // 🔧 Tap-vs-swipe guard for mobile search (fix #1)
+  const searchGestureRef = useRef({
+    active: false,
+    x: 0,
+    y: 0,
+    t: 0,
+    moved: false,
+  });
+
+  const beginSearchGesture = (x, y) => {
+    searchGestureRef.current = {
+      active: true,
+      x,
+      y,
+      t: Date.now(),
+      moved: false,
+    };
+  };
+
+  const moveSearchGesture = (x, y) => {
+    const g = searchGestureRef.current;
+    if (!g.active || g.moved) return;
+    const dx = x - g.x;
+    const dy = y - g.y;
+    if (Math.abs(dx) > 12 || Math.abs(dy) > 12) {
+      g.moved = true;
+    }
+  };
+
+  const endSearchGesture = () => {
+    const g = searchGestureRef.current;
+    if (!g.active) return false;
+    const dt = Date.now() - g.t;
+    const shouldFocus = !g.moved && dt < 450;
+    searchGestureRef.current.active = false;
+    return shouldFocus;
+  };
+
+  const cancelSearchGesture = () => {
+    searchGestureRef.current.active = false;
+  };
+
   // Build tags + max price
   const { allTags, maxPriceFromDB } = useMemo(() => {
     const tagSet = new Set();
@@ -215,27 +260,58 @@ export default function ClubListClient({ initialClubs = [] }) {
     };
   }, [filterOpen]);
 
-  // ✅ iOS/Android mobile browsers: sync layout height with visual viewport
-  // This prevents "two-layer" scrolling/jumping when the keyboard opens.
+  // ✅ Viewport height sync:
+  // - On modern iOS (supports 100dvh) we rely on CSS (no JS px var that can get "stuck")
+  // - On older browsers we keep JS-based --app-height with extra "settle" updates
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const supportsDvh =
+      typeof CSS !== "undefined" &&
+      typeof CSS.supports === "function" &&
+      CSS.supports("height", "100dvh");
+
+    // If dvh exists — do nothing (CSS handles keyboard open/close reliably)
+    if (supportsDvh) {
+      syncViewportRef.current = () => {};
+      return;
+    }
+
+    let rafId = 0;
+
     const setAppHeight = () => {
-      const h = window.visualViewport?.height ?? window.innerHeight;
-      document.documentElement.style.setProperty(
-        "--app-height",
-        `${Math.round(h)}px`
-      );
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const h = window.visualViewport?.height ?? window.innerHeight;
+        document.documentElement.style.setProperty(
+          "--app-height",
+          `${Math.round(h)}px`
+        );
+      });
     };
 
-    setAppHeight();
+    const settle = () => {
+      setAppHeight();
+      // iOS sometimes updates viewport in несколько этапов
+      setTimeout(setAppHeight, 60);
+      setTimeout(setAppHeight, 180);
+      setTimeout(setAppHeight, 360);
+    };
 
-    window.addEventListener("resize", setAppHeight);
-    window.visualViewport?.addEventListener("resize", setAppHeight);
-    window.visualViewport?.addEventListener("scroll", setAppHeight);
+    syncViewportRef.current = settle;
+
+    settle();
+    window.addEventListener("resize", settle);
+    window.addEventListener("orientationchange", settle);
+    window.visualViewport?.addEventListener("resize", settle);
+    window.visualViewport?.addEventListener("scroll", settle);
 
     return () => {
-      window.removeEventListener("resize", setAppHeight);
-      window.visualViewport?.removeEventListener("resize", setAppHeight);
-      window.visualViewport?.removeEventListener("scroll", setAppHeight);
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", settle);
+      window.removeEventListener("orientationchange", settle);
+      window.visualViewport?.removeEventListener("resize", settle);
+      window.visualViewport?.removeEventListener("scroll", settle);
     };
   }, []);
 
@@ -291,7 +367,6 @@ export default function ClubListClient({ initialClubs = [] }) {
   }, []);
 
   // ✅ Add markers only after mapsReady
-  // ВАЖНО: координаты берём с бэка (club.lat / club.lon). Геокодинг на фронте убран.
   useEffect(() => {
     if (!mapsReady) return;
 
@@ -362,7 +437,6 @@ export default function ClubListClient({ initialClubs = [] }) {
       for (const club of allClubs || []) {
         if (cancelled) return;
 
-        // ✅ ожидаем lat/lon из API
         const lat = club.lat ?? club.latitude ?? null;
         const lon = club.lon ?? club.lng ?? club.longitude ?? null;
 
@@ -415,15 +489,12 @@ export default function ClubListClient({ initialClubs = [] }) {
     const handle = sheetHandleRef.current;
     if (!sheet || !handle) return;
 
-    // Helps pointer-based dragging behave predictably.
     handle.style.touchAction = "none";
 
     const recomputeOffsets = () => {
       const h = sheet.getBoundingClientRect().height;
       offsetsRef.current.full = 0;
       offsetsRef.current.peek = Math.max(0, h - 84);
-
-      // "split" = more open by default (user asked to raise the sheet).
       offsetsRef.current.split = Math.round(h * 0.34);
     };
 
@@ -465,7 +536,6 @@ export default function ClubListClient({ initialClubs = [] }) {
     applyStateIndex(sheetStateIndexRef.current, false);
 
     const onResize = () => {
-      // When keyboard opens/closes on iOS, visual viewport changes.
       recomputeOffsets();
       applyStateIndex(sheetStateIndexRef.current, false);
     };
@@ -500,7 +570,6 @@ export default function ClubListClient({ initialClubs = [] }) {
     };
 
     const onHandleClick = () => {
-      // Ignore click after drag (mobile Safari fires click after touchend)
       if (draggingRef.current || draggedEnoughRef.current) return;
       const next = (sheetStateIndexRef.current + 1) % STATE_ORDER.length;
       applyStateIndex(next, true);
@@ -511,10 +580,9 @@ export default function ClubListClient({ initialClubs = [] }) {
     window.visualViewport?.addEventListener("scroll", onResize);
     handle.addEventListener("click", onHandleClick);
 
-    // Use Pointer Events if available (best for iOS pinch/drag stability)
-    const supportsPointer = typeof window !== "undefined" && "PointerEvent" in window;
+    const supportsPointer =
+      typeof window !== "undefined" && "PointerEvent" in window;
 
-    // Fallback for older browsers that don't support pointer events well
     const onTouchStart = (e) => {
       if (supportsPointer) return;
       if (e.touches.length !== 1) return;
@@ -624,20 +692,17 @@ export default function ClubListClient({ initialClubs = [] }) {
   };
 
   const toggleFavorite = (id) => {
-    // ✅ toggle in state
     setAllClubs((prev) => {
       const next = (prev || []).map((c) =>
         c.id === id ? { ...c, isFavorite: !c.isFavorite } : c
       );
 
-      // ✅ persist (ids only)
       const ids = next.filter((c) => c.isFavorite).map((c) => String(c.id));
       writeFavoriteIds(ids);
 
       return next;
     });
 
-    // ✅ instant update in filtered list
     setFilteredClubs((prev) =>
       (prev || []).map((c) =>
         c.id === id ? { ...c, isFavorite: !c.isFavorite } : c
@@ -654,14 +719,13 @@ export default function ClubListClient({ initialClubs = [] }) {
     const el = mobileSearchRef.current;
     if (!el) return;
 
-    // Prevent Safari from auto-scrolling the whole page to the input.
     try {
       el.focus({ preventScroll: true });
     } catch {
       el.focus();
     }
 
-    // Extra safety: keep page at top (fixes "scrollable header" glitch on iOS).
+    // Pin page to top (iOS "scrollable header" guard)
     requestAnimationFrame(() => {
       try {
         window.scrollTo(0, 0);
@@ -669,6 +733,17 @@ export default function ClubListClient({ initialClubs = [] }) {
         // ignore
       }
     });
+
+    // Fix #2: after keyboard open/close -> force viewport re-sync + re-snap sheet
+    syncViewportRef.current?.();
+    setTimeout(() => {
+      syncViewportRef.current?.();
+      try {
+        window.dispatchEvent(new Event("resize"));
+      } catch {
+        // ignore
+      }
+    }, 80);
   };
 
   const ActiveChips = () => (
@@ -808,20 +883,48 @@ export default function ClubListClient({ initialClubs = [] }) {
                 </svg>
               </button>
 
+              {/* ✅ Fix #1: focus ONLY on real tap (not swipe) */}
               <div
                 className="search-box"
-                // iOS Safari likes to auto-scroll the page when an input gains focus.
-                // We intercept touch/pointer and focus w/ preventScroll.
                 onPointerDownCapture={(e) => {
                   if (e.pointerType === "mouse") return;
-                  if (document.activeElement === mobileSearchRef.current) return;
-                  e.preventDefault();
-                  focusMobileSearchNoJump();
+                  cancelSearchGesture();
+                  beginSearchGesture(e.clientX, e.clientY);
+                  try {
+                    e.currentTarget.setPointerCapture?.(e.pointerId);
+                  } catch {
+                    // ignore
+                  }
                 }}
-                onTouchStart={(e) => {
-                  if (document.activeElement === mobileSearchRef.current) return;
-                  e.preventDefault();
-                  focusMobileSearchNoJump();
+                onPointerMoveCapture={(e) => {
+                  if (e.pointerType === "mouse") return;
+                  moveSearchGesture(e.clientX, e.clientY);
+                }}
+                onPointerUpCapture={(e) => {
+                  if (e.pointerType === "mouse") return;
+                  if (endSearchGesture()) {
+                    e.preventDefault();
+                    focusMobileSearchNoJump();
+                  }
+                }}
+                onPointerCancelCapture={() => cancelSearchGesture()}
+                // fallback (на всякий)
+                onTouchStartCapture={(e) => {
+                  if ("PointerEvent" in window) return;
+                  if (e.touches.length !== 1) return;
+                  beginSearchGesture(e.touches[0].clientX, e.touches[0].clientY);
+                }}
+                onTouchMoveCapture={(e) => {
+                  if ("PointerEvent" in window) return;
+                  if (e.touches.length !== 1) return;
+                  moveSearchGesture(e.touches[0].clientX, e.touches[0].clientY);
+                }}
+                onTouchEndCapture={(e) => {
+                  if ("PointerEvent" in window) return;
+                  if (endSearchGesture()) {
+                    e.preventDefault();
+                    focusMobileSearchNoJump();
+                  }
                 }}
               >
                 <div className="search-icon-wrapper" style={{ paddingLeft: 8 }}>
@@ -838,11 +941,31 @@ export default function ClubListClient({ initialClubs = [] }) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => {
-                    // Keep the page pinned (fixes "scrollable header" on iPhone)
                     requestAnimationFrame(() => window.scrollTo(0, 0));
+                    syncViewportRef.current?.();
+                    setTimeout(() => {
+                      syncViewportRef.current?.();
+                      try {
+                        window.dispatchEvent(new Event("resize"));
+                      } catch {}
+                    }, 80);
                   }}
                   onBlur={() => {
                     requestAnimationFrame(() => window.scrollTo(0, 0));
+                    // ✅ Fix #2: после закрытия клавы — обновляем высоту и пересчитываем шторку
+                    syncViewportRef.current?.();
+                    setTimeout(() => {
+                      syncViewportRef.current?.();
+                      try {
+                        window.dispatchEvent(new Event("resize"));
+                      } catch {}
+                    }, 80);
+                    setTimeout(() => {
+                      syncViewportRef.current?.();
+                      try {
+                        window.dispatchEvent(new Event("resize"));
+                      } catch {}
+                    }, 220);
                   }}
                 />
               </div>
