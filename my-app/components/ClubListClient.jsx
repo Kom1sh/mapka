@@ -138,6 +138,7 @@ export default function ClubListClient({ initialClubs = [] }) {
   const startYRef = useRef(0);
   const startTranslateYRef = useRef(0);
   const draggingRef = useRef(false);
+  const draggedEnoughRef = useRef(false);
   const offsetsRef = useRef({ peek: 0, split: 0, full: 0 });
   const sheetStateIndexRef = useRef(1); // 0 peek, 1 split, 2 full
 
@@ -385,48 +386,69 @@ export default function ClubListClient({ initialClubs = [] }) {
     const handle = sheetHandleRef.current;
     if (!sheet || !handle) return;
 
+    let activePointerId = null;
+
     const recomputeOffsets = () => {
       const h = sheet.getBoundingClientRect().height;
+
+      // full = полностью раскрыта (вверх)
       offsetsRef.current.full = 0;
+
+      // peek = почти скрыта (оставляем только "ручку")
       offsetsRef.current.peek = Math.max(0, h - 84);
-      offsetsRef.current.split = Math.round(h / 2);
+
+      // split = дефолтное состояние (✅ делаем выше, чем было)
+      offsetsRef.current.split = Math.round(h * 0.34);
     };
 
-    const applyStateIndex = (idx) => {
+    const applyStateIndex = (idx, { animate = true } = {}) => {
       sheetStateIndexRef.current = Math.min(
         Math.max(idx, 0),
         STATE_ORDER.length - 1
       );
+
       const key = STATE_ORDER[sheetStateIndexRef.current];
       const y = offsetsRef.current[key];
 
       lastTranslateYRef.current = y;
-      sheet.style.transition = "transform 0.25s ease-out";
-      sheet.style.transform = `translateY(${y}px)`;
+
+      sheet.style.transition = animate ? "transform 0.25s ease-out" : "none";
+      // translate3d — меньше шанс глюков hitbox на iOS
+      sheet.style.transform = `translate3d(0, ${y}px, 0)`;
 
       sheet.classList.remove("peek", "split", "full");
       sheet.classList.add(key);
     };
 
     recomputeOffsets();
-    applyStateIndex(sheetStateIndexRef.current);
+    // ✅ на первом рендере не анимируем (чтобы не было дерганий)
+    applyStateIndex(sheetStateIndexRef.current, { animate: false });
 
     const onResize = () => {
       recomputeOffsets();
       applyStateIndex(sheetStateIndexRef.current);
     };
 
-    const onTouchStart = (e) => {
-      if (e.touches.length !== 1) return;
+    // ✅ iOS: при открытии клавиатуры меняется visualViewport (и может ломаться позиция/клики)
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    vv?.addEventListener("resize", onResize);
+    vv?.addEventListener("scroll", onResize);
+
+    const startDrag = (clientY) => {
       draggingRef.current = true;
-      startYRef.current = e.touches[0].clientY;
+      draggedEnoughRef.current = false;
+
+      startYRef.current = clientY;
       startTranslateYRef.current = lastTranslateYRef.current;
+
       sheet.style.transition = "none";
     };
 
-    const onTouchMove = (e) => {
+    const moveDrag = (clientY) => {
       if (!draggingRef.current) return;
-      const deltaY = e.touches[0].clientY - startYRef.current;
+
+      const deltaY = clientY - startYRef.current;
+      if (Math.abs(deltaY) > 6) draggedEnoughRef.current = true;
 
       const minY = offsetsRef.current.full;
       const maxY = offsetsRef.current.peek;
@@ -436,11 +458,10 @@ export default function ClubListClient({ initialClubs = [] }) {
       if (nextY > maxY) nextY = maxY;
 
       lastTranslateYRef.current = nextY;
-      sheet.style.transform = `translateY(${nextY}px)`;
-      e.preventDefault();
+      sheet.style.transform = `translate3d(0, ${nextY}px, 0)`;
     };
 
-    const onTouchEnd = () => {
+    const endDrag = () => {
       if (!draggingRef.current) return;
       draggingRef.current = false;
 
@@ -461,23 +482,99 @@ export default function ClubListClient({ initialClubs = [] }) {
       applyStateIndex(nearestIndex);
     };
 
+    const supportsPointer =
+      typeof window !== "undefined" && "PointerEvent" in window;
+
+    const onPointerDown = (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+
+      activePointerId = e.pointerId;
+      try {
+        handle.setPointerCapture?.(e.pointerId);
+      } catch (_) {}
+
+      startDrag(e.clientY);
+      e.preventDefault();
+    };
+
+    const onPointerMove = (e) => {
+      if (!draggingRef.current) return;
+      if (activePointerId != null && e.pointerId !== activePointerId) return;
+
+      moveDrag(e.clientY);
+      e.preventDefault();
+    };
+
+    const onPointerUp = (e) => {
+      if (activePointerId != null && e.pointerId !== activePointerId) return;
+      try {
+        handle.releasePointerCapture?.(e.pointerId);
+      } catch (_) {}
+
+      activePointerId = null;
+      endDrag();
+    };
+
+    const onTouchStart = (e) => {
+      if (e.touches.length !== 1) return;
+      startDrag(e.touches[0].clientY);
+      // passive: true — ок, preventDefault делаем в touchmove
+    };
+
+    const onTouchMove = (e) => {
+      if (!draggingRef.current) return;
+      moveDrag(e.touches[0].clientY);
+      e.preventDefault();
+    };
+
+    const onTouchEnd = () => {
+      activePointerId = null;
+      endDrag();
+    };
+
     const onHandleClick = () => {
+      // ✅ если был drag — не переключаем состояние кликом
       if (draggingRef.current) return;
+      if (draggedEnoughRef.current) return;
+
       const next = (sheetStateIndexRef.current + 1) % STATE_ORDER.length;
       applyStateIndex(next);
     };
 
     window.addEventListener("resize", onResize);
-    handle.addEventListener("touchstart", onTouchStart, { passive: true });
-    document.addEventListener("touchmove", onTouchMove, { passive: false });
-    document.addEventListener("touchend", onTouchEnd);
+
+    if (supportsPointer) {
+      handle.addEventListener("pointerdown", onPointerDown);
+      handle.addEventListener("pointermove", onPointerMove);
+      handle.addEventListener("pointerup", onPointerUp);
+      handle.addEventListener("pointercancel", onPointerUp);
+    } else {
+      handle.addEventListener("touchstart", onTouchStart, { passive: true });
+      handle.addEventListener("touchmove", onTouchMove, { passive: false });
+      handle.addEventListener("touchend", onTouchEnd);
+      handle.addEventListener("touchcancel", onTouchEnd);
+    }
+
     handle.addEventListener("click", onHandleClick);
 
     return () => {
+      vv?.removeEventListener("resize", onResize);
+      vv?.removeEventListener("scroll", onResize);
+
       window.removeEventListener("resize", onResize);
-      handle.removeEventListener("touchstart", onTouchStart);
-      document.removeEventListener("touchmove", onTouchMove);
-      document.removeEventListener("touchend", onTouchEnd);
+
+      if (supportsPointer) {
+        handle.removeEventListener("pointerdown", onPointerDown);
+        handle.removeEventListener("pointermove", onPointerMove);
+        handle.removeEventListener("pointerup", onPointerUp);
+        handle.removeEventListener("pointercancel", onPointerUp);
+      } else {
+        handle.removeEventListener("touchstart", onTouchStart);
+        handle.removeEventListener("touchmove", onTouchMove);
+        handle.removeEventListener("touchend", onTouchEnd);
+        handle.removeEventListener("touchcancel", onTouchEnd);
+      }
+
       handle.removeEventListener("click", onHandleClick);
     };
   }, []);

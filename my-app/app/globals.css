@@ -25,6 +25,20 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   background: var(--bg-primary);
@@ -690,7 +704,10 @@ a {
   border-radius: 24px 24px 0 0;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
   z-index: 30;
-  touch-action: none;
+  touch-action: pan-y;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
   transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   max-height: calc(100vh - var(--header-height));
   top: var(--header-height);
@@ -699,6 +716,7 @@ a {
 }
 
 .sheet-handle {
+  touch-action: none;
   display: flex;
   justify-content: center;
   padding: 12px;
@@ -720,6 +738,7 @@ a {
 }
 
 .sheet-content {
+  -webkit-overflow-scrolling: touch;
   padding: 0 16px 24px;
   overflow-y: auto;
   flex: 1;
@@ -1046,6 +1065,23 @@ a {
 
 .active-filter-chip button:hover {
   color: var(--text-primary);
+}
+
+@media (max-width: 549px) {
+  /* ✅ iOS: чтобы Safari не зумил страницу при фокусе на input (font-size должен быть >= 16px) */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  .search-box input {
+    font-size: 16px;
+  }
+
+  .tag-search-input {
+    font-size: 16px;
+  }
 }
 
 /* --- RESPONSIVE LOGIC FIX --- */
