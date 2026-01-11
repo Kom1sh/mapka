@@ -7,112 +7,54 @@ function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
 }
 
+function dist(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.hypot(dx, dy);
+}
+
+function mid(a, b) {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
 export default function ClubGallery({ photos = [] }) {
-  const list = useMemo(() => {
-    return Array.isArray(photos) && photos.length ? photos : [FALLBACK];
-  }, [photos]);
+  const list = useMemo(() => (Array.isArray(photos) && photos.length ? photos : [FALLBACK]), [photos]);
 
   const [currentPhotoIdx, setCurrentPhotoIdx] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
-  // zoom / pan (only for modal)
+  // zoom / pan (modal only)
   const [zoom, setZoom] = useState(1); // 1..3
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
 
   const stageRef = useRef(null);
-  const dragRef = useRef({ startX: 0, startY: 0, startPanX: 0, startPanY: 0 });
 
+  // swipe on gallery
   const trackRef = useRef(null);
   const startXRef = useRef(0);
-  const draggingRef = useRef(false);
+  const galleryDraggingRef = useRef(false);
 
-  const updateSlide = (idx) => {
-    const next = (idx + list.length) % list.length;
-    setCurrentPhotoIdx(next);
-  };
+  // drag (1 pointer)
+  const dragRef = useRef({ startX: 0, startY: 0, startPanX: 0, startPanY: 0 });
+
+  // pinch (2 pointers)
+  const pointersRef = useRef(new Map()); // pointerId -> {x,y}
+  const pinchRef = useRef({
+    active: false,
+    startDist: 0,
+    startZoom: 1,
+    startPan: { x: 0, y: 0 },
+    startMid: { x: 0, y: 0 },
+  });
 
   const resetZoom = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
     setIsDragging(false);
+    pinchRef.current.active = false;
+    pointersRef.current.clear();
   };
-
-  const openModal = () => {
-    setIsOpen(true);
-    // сразу сбрасываем зум на открытии
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-  };
-
-  const closeModal = () => {
-    setIsOpen(false);
-    // и на закрытии тоже
-    resetZoom();
-  };
-
-  // Swipe on gallery track
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track || list.length <= 1) return;
-
-    const onTouchStart = (e) => {
-      if (!e.touches?.length) return;
-      startXRef.current = e.touches[0].clientX;
-      draggingRef.current = true;
-    };
-
-    const onTouchEnd = (e) => {
-      if (!draggingRef.current) return;
-      const endX = e.changedTouches?.[0]?.clientX ?? startXRef.current;
-      const diff = startXRef.current - endX;
-
-      if (Math.abs(diff) > 50) {
-        if (diff > 0) updateSlide(currentPhotoIdx + 1);
-        else updateSlide(currentPhotoIdx - 1);
-      }
-      draggingRef.current = false;
-    };
-
-    track.addEventListener('touchstart', onTouchStart, { passive: true });
-    track.addEventListener('touchend', onTouchEnd, { passive: true });
-
-    return () => {
-      track.removeEventListener('touchstart', onTouchStart);
-      track.removeEventListener('touchend', onTouchEnd);
-    };
-  }, [currentPhotoIdx, list.length]);
-
-  // Modal: esc + arrows + scroll lock + reset zoom when switching photos
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    // ✅ при переключении фото — вернуть дефолтный масштаб
-    resetZoom();
-
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape') closeModal();
-
-      if (list.length > 1 && e.key === 'ArrowRight') updateSlide(currentPhotoIdx + 1);
-      if (list.length > 1 && e.key === 'ArrowLeft') updateSlide(currentPhotoIdx - 1);
-
-      if (e.key === '+' || e.key === '=') zoomIn();
-      if (e.key === '-' || e.key === '_') zoomOut();
-      if (e.key.toLowerCase() === 'r') resetZoom();
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener('keydown', onKeyDown);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, currentPhotoIdx, list.length]);
-
-  const currentSrc = list[currentPhotoIdx] || FALLBACK;
 
   const clampPanToStage = (nextPan, nextZoom) => {
     const el = stageRef.current;
@@ -144,8 +86,92 @@ export default function ClubGallery({ photos = [] }) {
   const zoomIn = () => setZoomSafe(zoom + 0.25);
   const zoomOut = () => setZoomSafe(zoom - 0.25);
 
+  const updateSlide = (idx) => {
+    const next = (idx + list.length) % list.length;
+    setCurrentPhotoIdx(next);
+  };
+
+  const openModal = () => {
+    setIsOpen(true);
+    // сброс на открытии
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const closeModal = () => {
+    setIsOpen(false);
+    resetZoom();
+  };
+
+  // swipe on gallery track (outside modal)
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track || list.length <= 1) return;
+
+    const onTouchStart = (e) => {
+      if (!e.touches?.length) return;
+      startXRef.current = e.touches[0].clientX;
+      galleryDraggingRef.current = true;
+    };
+
+    const onTouchEnd = (e) => {
+      if (!galleryDraggingRef.current) return;
+      const endX = e.changedTouches?.[0]?.clientX ?? startXRef.current;
+      const diff = startXRef.current - endX;
+
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) updateSlide(currentPhotoIdx + 1);
+        else updateSlide(currentPhotoIdx - 1);
+      }
+      galleryDraggingRef.current = false;
+    };
+
+    track.addEventListener('touchstart', onTouchStart, { passive: true });
+    track.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+      track.removeEventListener('touchstart', onTouchStart);
+      track.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [currentPhotoIdx, list.length]);
+
+  // modal key controls + scroll lock + reset zoom on slide change
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    // ✅ при переключении фото — вернуть дефолт
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+    setIsDragging(false);
+    pinchRef.current.active = false;
+    pointersRef.current.clear();
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') closeModal();
+
+      if (list.length > 1 && e.key === 'ArrowRight') updateSlide(currentPhotoIdx + 1);
+      if (list.length > 1 && e.key === 'ArrowLeft') updateSlide(currentPhotoIdx - 1);
+
+      if (e.key === '+' || e.key === '=') zoomIn();
+      if (e.key === '-' || e.key === '_') zoomOut();
+      if (e.key.toLowerCase() === 'r') resetZoom();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, currentPhotoIdx, list.length]);
+
+  const currentSrc = list[currentPhotoIdx] || FALLBACK;
+
+  // desktop wheel zoom
   const onStageWheel = (e) => {
-    // зум по колесу мыши/тачпаду
     e.preventDefault();
     const dir = e.deltaY < 0 ? 1 : -1;
     const step = 0.15;
@@ -158,39 +184,109 @@ export default function ClubGallery({ photos = [] }) {
     else resetZoom();
   };
 
+  // pointer handlers (drag + pinch)
   const onPointerDown = (e) => {
-    if (zoom === 1) return; // таскаем только когда приближено
     const el = stageRef.current;
     if (!el) return;
 
+    // важно: capture, чтобы движения не терялись
     el.setPointerCapture?.(e.pointerId);
-    setIsDragging(true);
 
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      startPanX: pan.x,
-      startPanY: pan.y,
-    };
+    // обновляем карту указателей (touch + mouse тоже ок)
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    const pts = Array.from(pointersRef.current.values());
+
+    // pinch start (2 pointers)
+    if (pts.length === 2) {
+      const m = mid(pts[0], pts[1]);
+      pinchRef.current = {
+        active: true,
+        startDist: dist(pts[0], pts[1]) || 1,
+        startZoom: zoom,
+        startPan: { ...pan },
+        startMid: m,
+      };
+      setIsDragging(false);
+      return;
+    }
+
+    // drag start (1 pointer) — только если уже увеличено
+    if (pts.length === 1 && zoom > 1) {
+      setIsDragging(true);
+      dragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startPanX: pan.x,
+        startPanY: pan.y,
+      };
+    }
   };
 
   const onPointerMove = (e) => {
-    if (!isDragging || zoom === 1) return;
+    if (!pointersRef.current.has(e.pointerId)) return;
 
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const pts = Array.from(pointersRef.current.values());
 
-    const nextPan = {
-      x: dragRef.current.startPanX + dx,
-      y: dragRef.current.startPanY + dy,
-    };
+    // pinch move (2 pointers)
+    if (pts.length === 2 && pinchRef.current.active) {
+      const p0 = pts[0];
+      const p1 = pts[1];
 
-    setPan(clampPanToStage(nextPan, zoom));
+      const curDist = dist(p0, p1) || 1;
+      const scale = curDist / (pinchRef.current.startDist || 1);
+
+      const nextZoom = clamp(pinchRef.current.startZoom * scale, 1, 3);
+
+      // смещение по движению центра двух пальцев
+      const curMid = mid(p0, p1);
+      const dx = curMid.x - pinchRef.current.startMid.x;
+      const dy = curMid.y - pinchRef.current.startMid.y;
+
+      if (nextZoom === 1) {
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
+        setIsDragging(false);
+        return;
+      }
+
+      setZoom(nextZoom);
+
+      const nextPan = {
+        x: pinchRef.current.startPan.x + dx,
+        y: pinchRef.current.startPan.y + dy,
+      };
+      setPan(clampPanToStage(nextPan, nextZoom));
+      return;
+    }
+
+    // drag move (1 pointer)
+    if (isDragging && zoom > 1 && pts.length === 1) {
+      const dx = e.clientX - dragRef.current.startX;
+      const dy = e.clientY - dragRef.current.startY;
+
+      const nextPan = {
+        x: dragRef.current.startPanX + dx,
+        y: dragRef.current.startPanY + dy,
+      };
+
+      setPan(clampPanToStage(nextPan, zoom));
+    }
   };
 
-  const onPointerUp = (e) => {
+  const endPointer = (e) => {
     const el = stageRef.current;
     el?.releasePointerCapture?.(e.pointerId);
+
+    pointersRef.current.delete(e.pointerId);
+    const ptsCount = pointersRef.current.size;
+
+    if (ptsCount < 2) {
+      pinchRef.current.active = false;
+    }
+
+    // чтобы не было “залипания” драга после пинча
     setIsDragging(false);
   };
 
@@ -203,11 +299,7 @@ export default function ClubGallery({ photos = [] }) {
           style={{ transform: `translateX(${-currentPhotoIdx * 100}%)` }}
         >
           {list.map((src, i) => (
-            <div
-              className="gallery-slide"
-              key={i}
-              style={{ ['--bg']: `url("${src}")` }}
-            >
+            <div className="gallery-slide" key={i} style={{ ['--bg']: `url("${src}")` }}>
               <img
                 src={src}
                 alt="Фото"
@@ -216,6 +308,7 @@ export default function ClubGallery({ photos = [] }) {
                 onError={(e) => {
                   e.currentTarget.onerror = null;
                   e.currentTarget.src = FALLBACK;
+
                   const slide = e.currentTarget.closest('.gallery-slide');
                   if (slide) slide.style.setProperty('--bg', `url("${FALLBACK}")`);
                 }}
@@ -267,7 +360,16 @@ export default function ClubGallery({ photos = [] }) {
       {isOpen && (
         <div className="gallery-modal-overlay" role="dialog" aria-modal="true" onClick={closeModal}>
           <div className="gallery-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="gallery-modal-close" onClick={closeModal} type="button" aria-label="Закрыть">
+            {/* ✅ КРЕСТИК: стопаем всплытие и даём высокий z-index в CSS */}
+            <button
+              className="gallery-modal-close"
+              onClick={(e) => {
+                e.stopPropagation();
+                closeModal();
+              }}
+              type="button"
+              aria-label="Закрыть"
+            >
               ✕
             </button>
 
@@ -313,8 +415,9 @@ export default function ClubGallery({ photos = [] }) {
               onDoubleClick={onStageDoubleClick}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
-              onPointerUp={onPointerUp}
-              onPointerCancel={onPointerUp}
+              onPointerUp={endPointer}
+              onPointerCancel={endPointer}
+              onClick={(e) => e.stopPropagation()}
             >
               <img
                 className={`gallery-modal-img ${zoom > 1 ? 'zoomed' : ''} ${isDragging ? 'dragging' : ''}`}

@@ -648,3 +648,79 @@ h1.main-title {
   cursor: grabbing;
   transition: none; /* чтобы перетаскивание было “живым” */
 }
+
+/* --- Zoom / Pan in Lightbox --- */
+.gallery-modal-stage {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* важно для мобилы: чтобы пинч/драг не скроллили страницу */
+  touch-action: none;
+}
+
+.gallery-modal-controls {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 8px;
+  border-radius: 14px;
+  backdrop-filter: blur(6px);
+}
+
+.gm-ctrl {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(255,255,255,0.14);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gm-ctrl:hover { background: rgba(255,255,255,0.22); }
+
+.gm-zoom {
+  color: rgba(255,255,255,0.9);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 0 6px;
+  min-width: 54px;
+  text-align: center;
+}
+
+.gm-reset { font-size: 14px; }
+
+.gallery-modal-img {
+  will-change: transform;
+  transition: transform 120ms ease;
+  user-select: none;
+  pointer-events: none; /* drag/pinch ловим на stage */
+  cursor: zoom-in;
+}
+
+.gallery-modal-img.zoomed { cursor: grab; }
+.gallery-modal-img.dragging { cursor: grabbing; transition: none; }
+
+/* ✅ крестик всегда кликабелен поверх stage */
+.gallery-modal-close {
+  z-index: 45;
+  pointer-events: auto;
+}
+
+/* чтобы стрелки тоже были поверх картинки */
+.gallery-modal-nav {
+  z-index: 35;
+}
