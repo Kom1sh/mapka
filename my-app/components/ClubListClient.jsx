@@ -124,6 +124,9 @@ export default function ClubListClient({ initialClubs = [] }) {
   const [desktopPanelCollapsed, setDesktopPanelCollapsed] = useState(false);
   const [panelHeaderScrolled, setPanelHeaderScrolled] = useState(false);
 
+  // iOS Safari: prevent layout jump when focusing the mobile search input
+  const mobileSearchRef = useRef(null);
+
   // Map refs
   const desktopMapRef = useRef(null);
   const mobileMapRef = useRef(null);
@@ -134,11 +137,13 @@ export default function ClubListClient({ initialClubs = [] }) {
   const bottomSheetRef = useRef(null);
   const sheetHandleRef = useRef(null);
 
+  // Prevent "click" toggle after a drag gesture
+  const draggedEnoughRef = useRef(false);
+
   const lastTranslateYRef = useRef(0);
   const startYRef = useRef(0);
   const startTranslateYRef = useRef(0);
   const draggingRef = useRef(false);
-  const draggedEnoughRef = useRef(false);
   const offsetsRef = useRef({ peek: 0, split: 0, full: 0 });
   const sheetStateIndexRef = useRef(1); // 0 peek, 1 split, 2 full
 
@@ -209,6 +214,30 @@ export default function ClubListClient({ initialClubs = [] }) {
       document.body.style.overflow = prev;
     };
   }, [filterOpen]);
+
+  // ✅ iOS/Android mobile browsers: sync layout height with visual viewport
+  // This prevents "two-layer" scrolling/jumping when the keyboard opens.
+  useEffect(() => {
+    const setAppHeight = () => {
+      const h = window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty(
+        "--app-height",
+        `${Math.round(h)}px`
+      );
+    };
+
+    setAppHeight();
+
+    window.addEventListener("resize", setAppHeight);
+    window.visualViewport?.addEventListener("resize", setAppHeight);
+    window.visualViewport?.addEventListener("scroll", setAppHeight);
+
+    return () => {
+      window.removeEventListener("resize", setAppHeight);
+      window.visualViewport?.removeEventListener("resize", setAppHeight);
+      window.visualViewport?.removeEventListener("scroll", setAppHeight);
+    };
+  }, []);
 
   // ✅ Init maps (desktop + mobile) — client only
   useEffect(() => {
@@ -386,22 +415,19 @@ export default function ClubListClient({ initialClubs = [] }) {
     const handle = sheetHandleRef.current;
     if (!sheet || !handle) return;
 
-    let activePointerId = null;
+    // Helps pointer-based dragging behave predictably.
+    handle.style.touchAction = "none";
 
     const recomputeOffsets = () => {
       const h = sheet.getBoundingClientRect().height;
-
-      // full = полностью раскрыта (вверх)
       offsetsRef.current.full = 0;
-
-      // peek = почти скрыта (оставляем только "ручку")
       offsetsRef.current.peek = Math.max(0, h - 84);
 
-      // split = дефолтное состояние (✅ делаем выше, чем было)
+      // "split" = more open by default (user asked to raise the sheet).
       offsetsRef.current.split = Math.round(h * 0.34);
     };
 
-    const applyStateIndex = (idx, { animate = true } = {}) => {
+    const applyStateIndex = (idx, animate = true) => {
       sheetStateIndexRef.current = Math.min(
         Math.max(idx, 0),
         STATE_ORDER.length - 1
@@ -411,42 +437,48 @@ export default function ClubListClient({ initialClubs = [] }) {
       const y = offsetsRef.current[key];
 
       lastTranslateYRef.current = y;
-
       sheet.style.transition = animate ? "transform 0.25s ease-out" : "none";
-      // translate3d — меньше шанс глюков hitbox на iOS
       sheet.style.transform = `translate3d(0, ${y}px, 0)`;
 
       sheet.classList.remove("peek", "split", "full");
       sheet.classList.add(key);
     };
 
-    recomputeOffsets();
-    // ✅ на первом рендере не анимируем (чтобы не было дерганий)
-    applyStateIndex(sheetStateIndexRef.current, { animate: false });
-
-    const onResize = () => {
+    const snapToNearest = () => {
       recomputeOffsets();
-      applyStateIndex(sheetStateIndexRef.current);
+      let nearestIndex = 0;
+      let nearestDist = Infinity;
+
+      STATE_ORDER.forEach((key, idx) => {
+        const d = Math.abs(lastTranslateYRef.current - offsetsRef.current[key]);
+        if (d < nearestDist) {
+          nearestDist = d;
+          nearestIndex = idx;
+        }
+      });
+
+      applyStateIndex(nearestIndex, true);
     };
 
-    // ✅ iOS: при открытии клавиатуры меняется visualViewport (и может ломаться позиция/клики)
-    const vv = typeof window !== "undefined" ? window.visualViewport : null;
-    vv?.addEventListener("resize", onResize);
-    vv?.addEventListener("scroll", onResize);
+    // Init
+    recomputeOffsets();
+    applyStateIndex(sheetStateIndexRef.current, false);
+
+    const onResize = () => {
+      // When keyboard opens/closes on iOS, visual viewport changes.
+      recomputeOffsets();
+      applyStateIndex(sheetStateIndexRef.current, false);
+    };
 
     const startDrag = (clientY) => {
       draggingRef.current = true;
       draggedEnoughRef.current = false;
-
       startYRef.current = clientY;
       startTranslateYRef.current = lastTranslateYRef.current;
-
       sheet.style.transition = "none";
     };
 
     const moveDrag = (clientY) => {
-      if (!draggingRef.current) return;
-
       const deltaY = clientY - startYRef.current;
       if (Math.abs(deltaY) > 6) draggedEnoughRef.current = true;
 
@@ -464,118 +496,90 @@ export default function ClubListClient({ initialClubs = [] }) {
     const endDrag = () => {
       if (!draggingRef.current) return;
       draggingRef.current = false;
-
-      sheet.style.transition = "transform 0.25s ease-out";
-      recomputeOffsets();
-
-      let nearestIndex = 0;
-      let nearestDist = Infinity;
-
-      STATE_ORDER.forEach((key, idx) => {
-        const d = Math.abs(lastTranslateYRef.current - offsetsRef.current[key]);
-        if (d < nearestDist) {
-          nearestDist = d;
-          nearestIndex = idx;
-        }
-      });
-
-      applyStateIndex(nearestIndex);
+      snapToNearest();
     };
 
-    const supportsPointer =
-      typeof window !== "undefined" && "PointerEvent" in window;
-
-    const onPointerDown = (e) => {
-      if (e.pointerType === "mouse" && e.button !== 0) return;
-
-      activePointerId = e.pointerId;
-      try {
-        handle.setPointerCapture?.(e.pointerId);
-      } catch (_) {}
-
-      startDrag(e.clientY);
-      e.preventDefault();
+    const onHandleClick = () => {
+      // Ignore click after drag (mobile Safari fires click after touchend)
+      if (draggingRef.current || draggedEnoughRef.current) return;
+      const next = (sheetStateIndexRef.current + 1) % STATE_ORDER.length;
+      applyStateIndex(next, true);
     };
 
-    const onPointerMove = (e) => {
-      if (!draggingRef.current) return;
-      if (activePointerId != null && e.pointerId !== activePointerId) return;
+    window.addEventListener("resize", onResize);
+    window.visualViewport?.addEventListener("resize", onResize);
+    window.visualViewport?.addEventListener("scroll", onResize);
+    handle.addEventListener("click", onHandleClick);
 
-      moveDrag(e.clientY);
-      e.preventDefault();
-    };
+    // Use Pointer Events if available (best for iOS pinch/drag stability)
+    const supportsPointer = typeof window !== "undefined" && "PointerEvent" in window;
 
-    const onPointerUp = (e) => {
-      if (activePointerId != null && e.pointerId !== activePointerId) return;
-      try {
-        handle.releasePointerCapture?.(e.pointerId);
-      } catch (_) {}
-
-      activePointerId = null;
-      endDrag();
-    };
-
+    // Fallback for older browsers that don't support pointer events well
     const onTouchStart = (e) => {
+      if (supportsPointer) return;
       if (e.touches.length !== 1) return;
       startDrag(e.touches[0].clientY);
-      // passive: true — ок, preventDefault делаем в touchmove
     };
 
     const onTouchMove = (e) => {
+      if (supportsPointer) return;
       if (!draggingRef.current) return;
       moveDrag(e.touches[0].clientY);
       e.preventDefault();
     };
 
     const onTouchEnd = () => {
-      activePointerId = null;
+      if (supportsPointer) return;
       endDrag();
     };
 
-    const onHandleClick = () => {
-      // ✅ если был drag — не переключаем состояние кликом
-      if (draggingRef.current) return;
-      if (draggedEnoughRef.current) return;
-
-      const next = (sheetStateIndexRef.current + 1) % STATE_ORDER.length;
-      applyStateIndex(next);
+    const onPointerDown = (e) => {
+      if (!supportsPointer) return;
+      if (e.pointerType === "mouse") return;
+      e.preventDefault();
+      try {
+        handle.setPointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+      startDrag(e.clientY);
     };
 
-    window.addEventListener("resize", onResize);
+    const onPointerMove = (e) => {
+      if (!supportsPointer) return;
+      if (!draggingRef.current) return;
+      moveDrag(e.clientY);
+      e.preventDefault();
+    };
 
-    if (supportsPointer) {
-      handle.addEventListener("pointerdown", onPointerDown);
-      handle.addEventListener("pointermove", onPointerMove);
-      handle.addEventListener("pointerup", onPointerUp);
-      handle.addEventListener("pointercancel", onPointerUp);
-    } else {
-      handle.addEventListener("touchstart", onTouchStart, { passive: true });
-      handle.addEventListener("touchmove", onTouchMove, { passive: false });
-      handle.addEventListener("touchend", onTouchEnd);
-      handle.addEventListener("touchcancel", onTouchEnd);
-    }
+    const onPointerUp = () => {
+      if (!supportsPointer) return;
+      endDrag();
+    };
 
-    handle.addEventListener("click", onHandleClick);
+    handle.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd);
+
+    handle.addEventListener("pointerdown", onPointerDown);
+    handle.addEventListener("pointermove", onPointerMove);
+    handle.addEventListener("pointerup", onPointerUp);
+    handle.addEventListener("pointercancel", onPointerUp);
 
     return () => {
-      vv?.removeEventListener("resize", onResize);
-      vv?.removeEventListener("scroll", onResize);
-
       window.removeEventListener("resize", onResize);
-
-      if (supportsPointer) {
-        handle.removeEventListener("pointerdown", onPointerDown);
-        handle.removeEventListener("pointermove", onPointerMove);
-        handle.removeEventListener("pointerup", onPointerUp);
-        handle.removeEventListener("pointercancel", onPointerUp);
-      } else {
-        handle.removeEventListener("touchstart", onTouchStart);
-        handle.removeEventListener("touchmove", onTouchMove);
-        handle.removeEventListener("touchend", onTouchEnd);
-        handle.removeEventListener("touchcancel", onTouchEnd);
-      }
-
+      window.visualViewport?.removeEventListener("resize", onResize);
+      window.visualViewport?.removeEventListener("scroll", onResize);
       handle.removeEventListener("click", onHandleClick);
+
+      handle.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+
+      handle.removeEventListener("pointerdown", onPointerDown);
+      handle.removeEventListener("pointermove", onPointerMove);
+      handle.removeEventListener("pointerup", onPointerUp);
+      handle.removeEventListener("pointercancel", onPointerUp);
     };
   }, []);
 
@@ -645,6 +649,27 @@ export default function ClubListClient({ initialClubs = [] }) {
     maxPriceFromDB > 0
       ? Math.max(0, Math.min(100, (maxPrice / maxPriceFromDB) * 100))
       : 100;
+
+  const focusMobileSearchNoJump = () => {
+    const el = mobileSearchRef.current;
+    if (!el) return;
+
+    // Prevent Safari from auto-scrolling the whole page to the input.
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      el.focus();
+    }
+
+    // Extra safety: keep page at top (fixes "scrollable header" glitch on iOS).
+    requestAnimationFrame(() => {
+      try {
+        window.scrollTo(0, 0);
+      } catch {
+        // ignore
+      }
+    });
+  };
 
   const ActiveChips = () => (
     <>
@@ -783,7 +808,22 @@ export default function ClubListClient({ initialClubs = [] }) {
                 </svg>
               </button>
 
-              <div className="search-box">
+              <div
+                className="search-box"
+                // iOS Safari likes to auto-scroll the page when an input gains focus.
+                // We intercept touch/pointer and focus w/ preventScroll.
+                onPointerDownCapture={(e) => {
+                  if (e.pointerType === "mouse") return;
+                  if (document.activeElement === mobileSearchRef.current) return;
+                  e.preventDefault();
+                  focusMobileSearchNoJump();
+                }}
+                onTouchStart={(e) => {
+                  if (document.activeElement === mobileSearchRef.current) return;
+                  e.preventDefault();
+                  focusMobileSearchNoJump();
+                }}
+              >
                 <div className="search-icon-wrapper" style={{ paddingLeft: 8 }}>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" width="20" height="20">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
@@ -791,11 +831,19 @@ export default function ClubListClient({ initialClubs = [] }) {
                 </div>
 
                 <input
+                  ref={mobileSearchRef}
                   type="search"
                   placeholder="Поиск..."
                   id="mobileSearchInput"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => {
+                    // Keep the page pinned (fixes "scrollable header" on iPhone)
+                    requestAnimationFrame(() => window.scrollTo(0, 0));
+                  }}
+                  onBlur={() => {
+                    requestAnimationFrame(() => window.scrollTo(0, 0));
+                  }}
                 />
               </div>
             </div>
