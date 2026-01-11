@@ -26,12 +26,10 @@
   display: flex;
   flex-direction: column;
 
-  /* FIX: scroll внутри wrapper (как у тебя было) */
   height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
 
-  /* как в статике (чтобы контент не уезжал под mobile-bottom-bar) */
   padding-bottom: 80px;
 }
 
@@ -284,10 +282,19 @@ h1.main-title {
   min-width: 140px;
   color: white;
 }
-.social-btn:hover { transform: translateY(-2px); opacity: 0.9; }
+.social-btn:hover { transform: translateY(-2px); opacity: 0.92; }
+
 .social-vk { background: #0077FF; }
 .social-tg { background: #24A1DE; }
 .social-wa { background: #25D366; }
+
+/* Instagram: фирменный градиент */
+.social-ig {
+  background: linear-gradient(135deg, #f58529 0%, #dd2a7b 45%, #8134af 80%, #515bd4 100%);
+}
+
+/* YouTube: красный */
+.social-yt { background: #FF0000; }
 
 /* 6. Schedule */
 .schedule-list {

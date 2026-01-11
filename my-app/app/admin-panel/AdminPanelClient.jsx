@@ -20,14 +20,17 @@ const WEEKDAYS_RU = [
   'Воскресенье',
 ];
 
+// ✅ TikTok убрали
 const SOCIAL_FIELDS = [
   { key: 'vk', label: 'VK' },
   { key: 'telegram', label: 'Telegram' },
   { key: 'whatsapp', label: 'WhatsApp' },
   { key: 'instagram', label: 'Instagram' },
   { key: 'youtube', label: 'YouTube' },
-  { key: 'tiktok', label: 'TikTok' },
 ];
+
+// ✅ ключи, которые вообще не должны сохраняться
+const IGNORED_SOCIAL_KEYS = new Set(['tiktok']);
 const SOCIAL_KEYS_SET = new Set(SOCIAL_FIELDS.map((x) => x.key));
 
 // ==================================
@@ -134,6 +137,10 @@ function initSocialFromClub(club) {
     const key = String(k || '').trim();
     const val = String(v ?? '').trim();
     if (!key) continue;
+
+    // ✅ TikTok и подобное игнорируем
+    if (IGNORED_SOCIAL_KEYS.has(key)) continue;
+
     if (SOCIAL_KEYS_SET.has(key)) links[key] = val;
     else extras.push({ key, value: val });
   }
@@ -149,18 +156,23 @@ function initSocialFromClub(club) {
 function buildSocialPayload(links, extras) {
   const out = {};
   const srcLinks = links && typeof links === 'object' ? links : {};
+
   for (const [k, v] of Object.entries(srcLinks)) {
     const key = String(k || '').trim();
     const val = String(v ?? '').trim();
     if (!key || !val) continue;
+    if (IGNORED_SOCIAL_KEYS.has(key)) continue; // ✅ не сохраняем
     out[key] = val;
   }
+
   for (const row of Array.isArray(extras) ? extras : []) {
     const key = String(row?.key || '').trim();
     const val = String(row?.value ?? '').trim();
     if (!key || !val) continue;
+    if (IGNORED_SOCIAL_KEYS.has(key)) continue; // ✅ не сохраняем
     out[key] = val;
   }
+
   return out;
 }
 
@@ -260,10 +272,10 @@ export default function AdminPanelClient() {
     lat: '',
     lon: '',
     tagsText: '',
-    category: '',      // ✅ NEW
-    minAge: '',        // ✅ NEW
-    maxAge: '',        // ✅ NEW
-    priceNotes: '',    // ✅ NEW
+    category: '',
+    minAge: '',
+    maxAge: '',
+    priceNotes: '',
     price_rub: '',
     phone: '',
     webSite: '',
@@ -280,7 +292,7 @@ export default function AdminPanelClient() {
   const fetchClubs = async () => {
     setLoading(true);
     try {
-      const r = await fetch(`${API_BASE}/api/clubs?limit=5000`, { credentials: 'include' });
+      const r = await fetch(`/api/clubs?limit=5000`, { credentials: 'include' });
       if (!r.ok) throw new Error(await r.text());
       const data = await r.json();
       setClubs(Array.isArray(data) ? data : []);
@@ -319,13 +331,10 @@ export default function AdminPanelClient() {
       lat: selectedClub.lat ?? '',
       lon: selectedClub.lon ?? '',
       tagsText: Array.isArray(selectedClub.tags) ? selectedClub.tags.join(', ') : '',
-
-      // ✅ NEW: category + age + price notes
       category: selectedClub.category ?? '',
       minAge: selectedClub.minAge ?? selectedClub.min_age ?? '',
       maxAge: selectedClub.maxAge ?? selectedClub.max_age ?? '',
       priceNotes: selectedClub.priceNotes ?? selectedClub.price_notes ?? '',
-
       price_rub:
         selectedClub.price_rub ??
         (selectedClub.price_cents != null ? (Number(selectedClub.price_cents) / 100).toFixed(2) : ''),
@@ -364,7 +373,6 @@ export default function AdminPanelClient() {
       return {
         ...prev,
         location: nextLoc,
-        // если адрес изменился — сбрасываем координаты, чтобы их пересчитать
         lat: changed ? '' : prev.lat,
         lon: changed ? '' : prev.lon,
       };
@@ -409,7 +417,6 @@ export default function AdminPanelClient() {
     setForm((prev) => {
       const rows = [...(prev.schedulesRows || [])];
       rows[idx] = { ...(rows[idx] || {}), ...patch };
-      // если выключили день — очищаем поля
       if (patch.enabled === false) {
         rows[idx].start = '';
         rows[idx].end = '';
@@ -454,7 +461,6 @@ export default function AdminPanelClient() {
     const socialLinks = buildSocialPayload(cur.socialLinks, cur.socialExtras);
     const schedules = schedulesToPayload(cur.schedulesRows);
 
-    // ✅ NEW fields
     const category = String(cur.category || '').trim();
     const minAge = toIntOrNull(cur.minAge);
     const maxAge = toIntOrNull(cur.maxAge);
@@ -470,7 +476,6 @@ export default function AdminPanelClient() {
       tags,
       isFavorite: false,
 
-      // ✅ NEW fields for club page badges
       category: category || null,
       minAge,
       maxAge,
@@ -513,7 +518,7 @@ export default function AdminPanelClient() {
 
     try {
       const payload = buildPayload({ ...empty, name: empty.name, slug: empty.slug });
-      const r = await fetch(`${API_BASE}/api/clubs`, {
+      const r = await fetch(`/api/clubs`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -535,7 +540,6 @@ export default function AdminPanelClient() {
 
     const payload = buildPayload(form);
 
-    // если адрес изменился и координат нет — автоматически геокодим (в браузере)
     const prevLoc = lastLocationRef.current;
     const nextLoc = String(form.location || '');
     const locationChanged = normalizeAddr(prevLoc) !== normalizeAddr(nextLoc);
@@ -553,7 +557,7 @@ export default function AdminPanelClient() {
     }
 
     try {
-      const r = await fetch(`${API_BASE}/api/clubs/${encodeURIComponent(selectedClub.id)}`, {
+      const r = await fetch(`/api/clubs/${encodeURIComponent(selectedClub.id)}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -565,7 +569,6 @@ export default function AdminPanelClient() {
 
       lastLocationRef.current = String(updated.location || form.location || '');
 
-      // update list without full reload
       setClubs((prev) => prev.map((c) => (String(c.id) === String(updated.id) ? updated : c)));
     } catch (e) {
       console.error(e);
@@ -577,7 +580,7 @@ export default function AdminPanelClient() {
     if (!clubId) return;
     if (!confirm('Удалить кружок?')) return;
     try {
-      const r = await fetch(`${API_BASE}/api/clubs/${encodeURIComponent(clubId)}`, {
+      const r = await fetch(`/api/clubs/${encodeURIComponent(clubId)}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -591,9 +594,6 @@ export default function AdminPanelClient() {
     }
   };
 
-  // ----------------------------------
-  // Геокодинг кнопки (одного)
-  // ----------------------------------
   const geocodeToForm = async () => {
     if (!form.location) {
       toastShow(setToast, 'Укажи адрес');
@@ -615,9 +615,6 @@ export default function AdminPanelClient() {
     await saveForm();
   };
 
-  // ----------------------------------
-  // Коррекция координат (по одному)
-  // ----------------------------------
   const correctSelectedCoords = async () => {
     if (!selectedClub) return;
     if (!form.location) {
@@ -634,9 +631,6 @@ export default function AdminPanelClient() {
     await saveForm();
   };
 
-  // ----------------------------------
-  // Bulk correction in browser
-  // ----------------------------------
   const correctAllClientSide = async () => {
     if (!confirm('Прогнать коррекцию координат по всем кружкам?')) return;
 
@@ -664,7 +658,7 @@ export default function AdminPanelClient() {
       }
 
       try {
-        const r = await fetch(`${API_BASE}/api/clubs/${encodeURIComponent(c.id)}`, {
+        const r = await fetch(`/api/clubs/${encodeURIComponent(c.id)}`, {
           method: 'PUT',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -687,13 +681,10 @@ export default function AdminPanelClient() {
     toastShow(setToast, `Готово: ok=${ok}, fail=${fail}`);
   };
 
-  // ----------------------------------
-  // Bulk fill missing coords via backend util
-  // ----------------------------------
   const fillMissingCoords = async () => {
     try {
       setLog('Запускаю /api/admin/geocode-missing…\n');
-      const r = await fetch(`${API_BASE}/api/admin/geocode-missing?limit=200&sleep_ms=200`, {
+      const r = await fetch(`/api/admin/geocode-missing?limit=200&sleep_ms=200`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -715,7 +706,7 @@ export default function AdminPanelClient() {
       <header>
         <h1>Mapka — Admin</h1>
         <div className="muted">
-          Добавлены поля: Категория, Возраст (min/max), Примечание к цене.
+          Соцсети: VK / Telegram / WhatsApp / Instagram / YouTube (TikTok удалён).
         </div>
       </header>
 
@@ -791,7 +782,6 @@ export default function AdminPanelClient() {
                   </div>
                 </div>
 
-                {/* ✅ NEW: Category + Age */}
                 <div className="row" style={{ marginTop: 12 }}>
                   <div style={{ flex: 1 }}>
                     <label>Категория (для бейджа на странице)</label>

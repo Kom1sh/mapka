@@ -48,13 +48,13 @@ function formatAge(minAge, maxAge) {
 }
 
 const RU_DAY_TO_SCHEMA = {
-  'Понедельник': 'Monday',
-  'Вторник': 'Tuesday',
-  'Среда': 'Wednesday',
-  'Четверг': 'Thursday',
-  'Пятница': 'Friday',
-  'Суббота': 'Saturday',
-  'Воскресенье': 'Sunday',
+  Понедельник: 'Monday',
+  Вторник: 'Tuesday',
+  Среда: 'Wednesday',
+  Четверг: 'Thursday',
+  Пятница: 'Friday',
+  Суббота: 'Saturday',
+  Воскресенье: 'Sunday',
 };
 
 function parseTimeRange(timeStr) {
@@ -118,18 +118,8 @@ export default async function Page({ params }) {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      {
-        '@type': 'ListItem',
-        position: 1,
-        name: 'Главная',
-        item: `${SITE_URL}/`,
-      },
-      {
-        '@type': 'ListItem',
-        position: 2,
-        name: title || slug,
-        item: url,
-      },
+      { '@type': 'ListItem', position: 1, name: 'Главная', item: `${SITE_URL}/` },
+      { '@type': 'ListItem', position: 2, name: title || slug, item: url },
     ],
   };
 
@@ -198,11 +188,7 @@ export default async function Page({ params }) {
       : undefined,
     geo:
       Number.isFinite(club.lat) && Number.isFinite(club.lon)
-        ? {
-            '@type': 'GeoCoordinates',
-            latitude: club.lat,
-            longitude: club.lon,
-          }
+        ? { '@type': 'GeoCoordinates', latitude: club.lat, longitude: club.lon }
         : undefined,
     openingHoursSpecification: openingHoursSpecification.length ? openingHoursSpecification : undefined,
     offers,
@@ -220,6 +206,22 @@ export default async function Page({ params }) {
     about: { '@id': `${url}#club` },
     inLanguage: 'ru-RU',
   };
+
+  // --- Social buttons (UI) ---
+  const SOCIAL_BUTTONS = [
+    { key: 'vk', label: 'ВКонтакте', className: 'social-vk' },
+    { key: 'telegram', label: 'Telegram', className: 'social-tg' },
+    { key: 'whatsapp', label: 'WhatsApp', className: 'social-wa' },
+    { key: 'instagram', label: 'Instagram', className: 'social-ig' },
+    { key: 'youtube', label: 'YouTube', className: 'social-yt' },
+  ];
+
+  const socialButtons = SOCIAL_BUTTONS.map((b) => {
+    const raw = socials?.[b.key];
+    const href = ensureHttps(raw);
+    if (!href) return null;
+    return { ...b, href };
+  }).filter(Boolean);
 
   return (
     <div className="club-main-wrapper">
@@ -242,12 +244,7 @@ export default async function Page({ params }) {
             {title}
           </div>
 
-          <button
-            className="back-btn"
-            id="shareBtn"
-            style={{ border: 'none', background: 'none' }}
-            aria-label="Поделиться"
-          >
+          <button className="back-btn" id="shareBtn" style={{ border: 'none', background: 'none' }} aria-label="Поделиться">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
             </svg>
@@ -303,21 +300,22 @@ export default async function Page({ params }) {
               </div>
             ) : null}
 
-            {club.socialLinks?.vk || club.socialLinks?.telegram ? (
+            {socialButtons.length > 0 ? (
               <div className="social-block">
                 <div className="social-title">Следите за нами в соцсетях:</div>
-                <div className="social-grid">
-                  {club.socialLinks?.vk ? (
-                    <a href={club.socialLinks.vk} target="_blank" rel="noopener noreferrer" className="social-btn social-vk">
-                      ВКонтакте
-                    </a>
-                  ) : null}
 
-                  {club.socialLinks?.telegram ? (
-                    <a href={club.socialLinks.telegram} target="_blank" rel="noopener noreferrer" className="social-btn social-tg">
-                      Telegram
+                <div className="social-grid">
+                  {socialButtons.map((b) => (
+                    <a
+                      key={b.key}
+                      href={b.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`social-btn ${b.className}`}
+                    >
+                      {b.label}
                     </a>
-                  ) : null}
+                  ))}
                 </div>
               </div>
             ) : null}
