@@ -84,7 +84,12 @@ export default function ClubGallery({ photos = [] }) {
           style={{ transform: `translateX(${-currentPhotoIdx * 100}%)` }}
         >
           {list.map((src, i) => (
-            <div className="gallery-slide" key={i}>
+            <div
+              className="gallery-slide"
+              key={i}
+              // фон для blur-эффекта
+              style={{ ['--bg']: `url("${src}")` }}
+            >
               <img
                 src={src}
                 alt="Фото"
@@ -93,6 +98,10 @@ export default function ClubGallery({ photos = [] }) {
                 onError={(e) => {
                   e.currentTarget.onerror = null;
                   e.currentTarget.src = FALLBACK;
+
+                  // чтобы blur-фон тоже был корректным
+                  const slide = e.currentTarget.closest('.gallery-slide');
+                  if (slide) slide.style.setProperty('--bg', `url("${FALLBACK}")`);
                 }}
               />
             </div>

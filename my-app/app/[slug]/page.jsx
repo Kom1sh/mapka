@@ -20,6 +20,21 @@ function ensureHttps(u) {
   return `https://${s.replace(/^\/\//, '')}`;
 }
 
+/**
+ * Делает ссылку максимально “живучей”:
+ * - добавляет https://
+ * - нормализует через URL (в т.ч. кириллические домены)
+ */
+function ensureUrl(u) {
+  const https = ensureHttps(u);
+  if (!https) return null;
+  try {
+    return new URL(https).toString();
+  } catch {
+    return https;
+  }
+}
+
 function normalizePhoneForSchema(phone) {
   const s = String(phone || '').trim();
   if (!s) return null;
@@ -130,15 +145,21 @@ export default async function Page({ params }) {
     null;
 
   const sameAs = [];
-  const siteUrl = ensureHttps(club.webSite);
-  if (siteUrl) sameAs.push(siteUrl);
 
-  // ✅ для UI кнопки "Сайт"
-  const websiteHref = siteUrl;
+  // ✅ FIX: читаем сайт из разных возможных полей (админки/бэка)
+  const rawWebsite =
+    club.webSite ??
+    club.website ??
+    club.web_site ??
+    club.site ??
+    null;
+
+  const websiteHref = ensureUrl(rawWebsite);
+  if (websiteHref) sameAs.push(websiteHref);
 
   const socials = club.socialLinks && typeof club.socialLinks === 'object' ? club.socialLinks : {};
   for (const v of Object.values(socials)) {
-    const u = ensureHttps(v);
+    const u = ensureUrl(v);
     if (u) sameAs.push(u);
   }
 
@@ -220,7 +241,7 @@ export default async function Page({ params }) {
 
   const socialButtons = SOCIAL_BUTTONS.map((b) => {
     const raw = socials?.[b.key];
-    const href = ensureHttps(raw);
+    const href = ensureUrl(raw);
     if (!href) return null;
     return { ...b, href };
   }).filter(Boolean);
@@ -306,7 +327,7 @@ export default async function Page({ params }) {
                   strokeWidth="2"
                   d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
                 />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 0 016 0z" />
               </svg>
               <span>{addressText}</span>
             </div>
