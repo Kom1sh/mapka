@@ -1,13 +1,27 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const FALLBACK = 'https://dummyimage.com/1200x800/d1d5db/fff.png&text=No+Image';
 
+function clamp(v, min, max) {
+  return Math.min(max, Math.max(min, v));
+}
+
 export default function ClubGallery({ photos = [] }) {
-  const list = Array.isArray(photos) && photos.length ? photos : [FALLBACK];
+  const list = useMemo(() => {
+    return Array.isArray(photos) && photos.length ? photos : [FALLBACK];
+  }, [photos]);
 
   const [currentPhotoIdx, setCurrentPhotoIdx] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+
+  // zoom / pan (only for modal)
+  const [zoom, setZoom] = useState(1); // 1..3
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+
+  const stageRef = useRef(null);
+  const dragRef = useRef({ startX: 0, startY: 0, startPanX: 0, startPanY: 0 });
 
   const trackRef = useRef(null);
   const startXRef = useRef(0);
@@ -18,8 +32,24 @@ export default function ClubGallery({ photos = [] }) {
     setCurrentPhotoIdx(next);
   };
 
-  const openModal = () => setIsOpen(true);
-  const closeModal = () => setIsOpen(false);
+  const resetZoom = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+    setIsDragging(false);
+  };
+
+  const openModal = () => {
+    setIsOpen(true);
+    // сразу сбрасываем зум на открытии
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const closeModal = () => {
+    setIsOpen(false);
+    // и на закрытии тоже
+    resetZoom();
+  };
 
   // Swipe on gallery track
   useEffect(() => {
@@ -53,17 +83,25 @@ export default function ClubGallery({ photos = [] }) {
     };
   }, [currentPhotoIdx, list.length]);
 
-  // Modal: esc + arrows + scroll lock
+  // Modal: esc + arrows + scroll lock + reset zoom when switching photos
   useEffect(() => {
     if (!isOpen) return;
 
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
+    // ✅ при переключении фото — вернуть дефолтный масштаб
+    resetZoom();
+
     const onKeyDown = (e) => {
       if (e.key === 'Escape') closeModal();
+
       if (list.length > 1 && e.key === 'ArrowRight') updateSlide(currentPhotoIdx + 1);
       if (list.length > 1 && e.key === 'ArrowLeft') updateSlide(currentPhotoIdx - 1);
+
+      if (e.key === '+' || e.key === '=') zoomIn();
+      if (e.key === '-' || e.key === '_') zoomOut();
+      if (e.key.toLowerCase() === 'r') resetZoom();
     };
 
     window.addEventListener('keydown', onKeyDown);
@@ -71,9 +109,90 @@ export default function ClubGallery({ photos = [] }) {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', onKeyDown);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, currentPhotoIdx, list.length]);
 
   const currentSrc = list[currentPhotoIdx] || FALLBACK;
+
+  const clampPanToStage = (nextPan, nextZoom) => {
+    const el = stageRef.current;
+    if (!el) return nextPan;
+
+    const rect = el.getBoundingClientRect();
+    const maxX = ((nextZoom - 1) * rect.width) / 2;
+    const maxY = ((nextZoom - 1) * rect.height) / 2;
+
+    return {
+      x: clamp(nextPan.x, -maxX, maxX),
+      y: clamp(nextPan.y, -maxY, maxY),
+    };
+  };
+
+  const setZoomSafe = (nextZoom) => {
+    const z = clamp(nextZoom, 1, 3);
+    setZoom(z);
+
+    if (z === 1) {
+      setPan({ x: 0, y: 0 });
+      setIsDragging(false);
+      return;
+    }
+
+    setPan((p) => clampPanToStage(p, z));
+  };
+
+  const zoomIn = () => setZoomSafe(zoom + 0.25);
+  const zoomOut = () => setZoomSafe(zoom - 0.25);
+
+  const onStageWheel = (e) => {
+    // зум по колесу мыши/тачпаду
+    e.preventDefault();
+    const dir = e.deltaY < 0 ? 1 : -1;
+    const step = 0.15;
+    setZoomSafe(zoom + dir * step);
+  };
+
+  const onStageDoubleClick = () => {
+    // быстрый toggle 1x <-> 2x
+    if (zoom === 1) setZoomSafe(2);
+    else resetZoom();
+  };
+
+  const onPointerDown = (e) => {
+    if (zoom === 1) return; // таскаем только когда приближено
+    const el = stageRef.current;
+    if (!el) return;
+
+    el.setPointerCapture?.(e.pointerId);
+    setIsDragging(true);
+
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startPanX: pan.x,
+      startPanY: pan.y,
+    };
+  };
+
+  const onPointerMove = (e) => {
+    if (!isDragging || zoom === 1) return;
+
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+
+    const nextPan = {
+      x: dragRef.current.startPanX + dx,
+      y: dragRef.current.startPanY + dy,
+    };
+
+    setPan(clampPanToStage(nextPan, zoom));
+  };
+
+  const onPointerUp = (e) => {
+    const el = stageRef.current;
+    el?.releasePointerCapture?.(e.pointerId);
+    setIsDragging(false);
+  };
 
   return (
     <>
@@ -87,7 +206,6 @@ export default function ClubGallery({ photos = [] }) {
             <div
               className="gallery-slide"
               key={i}
-              // фон для blur-эффекта
               style={{ ['--bg']: `url("${src}")` }}
             >
               <img
@@ -98,8 +216,6 @@ export default function ClubGallery({ photos = [] }) {
                 onError={(e) => {
                   e.currentTarget.onerror = null;
                   e.currentTarget.src = FALLBACK;
-
-                  // чтобы blur-фон тоже был корректным
                   const slide = e.currentTarget.closest('.gallery-slide');
                   if (slide) slide.style.setProperty('--bg', `url("${FALLBACK}")`);
                 }}
@@ -155,6 +271,20 @@ export default function ClubGallery({ photos = [] }) {
               ✕
             </button>
 
+            {/* Zoom controls */}
+            <div className="gallery-modal-controls" onClick={(e) => e.stopPropagation()}>
+              <button type="button" className="gm-ctrl" onClick={zoomOut} aria-label="Уменьшить">
+                −
+              </button>
+              <div className="gm-zoom">{Math.round(zoom * 100)}%</div>
+              <button type="button" className="gm-ctrl" onClick={zoomIn} aria-label="Увеличить">
+                +
+              </button>
+              <button type="button" className="gm-ctrl gm-reset" onClick={resetZoom} aria-label="Сбросить масштаб">
+                1×
+              </button>
+            </div>
+
             {list.length > 1 && (
               <>
                 <button
@@ -176,15 +306,29 @@ export default function ClubGallery({ photos = [] }) {
               </>
             )}
 
-            <img
-              className="gallery-modal-img"
-              src={currentSrc}
-              alt="Фото крупно"
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = FALLBACK;
-              }}
-            />
+            <div
+              className="gallery-modal-stage"
+              ref={stageRef}
+              onWheel={onStageWheel}
+              onDoubleClick={onStageDoubleClick}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+            >
+              <img
+                className={`gallery-modal-img ${zoom > 1 ? 'zoomed' : ''} ${isDragging ? 'dragging' : ''}`}
+                src={currentSrc}
+                alt="Фото крупно"
+                style={{
+                  transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+                }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = FALLBACK;
+                }}
+              />
+            </div>
 
             {list.length > 1 && (
               <div className="gallery-modal-counter">
