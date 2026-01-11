@@ -135,6 +135,41 @@ export default function ClubGallery({ photos = [] }) {
     };
   }, [currentPhotoIdx, list.length]);
 
+  // ✅ iOS FIX: отключаем нативный pinch-zoom страницы, пока открыт лайтбокс
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const prevent = (e) => {
+      e.preventDefault();
+    };
+
+    // iOS Safari gestures
+    document.addEventListener('gesturestart', prevent, { passive: false });
+    document.addEventListener('gesturechange', prevent, { passive: false });
+    document.addEventListener('gestureend', prevent, { passive: false });
+
+    return () => {
+      document.removeEventListener('gesturestart', prevent);
+      document.removeEventListener('gesturechange', prevent);
+      document.removeEventListener('gestureend', prevent);
+    };
+  }, [isOpen]);
+
+  // ✅ iOS FIX: блокируем touchmove на сцене (иначе Safari может “дергать” масштаб)
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = stageRef.current;
+    if (!el) return;
+
+    const preventTouchMove = (e) => {
+      // всегда блокируем, потому что мы внутри модалки
+      e.preventDefault();
+    };
+
+    el.addEventListener('touchmove', preventTouchMove, { passive: false });
+    return () => el.removeEventListener('touchmove', preventTouchMove);
+  }, [isOpen]);
+
   // modal key controls + scroll lock + reset zoom on slide change
   useEffect(() => {
     if (!isOpen) return;
@@ -142,7 +177,7 @@ export default function ClubGallery({ photos = [] }) {
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
-    // ✅ при переключении фото — вернуть дефолт
+    // при переключении фото — вернуть дефолт
     setZoom(1);
     setPan({ x: 0, y: 0 });
     setIsDragging(false);
@@ -189,12 +224,11 @@ export default function ClubGallery({ photos = [] }) {
     const el = stageRef.current;
     if (!el) return;
 
-    // важно: capture, чтобы движения не терялись
+    e.preventDefault();
+
     el.setPointerCapture?.(e.pointerId);
 
-    // обновляем карту указателей (touch + mouse тоже ок)
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
     const pts = Array.from(pointersRef.current.values());
 
     // pinch start (2 pointers)
@@ -226,6 +260,8 @@ export default function ClubGallery({ photos = [] }) {
   const onPointerMove = (e) => {
     if (!pointersRef.current.has(e.pointerId)) return;
 
+    e.preventDefault();
+
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const pts = Array.from(pointersRef.current.values());
 
@@ -236,10 +272,8 @@ export default function ClubGallery({ photos = [] }) {
 
       const curDist = dist(p0, p1) || 1;
       const scale = curDist / (pinchRef.current.startDist || 1);
-
       const nextZoom = clamp(pinchRef.current.startZoom * scale, 1, 3);
 
-      // смещение по движению центра двух пальцев
       const curMid = mid(p0, p1);
       const dx = curMid.x - pinchRef.current.startMid.x;
       const dy = curMid.y - pinchRef.current.startMid.y;
@@ -280,13 +314,9 @@ export default function ClubGallery({ photos = [] }) {
     el?.releasePointerCapture?.(e.pointerId);
 
     pointersRef.current.delete(e.pointerId);
-    const ptsCount = pointersRef.current.size;
 
-    if (ptsCount < 2) {
-      pinchRef.current.active = false;
-    }
+    if (pointersRef.current.size < 2) pinchRef.current.active = false;
 
-    // чтобы не было “залипания” драга после пинча
     setIsDragging(false);
   };
 
@@ -360,7 +390,6 @@ export default function ClubGallery({ photos = [] }) {
       {isOpen && (
         <div className="gallery-modal-overlay" role="dialog" aria-modal="true" onClick={closeModal}>
           <div className="gallery-modal" onClick={(e) => e.stopPropagation()}>
-            {/* ✅ КРЕСТИК: стопаем всплытие и даём высокий z-index в CSS */}
             <button
               className="gallery-modal-close"
               onClick={(e) => {
@@ -373,7 +402,6 @@ export default function ClubGallery({ photos = [] }) {
               ✕
             </button>
 
-            {/* Zoom controls */}
             <div className="gallery-modal-controls" onClick={(e) => e.stopPropagation()}>
               <button type="button" className="gm-ctrl" onClick={zoomOut} aria-label="Уменьшить">
                 −
