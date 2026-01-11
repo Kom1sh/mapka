@@ -23,7 +23,6 @@ function ensureHttps(u) {
 function normalizePhoneForSchema(phone) {
   const s = String(phone || '').trim();
   if (!s) return null;
-  // оставляем + и цифры
   const cleaned = s.replace(/[^\d+]/g, '');
   return cleaned || null;
 }
@@ -123,7 +122,7 @@ export default async function Page({ params }) {
     ],
   };
 
-  // --- Schema: LocalBusiness (универсально для разных кружков) ---
+  // --- Schema: LocalBusiness ---
   const image =
     (Array.isArray(club.photos) && club.photos[0]) ||
     club.image ||
@@ -133,6 +132,9 @@ export default async function Page({ params }) {
   const sameAs = [];
   const siteUrl = ensureHttps(club.webSite);
   if (siteUrl) sameAs.push(siteUrl);
+
+  // ✅ для UI кнопки "Сайт"
+  const websiteHref = siteUrl;
 
   const socials = club.socialLinks && typeof club.socialLinks === 'object' ? club.socialLinks : {};
   for (const v of Object.values(socials)) {
@@ -194,7 +196,7 @@ export default async function Page({ params }) {
     offers,
   };
 
-  // --- Schema: WebPage (страница кружка) ---
+  // --- Schema: WebPage ---
   const pageJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
@@ -207,7 +209,7 @@ export default async function Page({ params }) {
     inLanguage: 'ru-RU',
   };
 
-  // --- Social buttons (UI) ---
+  // --- Buttons (UI) ---
   const SOCIAL_BUTTONS = [
     { key: 'vk', label: 'ВКонтакте', className: 'social-vk' },
     { key: 'telegram', label: 'Telegram', className: 'social-tg' },
@@ -223,6 +225,18 @@ export default async function Page({ params }) {
     return { ...b, href };
   }).filter(Boolean);
 
+  const linkButtons = [];
+  if (websiteHref) {
+    linkButtons.push({
+      key: 'website',
+      label: 'Сайт',
+      className: 'social-site',
+      href: websiteHref,
+    });
+  }
+
+  const allButtons = [...linkButtons, ...socialButtons];
+
   return (
     <div className="club-main-wrapper">
       {/* Schema.org */}
@@ -230,11 +244,19 @@ export default async function Page({ params }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(clubJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbsJsonLd) }} />
 
-      {/* Header 1:1 как в статике */}
+      {/* Header */}
       <header className="header">
         <div className="header-inner">
           <Link href="/" className="back-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
             <span>Назад</span>
@@ -245,8 +267,20 @@ export default async function Page({ params }) {
           </div>
 
           <button className="back-btn" id="shareBtn" style={{ border: 'none', background: 'none' }} aria-label="Поделиться">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+              />
             </svg>
           </button>
         </div>
@@ -266,7 +300,12 @@ export default async function Page({ params }) {
 
             <div className="address-row">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               <span>{addressText}</span>
@@ -300,12 +339,12 @@ export default async function Page({ params }) {
               </div>
             ) : null}
 
-            {socialButtons.length > 0 ? (
+            {allButtons.length > 0 ? (
               <div className="social-block">
-                <div className="social-title">Следите за нами в соцсетях:</div>
+                <div className="social-title">Контакты и соцсети:</div>
 
                 <div className="social-grid">
-                  {socialButtons.map((b) => (
+                  {allButtons.map((b) => (
                     <a
                       key={b.key}
                       href={b.href}
