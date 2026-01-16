@@ -1,0 +1,326 @@
+/* app/blog/[slug]/page.module.css */
+
+/* === Общие стили === */
+.wrapper {
+  background-color: #f8fafc; /* Светло-серый фон */
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #0f172a;
+  padding-bottom: 4rem;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* === Хлебные крошки === */
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  overflow-x: auto;
+}
+
+.breadcrumbs a {
+  text-decoration: none;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.breadcrumbs a:hover {
+  color: #2563eb;
+}
+
+.crumbActive {
+  color: #0f172a;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* === Сетка (Grid) === */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.5rem;
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: 2fr 1fr; /* 2 части контент, 1 часть сайдбар */
+  }
+}
+
+/* === Статья (Карточка) === */
+.articleCard {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border: 1px solid #e2e8f0;
+}
+
+.metaHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+
+.category {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.readTime {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.title {
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .title { font-size: 2.5rem; }
+}
+
+/* Автор */
+.authorBlock {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.authorInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: #cbd5e1;
+  position: relative;
+}
+
+.authorName {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.date {
+  font-size: 0.75rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Картинка статьи */
+.coverImageWrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  margin-bottom: 2.5rem;
+  background-color: #f1f5f9;
+}
+
+/* Контент статьи (Типографика) */
+.content {
+  font-size: 1.125rem;
+  line-height: 1.75;
+  color: #334155;
+}
+
+.content h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.content p {
+  margin-bottom: 1.5rem;
+}
+
+.content ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.content a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+/* Теги */
+.tags {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.tagsTitle {
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.tag:hover {
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+/* === Сайдбар === */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.stickyWrapper {
+  position: sticky;
+  top: 2rem;
+}
+
+/* Виджет поиска */
+.searchWidget {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #dbeafe; /* Light blue border */
+  margin-bottom: 1.5rem;
+}
+
+.widgetIcon {
+  background-color: #2563eb;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.widgetTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.widgetText {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 1rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  box-sizing: border-box; /* Важно чтобы padding не ломал ширину */
+}
+
+.button {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.button:hover {
+  background-color: #1d4ed8;
+}
+
+/* Блок "Читать также" */
+.moreBlock {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.moreTitle {
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.moreLink {
+  display: block;
+  margin-bottom: 1rem;
+  text-decoration: none;
+}
+
+.moreLink h5 {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1e293b;
+  margin: 0;
+}
+
+.moreLink:hover h5 {
+  color: #2563eb;
+}
+
+.moreDate {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 0.25rem;
+}
