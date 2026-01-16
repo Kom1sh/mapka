@@ -34,6 +34,20 @@ const IGNORED_SOCIAL_KEYS = new Set(['tiktok']);
 const SOCIAL_KEYS_SET = new Set(SOCIAL_FIELDS.map((x) => x.key));
 
 // ==================================
+// Admin tabs + Blog config
+// ==================================
+const ADMIN_TABS = [
+  { key: 'clubs', label: 'Кружки' },
+  { key: 'blog', label: 'Блог' },
+];
+
+// Planned backend endpoints for blog posts.
+// If backend does not have them yet, UI will fall back to localStorage.
+const BLOG_API_LIST = '/api/blog/posts?limit=5000';
+const BLOG_API_BASE = '/api/blog/posts';
+const BLOG_STORAGE_KEY = 'mapka_admin_blog_posts_v1';
+
+// ==================================
 // Small utils
 // ==================================
 function toastShow(setToast, msg) {
@@ -47,6 +61,46 @@ function safeJsonParse(str, fallback) {
   } catch {
     return fallback;
   }
+}
+
+// ---- blog helpers ----
+const RU_TO_LAT = {
+  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y',
+  к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f',
+  х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya',
+};
+
+function translitRuToLat(input) {
+  const s = String(input || '');
+  let out = '';
+  for (const ch of s) {
+    const low = ch.toLowerCase();
+    if (low in RU_TO_LAT) {
+      const t = RU_TO_LAT[low];
+      out += ch === low ? t : t.toUpperCase();
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+function slugify(input) {
+  const s = translitRuToLat(String(input || '')).toLowerCase();
+  const slug = s
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-+/g, '-');
+  return slug.slice(0, 80);
+}
+
+function makeId(prefix = 'id') {
+  // crypto.randomUUID is supported in modern browsers
+  try {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return `${prefix}_${crypto.randomUUID()}`;
+  } catch {}
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
 }
 
 function toNumberOrNull(v) {
@@ -250,6 +304,34 @@ export default function AdminPanelClient() {
     document.head.appendChild(style);
   }, []);
 
+  const [activeTab, setActiveTab] = useState('clubs');
+
+  // Blog state (falls back to localStorage if backend endpoints are not ready yet)
+  const [blogPosts, setBlogPosts] = useState([]);
+  const [blogLoading, setBlogLoading] = useState(false);
+  const [blogSelectedId, setBlogSelectedId] = useState(null);
+  const [blogSearch, setBlogSearch] = useState('');
+  const [blogLog, setBlogLog] = useState('');
+
+  const selectedPost = useMemo(
+    () => blogPosts.find((p) => String(p.id) === String(blogSelectedId)) || null,
+    [blogPosts, blogSelectedId]
+  );
+
+  const [postForm, setPostForm] = useState(() => ({
+    id: '',
+    title: '',
+    slug: '',
+    status: 'draft',
+    excerpt: '',
+    coverImage: '',
+    tagsText: '',
+    content: '',
+    createdAt: '',
+    updatedAt: '',
+    publishedAt: '',
+  }));
+
   const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -312,6 +394,266 @@ export default function AdminPanelClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
+
+
+  // ----------------------------------
+  // Blog: localStorage + API fallback
+  // ----------------------------------
+  const loadBlogLocal = () => {
+    try {
+      const raw = localStorage.getItem(BLOG_STORAGE_KEY);
+      const arr = safeJsonParse(raw, []);
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveBlogLocal = (list) => {
+    try {
+      localStorage.setItem(BLOG_STORAGE_KEY, JSON.stringify(list || []));
+    } catch {}
+  };
+
+  const normalizePostsFromApi = (data) => {
+    // Accept: array OR {items:[...]} OR {data:[...]}
+    const arr = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : Array.isArray(data?.data) ? data.data : [];
+    return arr
+      .map((p) => ({
+        id: p.id ?? p._id ?? makeId('post'),
+        title: p.title ?? '',
+        slug: p.slug ?? '',
+        status: p.status ?? 'draft',
+        excerpt: p.excerpt ?? p.description ?? '',
+        coverImage: p.coverImage ?? p.cover_image ?? p.cover ?? '',
+        tags: Array.isArray(p.tags) ? p.tags : [],
+        content: p.content ?? p.body ?? '',
+        createdAt: p.createdAt ?? p.created_at ?? '',
+        updatedAt: p.updatedAt ?? p.updated_at ?? '',
+        publishedAt: p.publishedAt ?? p.published_at ?? '',
+      }))
+      .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
+  };
+
+  const fetchBlogPosts = async () => {
+    setBlogLoading(true);
+    try {
+      const r = await fetch(BLOG_API_LIST, { credentials: 'include' });
+      if (r.ok) {
+        const data = await r.json();
+        const list = normalizePostsFromApi(data);
+        setBlogPosts(list);
+        // keep local copy as cache
+        saveBlogLocal(list);
+        if (!blogSelectedId && list.length) setBlogSelectedId(list[0].id);
+        return;
+      }
+
+      // fallback
+      const local = loadBlogLocal();
+      setBlogPosts(local);
+      if (!blogSelectedId && local.length) setBlogSelectedId(local[0].id);
+    } catch (e) {
+      console.warn('fetchBlogPosts failed, fallback to localStorage', e);
+      const local = loadBlogLocal();
+      setBlogPosts(local);
+      if (!blogSelectedId && local.length) setBlogSelectedId(local[0].id);
+    } finally {
+      setBlogLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'blog') return;
+    fetchBlogPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // When select post -> fill form
+  useEffect(() => {
+    if (!selectedPost) return;
+    setPostForm({
+      id: selectedPost.id || '',
+      title: selectedPost.title || '',
+      slug: selectedPost.slug || '',
+      status: selectedPost.status || 'draft',
+      excerpt: selectedPost.excerpt || '',
+      coverImage: selectedPost.coverImage || '',
+      tagsText: Array.isArray(selectedPost.tags) ? selectedPost.tags.join(', ') : '',
+      content: selectedPost.content || '',
+      createdAt: selectedPost.createdAt || '',
+      updatedAt: selectedPost.updatedAt || '',
+      publishedAt: selectedPost.publishedAt || '',
+    });
+  }, [selectedPost]);
+
+  const buildPostPayload = (cur) => {
+    const title = String(cur.title || '').trim();
+    const slugBase = String(cur.slug || '').trim() || slugify(title);
+    const slugFinal = slugBase || `post-${Math.random().toString(16).slice(2, 8)}`;
+
+    const tags = String(cur.tagsText || '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    const status = cur.status === 'published' ? 'published' : 'draft';
+
+    // if publishing and no date -> set now
+    const publishedAt = status === 'published' ? (cur.publishedAt || new Date().toISOString()) : '';
+
+    return {
+      title,
+      slug: slugFinal,
+      status,
+      excerpt: String(cur.excerpt || ''),
+      content: String(cur.content || ''),
+      cover_image: String(cur.coverImage || '').trim() || null,
+      tags,
+      published_at: publishedAt || null,
+    };
+  };
+
+  const createNewPost = async () => {
+    const id = makeId('post');
+    const now = new Date().toISOString();
+    const base = {
+      id,
+      title: 'Новая статья',
+      slug: `post-${Math.random().toString(16).slice(2, 8)}`,
+      status: 'draft',
+      excerpt: '',
+      coverImage: '',
+      tags: [],
+      content: '',
+      createdAt: now,
+      updatedAt: now,
+      publishedAt: '',
+    };
+
+    try {
+      const r = await fetch(BLOG_API_BASE, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildPostPayload(base)),
+      });
+      if (r.ok) {
+        const created = normalizePostsFromApi([await r.json()])[0];
+        setBlogPosts((prev) => {
+          const next = [created, ...(prev || [])];
+          saveBlogLocal(next);
+          return next;
+        });
+        setBlogSelectedId(created.id);
+        toastShow(setToast, 'Статья создана');
+        return;
+      }
+    } catch {}
+
+    // local fallback
+    setBlogPosts((prev) => {
+      const next = [base, ...(prev || [])];
+      saveBlogLocal(next);
+      return next;
+    });
+    setBlogSelectedId(id);
+    setPostForm({
+      id,
+      title: base.title,
+      slug: base.slug,
+      status: base.status,
+      excerpt: base.excerpt,
+      coverImage: base.coverImage,
+      tagsText: '',
+      content: base.content,
+      createdAt: base.createdAt,
+      updatedAt: base.updatedAt,
+      publishedAt: base.publishedAt,
+    });
+    toastShow(setToast, 'Статья создана (локально)');
+  };
+
+  const savePost = async () => {
+    if (!selectedPost) return;
+    const payload = buildPostPayload(postForm);
+
+    try {
+      const r = await fetch(`${BLOG_API_BASE}/${encodeURIComponent(selectedPost.id)}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (r.ok) {
+        const updated = normalizePostsFromApi([await r.json()])[0];
+        setBlogPosts((prev) => {
+          const next = (prev || []).map((p) => (String(p.id) === String(updated.id) ? updated : p));
+          saveBlogLocal(next);
+          return next;
+        });
+        toastShow(setToast, 'Сохранено');
+        return;
+      }
+    } catch {}
+
+    // local fallback
+    const now = new Date().toISOString();
+    const localUpdated = {
+      ...selectedPost,
+      title: payload.title,
+      slug: payload.slug,
+      status: payload.status,
+      excerpt: payload.excerpt,
+      content: payload.content,
+      coverImage: payload.cover_image || '',
+      tags: payload.tags || [],
+      publishedAt: payload.published_at || '',
+      updatedAt: now,
+    };
+
+    setBlogPosts((prev) => {
+      const next = (prev || []).map((p) => (String(p.id) === String(selectedPost.id) ? localUpdated : p));
+      saveBlogLocal(next);
+      return next;
+    });
+    setBlogLog((p) => p + `✓ save(local): ${payload.slug}
+`);
+    toastShow(setToast, 'Сохранено (локально)');
+  };
+
+  const deletePost = async (postId) => {
+    if (!postId) return;
+    if (!confirm('Удалить статью?')) return;
+
+    try {
+      const r = await fetch(`${BLOG_API_BASE}/${encodeURIComponent(postId)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (r.ok) {
+        setBlogPosts((prev) => {
+          const next = (prev || []).filter((p) => String(p.id) !== String(postId));
+          saveBlogLocal(next);
+          return next;
+        });
+        setBlogSelectedId(null);
+        toastShow(setToast, 'Удалено');
+        return;
+      }
+    } catch {}
+
+    // local fallback
+    setBlogPosts((prev) => {
+      const next = (prev || []).filter((p) => String(p.id) !== String(postId));
+      saveBlogLocal(next);
+      return next;
+    });
+    setBlogSelectedId(null);
+    toastShow(setToast, 'Удалено (локально)');
+  };
+
   // ----------------------------------
   // When select club -> fill form
   // ----------------------------------
@@ -357,6 +699,16 @@ export default function AdminPanelClient() {
       return s.includes(q);
     });
   }, [clubs, search]);
+
+  const filteredPosts = useMemo(() => {
+    const q = blogSearch.trim().toLowerCase();
+    if (!q) return blogPosts;
+    return (blogPosts || []).filter((p) => {
+      const s = `${p.title || ''} ${p.slug || ''} ${p.excerpt || ''}`.toLowerCase();
+      return s.includes(q);
+    });
+  }, [blogPosts, blogSearch]);
+
 
   // ----------------------------------
   // Mutators
@@ -713,45 +1065,112 @@ export default function AdminPanelClient() {
       <div className="wrap">
         <aside className="left">
           <div className="toolbar">
-            <button className="btn" onClick={createNew} disabled={loading}>
-              + Новый
-            </button>
-            <button className="btn ghost" onClick={fillMissingCoords} title="Бэкенд-утилита (если нужно)">
-              Заполнить координаты
-            </button>
-            <button className="btn ghost" onClick={correctAllClientSide} title="Коррекция координат всем (в браузере)">
-              Коррекция (все)
-            </button>
+            {activeTab === 'clubs' ? (
+              <>
+                <button className="btn" onClick={createNew} disabled={loading}>
+                  + Новый
+                </button>
+                <button
+                  className="btn ghost"
+                  onClick={fillMissingCoords}
+                  title="Бэкенд-утилита (если нужно)"
+                >
+                  Заполнить координаты
+                </button>
+                <button
+                  className="btn ghost"
+                  onClick={correctAllClientSide}
+                  title="Коррекция координат всем (в браузере)"
+                >
+                  Коррекция (все)
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="btn" onClick={createNewPost} disabled={blogLoading}>
+                  + Новая статья
+                </button>
+                <button className="btn ghost" onClick={fetchBlogPosts} disabled={blogLoading}>
+                  Обновить
+                </button>
+              </>
+            )}
           </div>
 
           <div className="search">
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Поиск…" />
+            <div className="adminTabs" role="tablist" aria-label="Разделы админки">
+              {ADMIN_TABS.map((t) => (
+                <button
+                  key={t.key}
+                  className={`adminTabBtn ${activeTab === t.key ? 'active' : ''}`}
+                  onClick={() => setActiveTab(t.key)}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === t.key}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <input
+              value={activeTab === 'clubs' ? search : blogSearch}
+              onChange={(e) => (activeTab === 'clubs' ? setSearch(e.target.value) : setBlogSearch(e.target.value))}
+              placeholder={activeTab === 'clubs' ? 'Поиск кружка…' : 'Поиск статьи…'}
+            />
           </div>
 
           <div className="list">
-            {filtered.map((c) => (
-              <div
-                key={c.id}
-                className={`item ${String(c.id) === String(selectedId) ? 'selected' : ''}`}
-                onClick={() => setSelectedId(c.id)}
-              >
-                <div className="meta">
-                  <h4>{c.name || '—'}</h4>
-                  <p>
-                    {(c.location || '').slice(0, 80)}
-                    {(c.location || '').length > 80 ? '…' : ''}
-                  </p>
-                  <p className="muted">
-                    lat: {c.lat ?? '—'} • lon: {c.lon ?? '—'}
-                  </p>
-                </div>
-                <div style={{ marginLeft: 'auto' }}>📍</div>
+            {activeTab === 'clubs'
+              ? filtered.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`item ${String(c.id) === String(selectedId) ? 'selected' : ''}`}
+                    onClick={() => setSelectedId(c.id)}
+                  >
+                    <div className="meta">
+                      <h4>{c.name || '—'}</h4>
+                      <p>
+                        {(c.location || '').slice(0, 80)}
+                        {(c.location || '').length > 80 ? '…' : ''}
+                      </p>
+                      <p className="muted">lat: {c.lat ?? '—'} • lon: {c.lon ?? '—'}</p>
+                    </div>
+                    <div style={{ marginLeft: 'auto' }}>📍</div>
+                  </div>
+                ))
+              : filteredPosts.map((p) => (
+                  <div
+                    key={p.id}
+                    className={`item ${String(p.id) === String(blogSelectedId) ? 'selected' : ''}`}
+                    onClick={() => setBlogSelectedId(p.id)}
+                  >
+                    <div className="meta">
+                      <h4>{p.title || '—'}</h4>
+                      <p>
+                        {(p.excerpt || p.slug || '').slice(0, 80)}
+                        {(p.excerpt || p.slug || '').length > 80 ? '…' : ''}
+                      </p>
+                      <p className="muted">slug: {p.slug || '—'}</p>
+                    </div>
+                    <span className={`statusBadge ${p.status === 'published' ? 'published' : 'draft'}`}>
+                      {p.status === 'published' ? 'Опубликовано' : 'Черновик'}
+                    </span>
+                  </div>
+                ))}
+
+            {activeTab === 'blog' && !filteredPosts.length && (
+              <div className="muted" style={{ padding: '8px 2px' }}>
+                Пока нет статей. Нажми “+ Новая статья”.
               </div>
-            ))}
+            )}
           </div>
         </aside>
 
         <main className="main">
+          {activeTab === 'clubs' ? (
+            <>
+
           {!selectedClub ? (
             <div className="card">
               <div className="muted">Выбери кружок слева или создай новый.</div>
@@ -1042,7 +1461,166 @@ export default function AdminPanelClient() {
               </aside>
             </div>
           )}
-        </main>
+        
+            </>
+          ) : (
+            <>
+              {!selectedPost ? (
+                <div className="card">
+                  <div className="muted">Выбери статью слева или создай новую.</div>
+                </div>
+              ) : (
+                <div className="grid">
+                  <section className="card">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                      <h2 style={{ margin: 0, fontSize: 18 }}>Редактирование: {selectedPost.title || '—'}</h2>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn" onClick={savePost} disabled={blogLoading}>
+                          Сохранить
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="row" style={{ marginTop: 14 }}>
+                      <div style={{ flex: 1 }}>
+                        <label>Заголовок</label>
+                        <input
+                          type="text"
+                          value={postForm.title}
+                          onChange={(e) => setPostForm((p) => ({ ...p, title: e.target.value }))}
+                        />
+                      </div>
+                      <div style={{ width: 320 }}>
+                        <label>Slug</label>
+                        <input
+                          type="text"
+                          value={postForm.slug}
+                          onChange={(e) => setPostForm((p) => ({ ...p, slug: e.target.value }))}
+                          onBlur={() =>
+                            setPostForm((p) => ({
+                              ...p,
+                              slug: String(p.slug || '').trim() || slugify(p.title) || p.slug,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="row" style={{ marginTop: 12 }}>
+                      <div style={{ width: 220 }}>
+                        <label>Статус</label>
+                        <select
+                          value={postForm.status}
+                          onChange={(e) =>
+                            setPostForm((p) => ({
+                              ...p,
+                              status: e.target.value,
+                              publishedAt:
+                                e.target.value === 'published'
+                                  ? p.publishedAt || new Date().toISOString()
+                                  : '',
+                            }))
+                          }
+                        >
+                          <option value="draft">Черновик</option>
+                          <option value="published">Опубликовано</option>
+                        </select>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label>Дата публикации (ISO)</label>
+                        <input
+                          type="text"
+                          value={postForm.publishedAt}
+                          onChange={(e) => setPostForm((p) => ({ ...p, publishedAt: e.target.value }))}
+                          placeholder="2026-01-16T12:00:00.000Z"
+                          disabled={postForm.status !== 'published'}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: 12 }}>
+                      <label>Короткое описание (excerpt)</label>
+                      <textarea
+                        value={postForm.excerpt}
+                        onChange={(e) => setPostForm((p) => ({ ...p, excerpt: e.target.value }))}
+                        style={{ minHeight: 90 }}
+                      />
+                    </div>
+
+                    <div className="row" style={{ marginTop: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <label>Обложка (URL)</label>
+                        <input
+                          type="text"
+                          value={postForm.coverImage}
+                          onChange={(e) => setPostForm((p) => ({ ...p, coverImage: e.target.value }))}
+                          placeholder="https://…"
+                        />
+                      </div>
+                      <div style={{ width: 320 }}>
+                        <label>Теги (через запятую)</label>
+                        <input
+                          type="text"
+                          value={postForm.tagsText}
+                          onChange={(e) => setPostForm((p) => ({ ...p, tagsText: e.target.value }))}
+                          placeholder="спорт, развитие, досуг"
+                        />
+                        <div className="tags">
+                          {String(postForm.tagsText || '')
+                            .split(',')
+                            .map((t) => t.trim())
+                            .filter(Boolean)
+                            .slice(0, 12)
+                            .map((t) => (
+                              <span className="tag" key={t}>
+                                {t}
+                              </span>
+                            ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: 12 }}>
+                      <label>Контент</label>
+                      <textarea
+                        value={postForm.content}
+                        onChange={(e) => setPostForm((p) => ({ ...p, content: e.target.value }))}
+                        style={{ minHeight: 280 }}
+                      />
+                      <div className="muted" style={{ marginTop: 8 }}>
+                        Будущий URL: <b>/blog/{String(buildPostPayload(postForm).slug || '').trim()}</b>
+                      </div>
+                    </div>
+
+                    <div className="actions" style={{ marginTop: 14 }}>
+                      <button className="btn danger" onClick={() => deletePost(selectedPost.id)} disabled={blogLoading}>
+                        Удалить
+                      </button>
+                    </div>
+                  </section>
+
+                  <aside className="card">
+                    <h3 style={{ margin: 0, fontSize: 16 }}>Логи</h3>
+                    <div className="muted" style={{ marginTop: 6 }}>
+                      Тут видно сохранения и действия в режиме блога.
+                    </div>
+                    <div className="muted-log" style={{ marginTop: 10, maxHeight: 420, overflow: 'auto' }}>
+                      {blogLog || '—'}
+                    </div>
+
+                    <div style={{ marginTop: 14 }} className="preview">
+                      {postForm.coverImage ? (
+                        <img src={postForm.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <div className="muted">cover preview</div>
+                      )}
+                    </div>
+                  </aside>
+                </div>
+              )}
+            </>
+          )}
+</main>
       </div>
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>

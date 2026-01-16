@@ -87,3 +87,14 @@ input[type=checkbox]{accent-color:var(--accent)}
 /* align styling for time/select controls */
 input[type=time], select{padding:10px 12px;border-radius:12px;border:1px solid var(--border);font-size:14px;outline:none;transition:border-color .16s ease, box-shadow .16s ease;background:#fff}
 input[type=time]:focus, select:focus{border-color:rgba(43,135,212,.55);box-shadow:0 0 0 4px rgba(43,135,212,.12)}
+
+/* --- Admin tabs (Кружки / Блог) --- */
+.adminTabs{display:inline-flex;align-items:stretch;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;flex:0 0 auto}
+.adminTabBtn{border:none;background:transparent;padding:10px 12px;font-size:13px;font-weight:700;color:#344054;cursor:pointer;transition:background .16s ease,color .16s ease;line-height:1;white-space:nowrap}
+.adminTabBtn:hover{background:#f7f8fa}
+.adminTabBtn.active{background:#eef6ff;color:var(--accent2)}
+
+/* --- Blog status badge in the left list --- */
+.statusBadge{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid rgba(16,24,40,.12);background:#f7f8fa;color:#344054;white-space:nowrap}
+.statusBadge.published{background:rgba(16,185,129,.10);border-color:rgba(16,185,129,.22);color:#047857}
+.statusBadge.draft{background:rgba(234,179,8,.10);border-color:rgba(234,179,8,.22);color:#854d0e}
