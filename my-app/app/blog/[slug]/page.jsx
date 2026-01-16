@@ -1,202 +1,263 @@
+import Header from "@/components/Header";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import styles from "./page.module.css";
-import { ChevronRight, List, ChevronDown } from "lucide-react";
-import { headers } from "next/headers";
 
-const SITE_NAME = "Мапка.рф";
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 const FALLBACK_SITE_URL = "https://xn--80aa3agq.xn--p1ai";
+const SITE_NAME = "Мапка.рф";
 
-function getBaseUrl() {
-  const h = headers();
-  const host = h.get("x-forwarded-host") || h.get("host");
-  const proto = h.get("x-forwarded-proto") || "https";
-  if (!host) return FALLBACK_SITE_URL;
-  return `${proto}://${host}`;
+function getSiteUrl() {
+  const raw =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.SITE_URL ||
+    FALLBACK_SITE_URL;
+
+  return String(raw).replace(/\/+$/, "");
+}
+
+const SITE_URL = getSiteUrl();
+
+function absolutizeUrl(url) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  const u = String(url);
+  if (u.startsWith("/")) return `${SITE_URL}${u}`;
+  return `${SITE_URL}/${u}`;
 }
 
 function stripHtml(html) {
-  return String(html || "")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return String(html || "").replace(/<[^>]*>/g, "").trim();
 }
 
-function slugifyBasic(text) {
-  const s = String(text || "").toLowerCase().trim();
-  let out = "";
-  let dash = false;
-  for (const ch of s) {
-    const ok = /[a-z0-9а-яё]/i.test(ch);
-    if (ok) {
-      out += ch;
-      dash = false;
-    } else if (!dash) {
-      out += "-";
-      dash = true;
-    }
+function slugify(text) {
+  return stripHtml(text)
+    .toLowerCase()
+    .replace(/&nbsp;|&#160;/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function normalizeTags(tags) {
+  if (!tags) return [];
+  if (Array.isArray(tags)) return tags.filter(Boolean).map(String);
+  if (typeof tags === "string")
+    return tags
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  return [];
+}
+
+function normalizeFaq(faq) {
+  if (!faq) return [];
+  if (Array.isArray(faq)) {
+    return faq
+      .map((x) => ({
+        q: x?.q ?? x?.question ?? "",
+        a: x?.a ?? x?.answer ?? "",
+      }))
+      .filter((x) => x.q && x.a);
   }
-  out = out.replace(/^-+|-+$/g, "").replace(/-+/g, "-");
-  return out || "section";
+  return [];
 }
 
-function buildTocAndInjectIds(html) {
-  const used = new Map();
+function buildTocAndHtml(html) {
+  if (!html || typeof html !== "string") return { toc: [], html: "" };
+
   const toc = [];
+  let idx = 0;
 
-  const replaced = String(html || "").replace(
-    /<h([2-3])([^>]*)>([\s\S]*?)<\/h\1>/gi,
-    (full, level, attrs, inner) => {
-      const levelNum = Number(level);
-      const text = stripHtml(inner);
-      if (!text) return full;
+  // h2/h3 -> оглавление + добавляем id, если его нет
+  const re = /<h([23])([^>]*)>([\s\S]*?)<\/h\1>/gi;
 
-      let idMatch = String(attrs || "").match(/\sid\s*=\s*(["'])([^"']+)\1/i);
-      let id = idMatch ? idMatch[2] : "";
-      if (!id) {
-        id = slugifyBasic(text);
-      }
+  const withIds = html.replace(re, (full, level, attrs, inner) => {
+    idx += 1;
+    const title = stripHtml(inner);
+    const m = String(attrs).match(/\sid=["']([^"']+)["']/i);
+    const existingId = m?.[1];
+    const id = existingId || slugify(title) || `section-${idx}`;
 
-      // unique
-      const count = used.get(id) || 0;
-      used.set(id, count + 1);
-      if (count > 0) id = `${id}-${count + 1}`;
+    toc.push({ id, title, level: Number(level) });
 
-      toc.push({ id, title: text, level: levelNum });
+    if (existingId) return full;
+    return `<h${level}${attrs} id="${id}">${inner}</h${level}>`;
+  });
 
-      // inject id if missing
-      let newAttrs = String(attrs || "");
-      if (!/\sid\s*=\s*/i.test(newAttrs)) {
-        newAttrs = `${newAttrs} id="${id}"`;
-      }
-
-      return `<h${level}${newAttrs}>${inner}</h${level}>`;
-    }
-  );
-
-  return { html: replaced, toc };
+  return { toc, html: withIds };
 }
 
-async function fetchPost(slug) {
-  const base = getBaseUrl();
-  const r = await fetch(`${base}/api/blog/public/posts/${encodeURIComponent(slug)}`, {
-    next: { revalidate: 60 },
-  });
-  if (!r.ok) return null;
+async function fetchPublicPost(slug) {
+  const url = `${SITE_URL}/api/blog/public/posts/${encodeURIComponent(slug)}`;
+  const r = await fetch(url, { cache: "no-store" });
+
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error(`Blog post fetch failed: ${r.status}`);
+
   return r.json();
 }
 
 export async function generateMetadata({ params }) {
-  const post = await fetchPost(params.slug);
-  if (!post) return { title: "Статья не найдена" };
-  const base = getBaseUrl();
+  try {
+    const post = await fetchPublicPost(params.slug);
+    if (!post) {
+      return {
+        title: `Статья не найдена | ${SITE_NAME}`,
+        robots: { index: false, follow: false },
+      };
+    }
 
-  return {
-    title: `${post.title} | ${SITE_NAME}`,
-    description: post.excerpt || "",
-    alternates: { canonical: `${base}/blog/${post.slug}` },
-    openGraph: {
-      title: post.title,
-      description: post.excerpt || "",
-      url: `${base}/blog/${post.slug}`,
-      siteName: SITE_NAME,
-      locale: "ru_RU",
-      type: "article",
-      images: post.cover_image
-        ? [{ url: post.cover_image, width: 1200, height: 630, alt: post.title }]
-        : undefined,
-    },
-  };
+    const title = `${post.title} | Блог ${SITE_NAME}`;
+    const description = post.excerpt || "";
+    const canonical = `${SITE_URL}/blog/${post.slug}`;
+    const ogImage = absolutizeUrl(post.cover_image) || `${SITE_URL}/og-image.jpg`;
+
+    return {
+      title,
+      description,
+      alternates: { canonical },
+      openGraph: {
+        title,
+        description,
+        url: canonical,
+        siteName: SITE_NAME,
+        locale: "ru_RU",
+        type: "article",
+        images: [{ url: ogImage, width: 1200, height: 630, alt: post.title }],
+      },
+    };
+  } catch {
+    return {
+      title: `Блог | ${SITE_NAME}`,
+      robots: { index: false, follow: false },
+    };
+  }
 }
 
 export default async function BlogPostPage({ params }) {
-  const post = await fetchPost(params.slug);
+  let post = null;
+
+  try {
+    post = await fetchPublicPost(params.slug);
+  } catch {
+    // если бэк временно отвалился — отдаём 404, чтобы не было 500
+    notFound();
+  }
+
   if (!post) notFound();
 
-  const { html: contentHtml, toc } = buildTocAndInjectIds(post.content || "");
-  const dateIso = post.published_at || post.created_at;
+  const tags = normalizeTags(post.tags);
+  const faq = normalizeFaq(post.faq);
 
-  const dateStr = dateIso
-    ? new Date(dateIso).toLocaleDateString("ru-RU", {
+  const { toc, html } = buildTocAndHtml(post.content || "");
+  const cover = absolutizeUrl(post.cover_image);
+  const publishedAt = post.published_at || post.created_at || null;
+  const dateStr = publishedAt
+    ? new Date(publishedAt).toLocaleDateString("ru-RU", {
         day: "numeric",
         month: "long",
         year: "numeric",
       })
     : "";
 
+  // JSON-LD: BlogPosting + FAQPage (если есть)
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     headline: post.title,
-    image: post.cover_image ? [post.cover_image] : undefined,
-    datePublished: post.published_at || undefined,
-    dateModified: post.updated_at || post.published_at || undefined,
-    description: post.excerpt || undefined,
-    author: { "@type": "Person", name: post.author_name || "Редакция Мапка" },
+    description: post.excerpt || "",
+    image: cover ? [cover] : undefined,
+    datePublished: publishedAt || undefined,
+    dateModified: post.updated_at || publishedAt || undefined,
+    author: {
+      "@type": "Person",
+      name: post.author_name || "Редакция Мапка",
+    },
     publisher: {
       "@type": "Organization",
       name: SITE_NAME,
-      logo: { "@type": "ImageObject", url: `${getBaseUrl()}/logo.png` },
+      logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.png` },
     },
+    mainEntityOfPage: `${SITE_URL}/blog/${post.slug}`,
   };
 
-  const tocItems = toc.length
-    ? toc
-    : [{ id: "content", title: "Статья", level: 2 }];
-
-  const faq = Array.isArray(post.faq) ? post.faq : [];
+  const faqJsonLd =
+    faq.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: faq.map((x) => ({
+            "@type": "Question",
+            name: x.q,
+            acceptedAnswer: { "@type": "Answer", text: x.a },
+          })),
+        }
+      : null;
 
   return (
     <div className={styles.wrapper}>
+      <Header />
+
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      {faqJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+      )}
 
       <main className={styles.container}>
         <nav className={styles.breadcrumbs}>
           <Link href="/">Главная</Link>
-          <ChevronRight size={14} />
+          <span className={styles.sep}>/</span>
           <Link href="/blog">Блог</Link>
-          <ChevronRight size={14} />
-          <span style={{ color: "#0f172a", fontWeight: 500 }}>
-            {post.title}
-          </span>
+          <span className={styles.sep}>/</span>
+          <span className={styles.current}>{post.title}</span>
         </nav>
 
         <div className={styles.grid}>
-          {/* === 1. СТАТЬЯ === */}
           <article className={styles.article}>
-            <span className={styles.badge}>{post.category || "Статья"}</span>
-            <h1 className={styles.h1}>{post.title}</h1>
+            <div className={styles.header}>
+              {post.category ? (
+                <span className={styles.badge}>{post.category}</span>
+              ) : null}
+              <h1 className={styles.h1}>{post.title}</h1>
 
-            <div className={styles.authorRow}>
-              {post.author_avatar ? (
-                <img
-                  src={post.author_avatar}
-                  alt={post.author_name || "Автор"}
-                  width={48}
-                  height={48}
-                  className={styles.avatar}
-                  loading="lazy"
-                />
-              ) : (
-                <div className={styles.avatar} />
-              )}
-              <div className={styles.metaText}>
-                <strong>{post.author_name || "Редакция Мапка"}</strong>
-                <span>
-                  {(post.author_role || "").trim()}
-                  {(post.author_role || "").trim() && dateStr ? " • " : ""}
-                  {dateStr}
-                </span>
+              <div className={styles.meta}>
+                <div className={styles.metaLeft}>
+                  {post.author_avatar ? (
+                    <img
+                      src={absolutizeUrl(post.author_avatar)}
+                      alt={post.author_name || "Автор"}
+                      className={styles.avatar}
+                      loading="lazy"
+                    />
+                  ) : null}
+
+                  <div className={styles.metaText}>
+                    <div className={styles.authorName}>
+                      {post.author_name || "Редакция Мапка"}
+                    </div>
+                    <div className={styles.authorSub}>
+                      {post.author_role ? `${post.author_role} • ` : ""}
+                      {dateStr}
+                      {post.read_time ? ` • ${post.read_time}` : ""}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {post.cover_image ? (
-              <div className={styles.coverWrapper}>
+            {cover ? (
+              <div className={styles.coverWrap}>
                 <img
-                  src={post.cover_image}
+                  src={cover}
                   alt={post.title}
                   className={styles.cover}
                   loading="eager"
@@ -204,70 +265,77 @@ export default async function BlogPostPage({ params }) {
               </div>
             ) : null}
 
-            {/* Мобильное оглавление */}
-            <div className={styles.mobileToc}>
-              <h2 className={styles.tocTitle}>
-                <List size={18} /> Содержание
-              </h2>
-              <ul className={styles.tocList}>
-                {tocItems.map((item) => (
-                  <li key={item.id}>
-                    <a href={`#${item.id}`} className={styles.tocLink}>
-                      {item.title}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {toc.length > 0 ? (
+              <div className={styles.mobileToc}>
+                <div className={styles.tocTitle}>Содержание</div>
+                <ul className={styles.tocList}>
+                  {toc.map((i) => (
+                    <li key={i.id} className={styles[`lvl${i.level}`]}>
+                      <a href={`#${i.id}`} className={styles.tocLink}>
+                        {i.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
             <div
               className={styles.content}
-              dangerouslySetInnerHTML={{ __html: contentHtml }}
+              dangerouslySetInnerHTML={{ __html: html }}
             />
+
+            {tags.length > 0 ? (
+              <div className={styles.tags}>
+                {tags.map((t) => (
+                  <Link key={t} href={`/blog?tag=${encodeURIComponent(t)}`} className={styles.tag}>
+                    #{t}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+
+            {faq.length > 0 ? (
+              <section id="faq" className={styles.faq}>
+                <h2 className={styles.faqTitle}>Частые вопросы</h2>
+                <div className={styles.faqList}>
+                  {faq.map((x, idx) => (
+                    <details key={idx} className={styles.faqItem}>
+                      <summary className={styles.faqQ}>{x.q}</summary>
+                      <div className={styles.faqA}>{x.a}</div>
+                    </details>
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </article>
 
-          {/* === 2. САЙДБАР === */}
-          <aside>
-            <div className={styles.desktopToc}>
-              <div className={styles.tocTitle}>
-                <List size={18} /> Содержание
+          <aside className={styles.sidebar}>
+            {toc.length > 0 ? (
+              <div className={styles.tocBox}>
+                <div className={styles.tocTitle}>Содержание</div>
+                <ul className={styles.tocList}>
+                  {toc.map((i) => (
+                    <li key={i.id} className={styles[`lvl${i.level}`]}>
+                      <a href={`#${i.id}`} className={styles.tocLink}>
+                        {i.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className={styles.tocList}>
-                {tocItems.map((item) => (
-                  <li key={item.id}>
-                    <a href={`#${item.id}`} className={styles.tocLink}>
-                      {item.title}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+            ) : null}
 
-              <div className={styles.promoBox}>
-                <h2 className={styles.promoTitle}>Подбор кружка</h2>
-                <p style={{ fontSize: "13px", color: "#4b5563" }}>
-                  Найдите секции рядом с домом на карте Мапки.
-                </p>
-                <Link href="/" className={styles.promoBtn}>
-                  Открыть карту
-                </Link>
+            <div className={styles.promo}>
+              <div className={styles.promoTitle}>Ищете кружок рядом?</div>
+              <div className={styles.promoText}>
+                Откройте карту секций и выберите лучшее по району и цене.
               </div>
+              <Link className={styles.promoBtn} href="/">
+                Открыть карту
+              </Link>
             </div>
           </aside>
-
-          {/* === 3. FAQ (в самом низу) === */}
-          {faq.length ? (
-            <div id="faq" className={styles.faqSection}>
-              <h2 className={styles.faqTitle}>Частые вопросы</h2>
-              {faq.map((item, index) => (
-                <details key={index} className={styles.faqItem}>
-                  <summary className={styles.faqSummary}>
-                    {item.q} <ChevronDown size={16} />
-                  </summary>
-                  <div className={styles.faqDetails}>{item.a}</div>
-                </details>
-              ))}
-            </div>
-          ) : null}
         </div>
       </main>
     </div>
