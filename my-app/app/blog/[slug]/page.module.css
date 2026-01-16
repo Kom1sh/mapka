@@ -1,26 +1,27 @@
 /* app/blog/[slug]/page.module.css */
 
-/* === ОСНОВА === */
+/* === БАЗА === */
 .wrapper {
-  background-color: #f1f5f9; /* Светло-серый фон как на мапка.рф */
+  background-color: #f8fafc;
   min-height: 100vh;
-  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
   color: #1e293b;
   padding-bottom: 4rem;
+  scroll-behavior: smooth; /* Плавный скролл */
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: 0 1rem;
 }
 
-/* === НАВИГАЦИЯ === */
+/* === ХЛЕБНЫЕ КРОШКИ === */
 .breadcrumbs {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 20px 0;
+  padding: 24px 0;
   font-size: 14px;
   color: #64748b;
   overflow-x: auto;
@@ -29,18 +30,14 @@
 .breadcrumbs a {
   text-decoration: none;
   color: inherit;
-  white-space: nowrap;
+  transition: color 0.2s;
 }
 
-.breadcrumbs a:hover {
-  color: #2563eb; /* Ярко-синий */
-}
+.breadcrumbs a:hover { color: #2563eb; }
 
 .activeCrumb {
   color: #0f172a;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -48,146 +45,146 @@
 .grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 40px;
+  gap: 32px;
+  align-items: start; /* Важно для липкого сайдбара */
 }
 
 @media (min-width: 1024px) {
-  .grid {
-    grid-template-columns: 2fr 1fr; /* Основной контент шире сайдбара */
-  }
+  .grid { grid-template-columns: 2.5fr 1fr; }
 }
 
-/* === КАРТОЧКА СТАТЬИ === */
+/* === СТАТЬЯ === */
 .article {
   background: #ffffff;
   border-radius: 16px;
-  padding: 30px; /* Уменьшил отступы для мобильных */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 24px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   border: 1px solid #e2e8f0;
 }
 
 @media (min-width: 768px) {
-  .article { padding: 40px; }
+  .article { padding: 48px; }
 }
 
-/* Шапка статьи */
-.meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
+/* Заголовок и мета */
 .badge {
-  background-color: #eff6ff;
-  color: #2563eb;
-  padding: 4px 12px;
+  display: inline-block;
+  background-color: #dbeafe;
+  color: #1e40af;
+  padding: 6px 14px;
   border-radius: 100px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.readTime {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #94a3b8;
+  margin-bottom: 16px;
 }
 
 .h1 {
   font-size: 32px;
-  line-height: 1.2;
   font-weight: 800;
+  line-height: 1.2;
   margin: 0 0 24px 0;
   color: #0f172a;
 }
 
 @media (min-width: 768px) {
-  .h1 { font-size: 42px; }
+  .h1 { font-size: 44px; }
 }
 
-/* Автор */
 .authorRow {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #f1f5f9;
-  padding-bottom: 24px;
+  gap: 16px;
   margin-bottom: 32px;
-}
-
-.authorProfile {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .avatar {
-  width: 48px;
-  height: 48px;
   border-radius: 50%;
-  overflow: hidden;
-  background: #cbd5e1;
-  flex-shrink: 0;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.authorName {
-  font-size: 15px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.authorRole {
-  font-size: 12px;
+.metaText {
+  font-size: 14px;
   color: #64748b;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
-/* Изображение */
-.imageWrapper {
+.metaText strong {
+  color: #0f172a;
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* Картинка */
+.coverWrapper {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 16/9;
   border-radius: 12px;
   overflow: hidden;
-  margin-bottom: 40px;
-  background-color: #e2e8f0;
+  margin-bottom: 48px;
 }
 
-/* ТЕКСТ СТАТЬИ (Typography) */
+/* === КОНТЕНТ СТАТЬИ === */
 .content {
   font-size: 18px;
   line-height: 1.7;
   color: #334155;
 }
 
-.content p { margin-bottom: 24px; }
-
+/* Отступы для скролла, чтобы заголовок не прилипал к верху экрана */
 .content h2 {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   color: #0f172a;
-  margin-top: 40px;
-  margin-bottom: 16px;
+  margin-top: 48px;
+  margin-bottom: 20px;
+  scroll-margin-top: 20px; 
 }
 
-.content ul {
-  padding-left: 20px;
+.content p { margin-bottom: 24px; }
+.content ul { padding-left: 20px; margin-bottom: 24px; }
+.content li { margin-bottom: 10px; }
+
+/* === FAQ БЛОК === */
+.faqSection {
+  margin-top: 60px;
+  padding-top: 40px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.faqTitle {
+  font-size: 24px;
+  font-weight: 700;
   margin-bottom: 24px;
 }
 
-.content li { margin-bottom: 8px; }
+.faqItem {
+  margin-bottom: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
 
-.content a {
-  color: #2563eb;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+.faqSummary {
+  padding: 16px 20px;
+  background: #f8fafc;
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none; /* Убирает треугольник */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.faqSummary:hover { background: #f1f5f9; }
+
+.faqDetails {
+  padding: 20px;
+  background: white;
+  border-top: 1px solid #e2e8f0;
+  font-size: 16px;
 }
 
 /* === САЙДБАР === */
@@ -197,107 +194,51 @@
   gap: 24px;
 }
 
-.sticky {
+.stickyBox {
   position: sticky;
   top: 24px;
-}
-
-/* Виджет поиска */
-.searchWidget {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1); /* Синяя тень */
-  border: 1px solid #bfdbfe;
-}
-
-.iconBox {
-  width: 48px;
-  height: 48px;
-  background-color: #2563eb;
-  border-radius: 10px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  margin-bottom: 16px;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.widgetTitle {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-
-.widgetText {
-  font-size: 14px;
-  color: #64748b;
-  margin-bottom: 20px;
-  line-height: 1.5;
-}
-
-.input {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 14px;
-  margin-bottom: 12px;
-  outline: none;
-  transition: border-color 0.2s;
-  box-sizing: border-box; /* ВАЖНО */
-}
-
-.input:focus { border-color: #2563eb; }
-
-.btn {
-  width: 100%;
-  padding: 12px;
-  background-color: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn:hover { background-color: #1d4ed8; }
-
-/* Список статей */
-.moreBlock {
-  background: white;
-  padding: 24px;
+/* Оглавление (Table of Contents) */
+.toc {
+  background: #fff;
   border-radius: 16px;
+  padding: 24px;
   border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
 }
 
-.moreItem {
-  display: block;
-  text-decoration: none;
+.tocTitle {
+  font-size: 16px;
+  font-weight: 700;
   margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f1f5f9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
 }
 
-.moreItem:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
+.tocList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.moreItem h5 {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 4px 0;
+.tocLink {
+  text-decoration: none;
+  font-size: 15px;
+  color: #475569;
+  transition: color 0.2s;
+  display: block;
   line-height: 1.4;
 }
 
-.moreItem:hover h5 { color: #2563eb; }
-
-.moreDate {
-  font-size: 12px;
-  color: #94a3b8;
+.tocLink:hover {
+  color: #2563eb;
+  padding-left: 4px; /* Эффект сдвига */
 }
