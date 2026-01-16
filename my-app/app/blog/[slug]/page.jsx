@@ -2,11 +2,10 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './page.module.css';
-import { ChevronRight, List, ChevronDown, Calendar, User } from 'lucide-react';
+import { ChevronRight, List, ChevronDown } from 'lucide-react';
 
 const SITE_NAME = 'Мапка.рф';
 
-// === ДАННЫЕ ===
 async function getPostData(slug) {
   return {
     title: 'Топ-5 направлений для детских кружков в январе 2026 года: Что выбрать?',
@@ -22,7 +21,6 @@ async function getPostData(slug) {
     category: 'Образование и Развитие',
     coverImage: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200',
     
-    // Оглавление
     toc: [
       { id: 'robotics', title: '1. Робототехника и ИИ' },
       { id: 'creative', title: '2. Цифровое творчество' },
@@ -80,9 +78,9 @@ export default async function BlogPostPage({ params }) {
         </nav>
 
         <div className={styles.grid}>
-          {/* === ЛЕВАЯ КОЛОНКА === */}
+          
+          {/* === 1. СТАТЬЯ === */}
           <article className={styles.article}>
-            
             <span className={styles.badge}>{post.category}</span>
             <h1 className={styles.h1}>{post.title}</h1>
 
@@ -98,7 +96,7 @@ export default async function BlogPostPage({ params }) {
               <Image src={post.coverImage} alt="Cover" fill style={{objectFit: 'cover'}} priority />
             </div>
 
-            {/* Мобильное оглавление: div -> h2 */}
+            {/* Мобильное оглавление (Оставляем H2 для мобильных, чтобы структура была) */}
             <div className={styles.mobileToc}>
               <h2 className={styles.tocTitle}>
                 <List size={18} /> Содержание
@@ -112,16 +110,11 @@ export default async function BlogPostPage({ params }) {
               </ul>
             </div>
 
-            {/* Контент */}
             <div className={styles.content}>
               <p className="lead">Начало года — идеальное время, чтобы помочь ребенку найти новое увлечение.</p>
 
               <h2 id="robotics">1. Робототехника и Искусственный Интеллект</h2>
               <p>Кружки по робототехнике учат детей не просто собирать конструкторы, а программировать их.</p>
-              <ul>
-                <li>Развивает логику.</li>
-                <li>Учит работать в команде.</li>
-              </ul>
 
               <h2 id="creative">2. Цифровое творчество</h2>
               <p>От 3D-моделирования до цифровой живописи. Планшет вместо холста.</p>
@@ -131,29 +124,18 @@ export default async function BlogPostPage({ params }) {
 
               <h2 id="science">4. Научные лаборатории</h2>
               <p>Для юных «почемучек» нет ничего лучше, чем самому провести химический опыт.</p>
-
-              {/* FAQ: h3 -> h2 */}
-              <div id="faq" className={styles.faqSection}>
-                <h2 className={styles.faqTitle}>Частые вопросы</h2>
-                {post.faq.map((item, index) => (
-                  <details key={index} className={styles.faqItem}>
-                    <summary className={styles.faqSummary}>
-                      {item.q} <ChevronDown size={16} />
-                    </summary>
-                    <div className={styles.faqDetails}>{item.a}</div>
-                  </details>
-                ))}
-              </div>
             </div>
+            
+            {/* FAQ УБРАН ОТСЮДА */}
           </article>
 
-          {/* === ПРАВАЯ КОЛОНКА (Сайдбар) === */}
+          {/* === 2. САЙДБАР === */}
           <aside>
             <div className={styles.desktopToc}>
-              {/* Оглавление: div -> h2 */}
-              <h2 className={styles.tocTitle}>
+              {/* ИСПРАВЛЕНИЕ: H2 -> DIV (Чтобы убрать дубль из SEO анализатора) */}
+              <div className={styles.tocTitle}>
                 <List size={18} /> Содержание
-              </h2>
+              </div>
               <ul className={styles.tocList}>
                 {post.toc.map(item => (
                   <li key={item.id}>
@@ -163,13 +145,28 @@ export default async function BlogPostPage({ params }) {
               </ul>
 
               <div className={styles.promoBox}>
-                {/* Промо: h4 -> h2 */}
+                {/* Оставляем H2, это будет перед FAQ в структуре */}
                 <h2 className={styles.promoTitle}>Подбор кружка</h2>
                 <p style={{fontSize: '13px', color: '#4b5563'}}>Пройдите тест и узнайте талант ребенка.</p>
                 <button className={styles.promoBtn}>Начать тест</button>
               </div>
             </div>
           </aside>
+
+          {/* === 3. FAQ (В САМОМ НИЗУ) === */}
+          {/* Теперь он идет в коде после aside, поэтому анализатор покажет его последним */}
+          <div id="faq" className={styles.faqSection}>
+            <h2 className={styles.faqTitle}>Частые вопросы</h2>
+            {post.faq.map((item, index) => (
+              <details key={index} className={styles.faqItem}>
+                <summary className={styles.faqSummary}>
+                  {item.q} <ChevronDown size={16} />
+                </summary>
+                <div className={styles.faqDetails}>{item.a}</div>
+              </details>
+            ))}
+          </div>
+
         </div>
       </main>
     </div>

@@ -136,14 +136,17 @@
   margin-top: 48px;
   padding-top: 32px;
   border-top: 1px solid #e2e8f0;
+  
+  /* !!! ВАЖНОЕ ИЗМЕНЕНИЕ ДЛЯ ПЕРЕНОСА ВНИЗ !!! */
+  grid-column: 1 / -1; /* Растягиваем на всю ширину сетки (под статью и сайдбар) */
 }
 
 /* ЗАГОЛОВОК FAQ (теперь H2) */
 .faqTitle {
-  font-size: 22px; /* Визуально как H2 в статье */
-  font-weight: 700;
+  font-size: 26px; /* Чуть крупнее, так как теперь это секция на всю ширину */
+  font-weight: 800;
   color: #0f172a;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .faqItem {
