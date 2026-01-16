@@ -1,107 +1,100 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-const TAGS = ["Все", "Подборки", "Советы", "Спорт", "Творчество", "Новости"];
+const API_PUBLIC_LIST = "/api/blog/public/posts?limit=200";
 
-const ARTICLES = [
-  {
-    featured: true,
-    category: "Подборка",
-    image:
-      "https://images.unsplash.com/photo-1542315264-884813583226?q=80&w=1200&auto=format&fit=crop",
-    imageAlt: "Детский футбол",
-    dateISO: "2025-10-25",
-    dateLabel: "25 окт. 2025",
-    readTime: "8 мин. читать",
-    title: "Топ-10 футбольных секций Ростова-на-Дону: Рейтинг 2025 года",
-    excerpt:
-      "Мы проанализировали отзывы родителей, квалификацию тренеров и состояние полей, чтобы составить честный рейтинг футбольных школ для детей от 4 до 14 лет.",
-    authorName: "Анна Иванова",
-    authorImg: "https://i.pravatar.cc/100?img=33",
-    href: "#",
-  },
-  {
-    featured: false,
-    category: "Советы",
-    image:
-      "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=800&auto=format&fit=crop",
-    imageAlt: "Ребенок рисует",
-    dateISO: "2025-10-20",
-    dateLabel: "20 окт. 2025",
-    readTime: "5 мин.",
-    title: "Как понять, что ребенку не подходит кружок?",
-    excerpt:
-      "5 неочевидных признаков того, что стоит сменить секцию, даже если тренер кажется профессионалом.",
-    authorName: "Олег Петров",
-    authorImg: "https://i.pravatar.cc/100?img=12",
-    href: "#",
-  },
-  {
-    featured: false,
-    category: "Творчество",
-    image:
-      "https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=800&auto=format&fit=crop",
-    imageAlt: "ИЗО студия",
-    dateISO: "2025-10-15",
-    dateLabel: "15 окт. 2025",
-    readTime: "6 мин.",
-    title: "ИЗО или лепка? Развиваем мелкую моторику правильно",
-    excerpt:
-      "Обзор творческих направлений для дошкольников. Что лучше выбрать для подготовки руки к письму.",
-    authorName: "Мария Сидорова",
-    authorImg: "https://i.pravatar.cc/100?img=5",
-    href: "#",
-  },
-  {
-    featured: false,
-    category: "Новости",
-    image:
-      "https://images.unsplash.com/photo-1577896335477-2858506f48db?q=80&w=800&auto=format&fit=crop",
-    imageAlt: "Школа",
-    dateISO: "2025-10-10",
-    dateLabel: "10 окт. 2025",
-    readTime: "3 мин.",
-    title: "Открытие новых технопарков в районе Северный",
-    excerpt:
-      "В следующем месяце планируется открытие двух новых площадок для занятий робототехникой.",
-    authorName: "Редакция Мапка",
-    authorImg: "https://via.placeholder.com/24",
-    href: "#",
-  },
-  {
-    featured: false,
-    category: "Спорт",
-    image:
-      "https://images.unsplash.com/photo-1565108253106-96b67876823c?q=80&w=800&auto=format&fit=crop",
-    imageAlt: "Бассейн",
-    dateISO: "2025-10-05",
-    dateLabel: "05 окт. 2025",
-    readTime: "7 мин.",
-    title: "Плавание для здоровья спины: мифы и реальность",
-    excerpt:
-      "Врач-ортопед рассказывает, какие стили плавания действительно полезны при сколиозе.",
-    authorName: "Дмитрий К.",
-    authorImg: "https://i.pravatar.cc/100?img=68",
-    href: "#",
-  },
-];
-
-function tagToCategory(tag) {
-  // В макете кнопка "Подборки", а бейдж на карточке "Подборка"
-  if (tag === "Подборки") return "Подборка";
-  return tag;
+function stripHtml(html) {
+  const s = String(html || "");
+  return s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-export default function BlogPageClient() {
-  const [activeTag, setActiveTag] = useState("Все");
+function formatDateRu(iso) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString("ru-RU", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function calcReadTime(html) {
+  const text = stripHtml(html);
+  const words = text ? text.split(/\s+/).length : 0;
+  const min = Math.max(1, Math.ceil(words / 200));
+  return `${min} мин. читать`;
+}
+
+export default function BlogPageClient({ initialPosts = [] }) {
+  const [posts, setPosts] = useState(Array.isArray(initialPosts) ? initialPosts : []);
+  const [activeCategory, setActiveCategory] = useState("Все");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  // Refetch on mount (so changes from admin are visible without redeploy)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setErr("");
+        const r = await fetch(API_PUBLIC_LIST, { cache: "no-store" });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        if (!alive) return;
+        setPosts(Array.isArray(data) ? data : []);
+      } catch (e) {
+        if (!alive) return;
+        setErr("Не удалось загрузить статьи. Попробуйте обновить страницу.");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const categories = useMemo(() => {
+    const set = new Set();
+    for (const p of posts) {
+      const c = (p?.category || "").trim();
+      if (c) set.add(c);
+    }
+    return ["Все", ...Array.from(set).slice(0, 10)];
+  }, [posts]);
 
   const filtered = useMemo(() => {
-    if (activeTag === "Все") return ARTICLES;
-    const cat = tagToCategory(activeTag);
-    return ARTICLES.filter((a) => a.category === cat);
-  }, [activeTag]);
+    if (activeCategory === "Все") return posts;
+    return posts.filter((p) => (p?.category || "") === activeCategory);
+  }, [posts, activeCategory]);
+
+  const cards = useMemo(() => {
+    return filtered.map((p, idx) => {
+      const dateIso = p?.published_at || p?.created_at;
+      const readTime = p?.read_time || calcReadTime(p?.content);
+      const excerpt = (p?.excerpt || "").trim() || stripHtml(p?.content).slice(0, 180);
+      return {
+        featured: activeCategory === "Все" && idx === 0,
+        category: (p?.category || "Статья").trim() || "Статья",
+        image: p?.cover_image || "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop",
+        imageAlt: p?.title || "",
+        dateISO: dateIso || "",
+        dateLabel: formatDateRu(dateIso),
+        readTime,
+        title: p?.title || "",
+        excerpt,
+        authorName: p?.author_name || "Редакция Мапка",
+        authorImg: p?.author_avatar || "https://i.pravatar.cc/100?img=33",
+        href: `/blog/${p?.slug || ""}`,
+      };
+    });
+  }, [filtered, activeCategory]);
 
   const onNewsletterSubmit = (e) => {
     e.preventDefault();
@@ -129,21 +122,24 @@ export default function BlogPageClient() {
 
         {/* Filter/Tags */}
         <div className="blog-tags">
-          {TAGS.map((t) => (
+          {categories.map((c) => (
             <button
-              key={t}
+              key={c}
               type="button"
-              className={`category-btn ${t === activeTag ? "active" : ""}`}
-              onClick={() => setActiveTag(t)}
+              className={`category-btn ${c === activeCategory ? "active" : ""}`}
+              onClick={() => setActiveCategory(c)}
             >
-              {t}
+              {c}
             </button>
           ))}
         </div>
 
+        {err ? <div style={{ color: "#b91c1c", margin: "10px 0" }}>{err}</div> : null}
+        {loading && cards.length === 0 ? <div style={{ opacity: 0.7 }}>Загрузка…</div> : null}
+
         {/* Grid */}
         <div className="articles-grid">
-          {filtered.map((a, idx) => (
+          {cards.map((a, idx) => (
             <article
               key={`${a.title}-${idx}`}
               className={`article-card ${a.featured ? "featured" : ""}`}
@@ -154,25 +150,15 @@ export default function BlogPageClient() {
               </div>
 
               <div className="card-content">
-                {a.featured ? (
-                  <div className="card-meta">
-                    <span className="meta-item">
-                      <time dateTime={a.dateISO}>{a.dateLabel}</time>
-                    </span>
-                    <span className="meta-item">•</span>
-                    <span className="meta-item">{a.readTime}</span>
-                  </div>
-                ) : (
-                  <div className="card-meta">
-                    <time dateTime={a.dateISO}>{a.dateLabel}</time>
-                    <span>• {a.readTime}</span>
-                  </div>
-                )}
+                <div className="card-meta">
+                  <time dateTime={a.dateISO}>{a.dateLabel}</time>
+                  <span>• {a.readTime}</span>
+                </div>
 
-                <a href={a.href}>
+                <Link href={a.href}>
                   {/* Чтобы не было “H1 + только H3”, делаем заголовки статей H2 */}
                   <h2 className="card-title">{a.title}</h2>
-                </a>
+                </Link>
 
                 <p className="card-excerpt">{a.excerpt}</p>
 
@@ -187,9 +173,9 @@ export default function BlogPageClient() {
                   </div>
 
                   {a.featured ? (
-                    <a href={a.href} className="read-more">
+                    <Link href={a.href} className="read-more">
                       Читать далее &rarr;
-                    </a>
+                    </Link>
                   ) : null}
                 </div>
               </div>

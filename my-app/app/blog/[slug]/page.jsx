@@ -1,72 +1,157 @@
-import React from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-import styles from './page.module.css';
-import { ChevronRight, List, ChevronDown } from 'lucide-react';
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import styles from "./page.module.css";
+import { ChevronRight, List, ChevronDown } from "lucide-react";
+import { headers } from "next/headers";
 
-const SITE_NAME = 'Мапка.рф';
+const SITE_NAME = "Мапка.рф";
+const FALLBACK_SITE_URL = "https://xn--80aa3agq.xn--p1ai";
 
-async function getPostData(slug) {
-  return {
-    title: 'Топ-5 направлений для детских кружков в январе 2026 года: Что выбрать?',
-    slug: slug,
-    excerpt: 'Робототехника, программирование или спорт? Разбираем тренды дополнительного образования.',
-    publishedAt: '2026-01-15T10:00:00Z',
-    readTime: '5 мин',
-    author: {
-      name: 'Анна Смирнова',
-      role: 'Детский психолог',
-      avatar: 'https://i.pravatar.cc/150?u=anna'
-    },
-    category: 'Образование и Развитие',
-    coverImage: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200',
-    
-    toc: [
-      { id: 'robotics', title: '1. Робототехника и ИИ' },
-      { id: 'creative', title: '2. Цифровое творчество' },
-      { id: 'sport', title: '3. Современный спорт' },
-      { id: 'science', title: '4. Научные лаборатории' },
-      { id: 'faq', title: 'Частые вопросы' },
-    ],
+function getBaseUrl() {
+  const h = headers();
+  const host = h.get("x-forwarded-host") || h.get("host");
+  const proto = h.get("x-forwarded-proto") || "https";
+  if (!host) return FALLBACK_SITE_URL;
+  return `${proto}://${host}`;
+}
 
-    faq: [
-      {
-        q: 'С какого возраста можно на программирование?',
-        a: 'Для Scratch оптимально 6-7 лет, Python — с 11-12 лет.'
-      },
-      {
-        q: 'Нужен ли свой ноутбук?',
-        a: 'Большинство центров предоставляют оборудование, но для домашних заданий компьютер потребуется.'
+function stripHtml(html) {
+  return String(html || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function slugifyBasic(text) {
+  const s = String(text || "").toLowerCase().trim();
+  let out = "";
+  let dash = false;
+  for (const ch of s) {
+    const ok = /[a-z0-9а-яё]/i.test(ch);
+    if (ok) {
+      out += ch;
+      dash = false;
+    } else if (!dash) {
+      out += "-";
+      dash = true;
+    }
+  }
+  out = out.replace(/^-+|-+$/g, "").replace(/-+/g, "-");
+  return out || "section";
+}
+
+function buildTocAndInjectIds(html) {
+  const used = new Map();
+  const toc = [];
+
+  const replaced = String(html || "").replace(
+    /<h([2-3])([^>]*)>([\s\S]*?)<\/h\1>/gi,
+    (full, level, attrs, inner) => {
+      const levelNum = Number(level);
+      const text = stripHtml(inner);
+      if (!text) return full;
+
+      let idMatch = String(attrs || "").match(/\sid\s*=\s*(["'])([^"']+)\1/i);
+      let id = idMatch ? idMatch[2] : "";
+      if (!id) {
+        id = slugifyBasic(text);
       }
-    ]
-  };
+
+      // unique
+      const count = used.get(id) || 0;
+      used.set(id, count + 1);
+      if (count > 0) id = `${id}-${count + 1}`;
+
+      toc.push({ id, title: text, level: levelNum });
+
+      // inject id if missing
+      let newAttrs = String(attrs || "");
+      if (!/\sid\s*=\s*/i.test(newAttrs)) {
+        newAttrs = `${newAttrs} id="${id}"`;
+      }
+
+      return `<h${level}${newAttrs}>${inner}</h${level}>`;
+    }
+  );
+
+  return { html: replaced, toc };
+}
+
+async function fetchPost(slug) {
+  const base = getBaseUrl();
+  const r = await fetch(`${base}/api/blog/public/posts/${encodeURIComponent(slug)}`, {
+    next: { revalidate: 60 },
+  });
+  if (!r.ok) return null;
+  return r.json();
 }
 
 export async function generateMetadata({ params }) {
-  const post = await getPostData(params.slug);
+  const post = await fetchPost(params.slug);
+  if (!post) return { title: "Статья не найдена" };
+  const base = getBaseUrl();
+
   return {
     title: `${post.title} | ${SITE_NAME}`,
-    description: post.excerpt,
+    description: post.excerpt || "",
+    alternates: { canonical: `${base}/blog/${post.slug}` },
+    openGraph: {
+      title: post.title,
+      description: post.excerpt || "",
+      url: `${base}/blog/${post.slug}`,
+      siteName: SITE_NAME,
+      locale: "ru_RU",
+      type: "article",
+      images: post.cover_image
+        ? [{ url: post.cover_image, width: 1200, height: 630, alt: post.title }]
+        : undefined,
+    },
   };
 }
 
 export default async function BlogPostPage({ params }) {
-  const post = await getPostData(params.slug);
-  const dateStr = new Date(post.publishedAt).toLocaleDateString('ru-RU', {
-    day: 'numeric', month: 'long', year: 'numeric'
-  });
+  const post = await fetchPost(params.slug);
+  if (!post) notFound();
+
+  const { html: contentHtml, toc } = buildTocAndInjectIds(post.content || "");
+  const dateIso = post.published_at || post.created_at;
+
+  const dateStr = dateIso
+    ? new Date(dateIso).toLocaleDateString("ru-RU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "";
 
   const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
     headline: post.title,
-    image: [post.coverImage],
-    author: { '@type': 'Person', name: post.author.name }
+    image: post.cover_image ? [post.cover_image] : undefined,
+    datePublished: post.published_at || undefined,
+    dateModified: post.updated_at || post.published_at || undefined,
+    description: post.excerpt || undefined,
+    author: { "@type": "Person", name: post.author_name || "Редакция Мапка" },
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      logo: { "@type": "ImageObject", url: `${getBaseUrl()}/logo.png` },
+    },
   };
+
+  const tocItems = toc.length
+    ? toc
+    : [{ id: "content", title: "Статья", level: 2 }];
+
+  const faq = Array.isArray(post.faq) ? post.faq : [];
 
   return (
     <div className={styles.wrapper}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
       <main className={styles.container}>
         <nav className={styles.breadcrumbs}>
@@ -74,99 +159,115 @@ export default async function BlogPostPage({ params }) {
           <ChevronRight size={14} />
           <Link href="/blog">Блог</Link>
           <ChevronRight size={14} />
-          <span style={{ color: '#0f172a', fontWeight: 500 }}>{post.title}</span>
+          <span style={{ color: "#0f172a", fontWeight: 500 }}>
+            {post.title}
+          </span>
         </nav>
 
         <div className={styles.grid}>
-          
           {/* === 1. СТАТЬЯ === */}
           <article className={styles.article}>
-            <span className={styles.badge}>{post.category}</span>
+            <span className={styles.badge}>{post.category || "Статья"}</span>
             <h1 className={styles.h1}>{post.title}</h1>
 
             <div className={styles.authorRow}>
-              <Image src={post.author.avatar} alt={post.author.name} width={48} height={48} className={styles.avatar} />
+              {post.author_avatar ? (
+                <img
+                  src={post.author_avatar}
+                  alt={post.author_name || "Автор"}
+                  width={48}
+                  height={48}
+                  className={styles.avatar}
+                  loading="lazy"
+                />
+              ) : (
+                <div className={styles.avatar} />
+              )}
               <div className={styles.metaText}>
-                <strong>{post.author.name}</strong>
-                <span>{post.author.role} • {dateStr}</span>
+                <strong>{post.author_name || "Редакция Мапка"}</strong>
+                <span>
+                  {(post.author_role || "").trim()}
+                  {(post.author_role || "").trim() && dateStr ? " • " : ""}
+                  {dateStr}
+                </span>
               </div>
             </div>
 
-            <div className={styles.coverWrapper}>
-              <Image src={post.coverImage} alt="Cover" fill style={{objectFit: 'cover'}} priority />
-            </div>
+            {post.cover_image ? (
+              <div className={styles.coverWrapper}>
+                <img
+                  src={post.cover_image}
+                  alt={post.title}
+                  className={styles.cover}
+                  loading="eager"
+                />
+              </div>
+            ) : null}
 
-            {/* Мобильное оглавление (Оставляем H2 для мобильных, чтобы структура была) */}
+            {/* Мобильное оглавление */}
             <div className={styles.mobileToc}>
               <h2 className={styles.tocTitle}>
                 <List size={18} /> Содержание
               </h2>
               <ul className={styles.tocList}>
-                {post.toc.map(item => (
+                {tocItems.map((item) => (
                   <li key={item.id}>
-                    <a href={`#${item.id}`} className={styles.tocLink}>{item.title}</a>
+                    <a href={`#${item.id}`} className={styles.tocLink}>
+                      {item.title}
+                    </a>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className={styles.content}>
-              <p className="lead">Начало года — идеальное время, чтобы помочь ребенку найти новое увлечение.</p>
-
-              <h2 id="robotics">1. Робототехника и Искусственный Интеллект</h2>
-              <p>Кружки по робототехнике учат детей не просто собирать конструкторы, а программировать их.</p>
-
-              <h2 id="creative">2. Цифровое творчество</h2>
-              <p>От 3D-моделирования до цифровой живописи. Планшет вместо холста.</p>
-
-              <h2 id="sport">3. Современный спорт: Киберспорт и Скалолазание</h2>
-              <p>Традиционные секции всегда актуальны, но в тренде виды спорта, развивающие стратегическое мышление.</p>
-
-              <h2 id="science">4. Научные лаборатории</h2>
-              <p>Для юных «почемучек» нет ничего лучше, чем самому провести химический опыт.</p>
-            </div>
-            
-            {/* FAQ УБРАН ОТСЮДА */}
+            <div
+              className={styles.content}
+              dangerouslySetInnerHTML={{ __html: contentHtml }}
+            />
           </article>
 
           {/* === 2. САЙДБАР === */}
           <aside>
             <div className={styles.desktopToc}>
-              {/* ИСПРАВЛЕНИЕ: H2 -> DIV (Чтобы убрать дубль из SEO анализатора) */}
               <div className={styles.tocTitle}>
                 <List size={18} /> Содержание
               </div>
               <ul className={styles.tocList}>
-                {post.toc.map(item => (
+                {tocItems.map((item) => (
                   <li key={item.id}>
-                    <a href={`#${item.id}`} className={styles.tocLink}>{item.title}</a>
+                    <a href={`#${item.id}`} className={styles.tocLink}>
+                      {item.title}
+                    </a>
                   </li>
                 ))}
               </ul>
 
               <div className={styles.promoBox}>
-                {/* Оставляем H2, это будет перед FAQ в структуре */}
                 <h2 className={styles.promoTitle}>Подбор кружка</h2>
-                <p style={{fontSize: '13px', color: '#4b5563'}}>Пройдите тест и узнайте талант ребенка.</p>
-                <button className={styles.promoBtn}>Начать тест</button>
+                <p style={{ fontSize: "13px", color: "#4b5563" }}>
+                  Найдите секции рядом с домом на карте Мапки.
+                </p>
+                <Link href="/" className={styles.promoBtn}>
+                  Открыть карту
+                </Link>
               </div>
             </div>
           </aside>
 
-          {/* === 3. FAQ (В САМОМ НИЗУ) === */}
-          {/* Теперь он идет в коде после aside, поэтому анализатор покажет его последним */}
-          <div id="faq" className={styles.faqSection}>
-            <h2 className={styles.faqTitle}>Частые вопросы</h2>
-            {post.faq.map((item, index) => (
-              <details key={index} className={styles.faqItem}>
-                <summary className={styles.faqSummary}>
-                  {item.q} <ChevronDown size={16} />
-                </summary>
-                <div className={styles.faqDetails}>{item.a}</div>
-              </details>
-            ))}
-          </div>
-
+          {/* === 3. FAQ (в самом низу) === */}
+          {faq.length ? (
+            <div id="faq" className={styles.faqSection}>
+              <h2 className={styles.faqTitle}>Частые вопросы</h2>
+              {faq.map((item, index) => (
+                <details key={index} className={styles.faqItem}>
+                  <summary className={styles.faqSummary}>
+                    {item.q} <ChevronDown size={16} />
+                  </summary>
+                  <div className={styles.faqDetails}>{item.a}</div>
+                </details>
+              ))}
+            </div>
+          ) : null}
         </div>
       </main>
     </div>

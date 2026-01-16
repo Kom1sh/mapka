@@ -1,13 +1,16 @@
 import Header from "@/components/Header";
 import BlogPageClient from "./BlogPageClient";
 import "./blog.css";
+import { headers } from "next/headers";
+
+const FALLBACK_SITE_URL = "https://xn--80aa3agq.xn--p1ai";
 
 export const metadata = {
   title: "Блог Мапка - Статьи, подборки секций и советы для родителей",
   description:
     "Полезные статьи для родителей: как выбрать кружок, подборки лучших секций Ростова-на-Дону, советы психологов и тренеров.",
   alternates: {
-    canonical: "https://xn--80aa3agq.xn--p1ai/blog",
+    canonical: `${FALLBACK_SITE_URL}/blog`,
   },
   openGraph: {
     title: "Блог Мапка - Статьи и подборки",
@@ -17,43 +20,60 @@ export const metadata = {
   },
 };
 
-export default function BlogPage() {
+function getBaseUrl() {
+  const h = headers();
+  const host = h.get("x-forwarded-host") || h.get("host");
+  const proto = h.get("x-forwarded-proto") || "https";
+  if (!host) return FALLBACK_SITE_URL;
+  return `${proto}://${host}`;
+}
+
+async function fetchPublicPosts() {
+  const base = getBaseUrl();
+  try {
+    const r = await fetch(`${base}/api/blog/public/posts?limit=200`, {
+      next: { revalidate: 60 },
+    });
+    if (!r.ok) return [];
+    const data = await r.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export default async function BlogPage() {
+  const base = getBaseUrl();
+  const posts = await fetchPublicPosts();
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Blog",
     name: "Блог Мапка",
     description: "Полезные статьи и подборки кружков для родителей",
-    url: "https://xn--80aa3agq.xn--p1ai/blog",
+    url: `${base}/blog`,
     publisher: {
       "@type": "Organization",
       name: "Мапка",
       logo: {
         "@type": "ImageObject",
-        url: "https://xn--80aa3agq.xn--p1ai/logo.png",
+        url: `${base}/logo.png`,
       },
     },
-    blogPost: [
-      {
-        "@type": "BlogPosting",
-        headline: "Топ-10 футбольных секций Ростова-на-Дону",
-        image: "https://images.unsplash.com/photo-1542315264-884813583226",
-        datePublished: "2025-10-25",
-        author: { "@type": "Person", name: "Анна Иванова" },
-      },
-      {
-        "@type": "BlogPosting",
-        headline: "Как понять, что ребенку не подходит кружок?",
-        image: "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9",
-        datePublished: "2025-10-20",
-        author: { "@type": "Person", name: "Олег Петров" },
-      },
-    ],
+    blogPost: posts.slice(0, 20).map((p) => ({
+      "@type": "BlogPosting",
+      headline: p?.title || "",
+      image: p?.cover_image || undefined,
+      datePublished: p?.published_at || p?.created_at || undefined,
+      author: { "@type": "Person", name: p?.author_name || "Редакция Мапка" },
+      url: `${base}/blog/${p?.slug || ""}`,
+    })),
   };
 
   return (
     <>
       <Header />
-      <BlogPageClient />
+      <BlogPageClient initialPosts={posts} />
 
       <script
         type="application/ld+json"
