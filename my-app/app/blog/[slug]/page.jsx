@@ -32,8 +32,8 @@ const PUBLIC_ORIGIN = normalizeOrigin(
 const API_ORIGINS = [
   process.env.INTERNAL_API_ORIGIN,
   PUBLIC_ORIGIN,
-  "http://127.0.0.1",
-  "http://localhost",
+  "http://127.0.0.1:8000",
+  "http://localhost:8000",
 ]
   .filter(Boolean)
   .map((o) => String(o).replace(/\/+$/, ""));
