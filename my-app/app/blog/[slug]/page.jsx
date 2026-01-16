@@ -9,23 +9,41 @@ export const runtime = "nodejs";
 const FALLBACK_SITE_URL = "https://xn--80aa3agq.xn--p1ai";
 const SITE_NAME = "Мапка.рф";
 
-function getSiteUrl() {
-  const raw =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.SITE_URL ||
-    FALLBACK_SITE_URL;
+function normalizeOrigin(raw) {
+  let s = String(raw || "").trim();
+  if (!s) return FALLBACK_SITE_URL;
+  if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
 
-  return String(raw).replace(/\/+$/, "");
+  try {
+    const u = new URL(s);
+    // u.host будет в ASCII (punycode) для доменов с кириллицей
+    return `${u.protocol}//${u.host}`.replace(/\/+$/, "");
+  } catch {
+    return FALLBACK_SITE_URL;
+  }
 }
 
-const SITE_URL = getSiteUrl();
+const PUBLIC_ORIGIN = normalizeOrigin(
+  process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || FALLBACK_SITE_URL
+);
+
+// Для SSR лучше уметь ходить в локальный reverse-proxy без DNS/SSL проблем.
+// Если есть INTERNAL_API_ORIGIN (например http://127.0.0.1), используем его первым.
+const API_ORIGINS = [
+  process.env.INTERNAL_API_ORIGIN,
+  PUBLIC_ORIGIN,
+  "http://127.0.0.1",
+  "http://localhost",
+]
+  .filter(Boolean)
+  .map((o) => String(o).replace(/\/+$/, ""));
 
 function absolutizeUrl(url) {
   if (!url) return "";
   if (/^https?:\/\//i.test(url)) return url;
   const u = String(url);
-  if (u.startsWith("/")) return `${SITE_URL}${u}`;
-  return `${SITE_URL}/${u}`;
+  if (u.startsWith("/")) return `${PUBLIC_ORIGIN}${u}`;
+  return `${PUBLIC_ORIGIN}/${u}`;
 }
 
 function stripHtml(html) {
@@ -90,14 +108,41 @@ function buildTocAndHtml(html) {
   return { toc, html: withIds };
 }
 
+async function fetchJsonWithFallback(pathname) {
+  let saw404 = false;
+  let lastErr = null;
+
+  for (const origin of API_ORIGINS) {
+    const url = `${origin}${pathname}`;
+
+    try {
+      const r = await fetch(url, { cache: "no-store" });
+
+      if (r.status === 404) {
+        saw404 = true;
+        continue; // возможно, это "не тот" origin — пробуем следующий
+      }
+
+      if (!r.ok) {
+        lastErr = new Error(`Fetch failed ${r.status} for ${url}`);
+        continue;
+      }
+
+      return await r.json();
+    } catch (e) {
+      lastErr = e;
+      continue;
+    }
+  }
+
+  if (saw404) return null;
+  throw lastErr || new Error("Fetch failed");
+}
+
 async function fetchPublicPost(slug) {
-  const url = `${SITE_URL}/api/blog/public/posts/${encodeURIComponent(slug)}`;
-  const r = await fetch(url, { cache: "no-store" });
-
-  if (r.status === 404) return null;
-  if (!r.ok) throw new Error(`Blog post fetch failed: ${r.status}`);
-
-  return r.json();
+  return fetchJsonWithFallback(
+    `/api/blog/public/posts/${encodeURIComponent(slug)}`
+  );
 }
 
 export async function generateMetadata({ params }) {
@@ -112,8 +157,9 @@ export async function generateMetadata({ params }) {
 
     const title = `${post.title} | Блог ${SITE_NAME}`;
     const description = post.excerpt || "";
-    const canonical = `${SITE_URL}/blog/${post.slug}`;
-    const ogImage = absolutizeUrl(post.cover_image) || `${SITE_URL}/og-image.jpg`;
+    const canonical = `${PUBLIC_ORIGIN}/blog/${post.slug}`;
+    const ogImage =
+      absolutizeUrl(post.cover_image) || `${PUBLIC_ORIGIN}/og-image.jpg`;
 
     return {
       title,
@@ -130,6 +176,7 @@ export async function generateMetadata({ params }) {
       },
     };
   } catch {
+    // Если SSR не может сходить в API, лучше не 500, а noindex.
     return {
       title: `Блог | ${SITE_NAME}`,
       robots: { index: false, follow: false },
@@ -142,8 +189,9 @@ export default async function BlogPostPage({ params }) {
 
   try {
     post = await fetchPublicPost(params.slug);
-  } catch {
-    // если бэк временно отвалился — отдаём 404, чтобы не было 500
+  } catch (e) {
+    // Логируем причину, чтобы видно было в journalctl/logs Next
+    console.error("[blog/[slug]] SSR fetch failed:", e);
     notFound();
   }
 
@@ -179,9 +227,9 @@ export default async function BlogPostPage({ params }) {
     publisher: {
       "@type": "Organization",
       name: SITE_NAME,
-      logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.png` },
+      logo: { "@type": "ImageObject", url: `${PUBLIC_ORIGIN}/logo.png` },
     },
-    mainEntityOfPage: `${SITE_URL}/blog/${post.slug}`,
+    mainEntityOfPage: `${PUBLIC_ORIGIN}/blog/${post.slug}`,
   };
 
   const faqJsonLd =
@@ -288,7 +336,11 @@ export default async function BlogPostPage({ params }) {
             {tags.length > 0 ? (
               <div className={styles.tags}>
                 {tags.map((t) => (
-                  <Link key={t} href={`/blog?tag=${encodeURIComponent(t)}`} className={styles.tag}>
+                  <Link
+                    key={t}
+                    href={`/blog?tag=${encodeURIComponent(t)}`}
+                    className={styles.tag}
+                  >
                     #{t}
                   </Link>
                 ))}
