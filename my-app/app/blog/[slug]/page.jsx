@@ -108,21 +108,19 @@ function buildTocAndHtml(html) {
   return { toc, html: withIds };
 }
 
-async function fetchJsonWithFallback(pathname) {
+async function fetchJsonWithFallback(path) {
   let saw404 = false;
   let lastErr = null;
 
   for (const origin of API_ORIGINS) {
-    const url = `${origin}${pathname}`;
-
+    const url = `${origin}${path}`;
     try {
       const r = await fetch(url, { cache: "no-store" });
 
       if (r.status === 404) {
         saw404 = true;
-        continue; // возможно, это "не тот" origin — пробуем следующий
+        continue; // пробуем следующий origin
       }
-
       if (!r.ok) {
         lastErr = new Error(`Fetch failed ${r.status} for ${url}`);
         continue;
@@ -131,7 +129,6 @@ async function fetchJsonWithFallback(pathname) {
       return await r.json();
     } catch (e) {
       lastErr = e;
-      continue;
     }
   }
 
@@ -176,7 +173,6 @@ export async function generateMetadata({ params }) {
       },
     };
   } catch {
-    // Если SSR не может сходить в API, лучше не 500, а noindex.
     return {
       title: `Блог | ${SITE_NAME}`,
       robots: { index: false, follow: false },
@@ -190,7 +186,7 @@ export default async function BlogPostPage({ params }) {
   try {
     post = await fetchPublicPost(params.slug);
   } catch (e) {
-    // Логируем причину, чтобы видно было в journalctl/logs Next
+    // чтобы понять причину в логах Next:
     console.error("[blog/[slug]] SSR fetch failed:", e);
     notFound();
   }
@@ -211,7 +207,6 @@ export default async function BlogPostPage({ params }) {
       })
     : "";
 
-  // JSON-LD: BlogPosting + FAQPage (если есть)
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
