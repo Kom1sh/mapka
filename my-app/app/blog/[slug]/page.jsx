@@ -31,9 +31,16 @@ const PUBLIC_ORIGIN = normalizeOrigin(
 // Если есть INTERNAL_API_ORIGIN (например http://127.0.0.1), используем его первым.
 const API_ORIGINS = [
   process.env.INTERNAL_API_ORIGIN,
-  PUBLIC_ORIGIN,
+  // сначала пробуем прямой backend без caddy-редиректа
   "http://127.0.0.1:8000",
   "http://localhost:8000",
+
+  // потом уже публичный домен
+  PUBLIC_ORIGIN,
+
+  // и в самом конце — то, что может редиректить на https://127.0.0.1 (Caddy)
+  "http://127.0.0.1",
+  "http://localhost",
 ]
   .filter(Boolean)
   .map((o) => String(o).replace(/\/+$/, ""));
