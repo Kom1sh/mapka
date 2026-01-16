@@ -2,7 +2,7 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 // Подключаем наши локальные стили
-import styles from './blog-page.css';
+import styles from './page.module.css';
 // Иконки
 import { ChevronRight, Calendar, Clock, Share2, MapPin, BookOpen } from 'lucide-react';
 
