@@ -1,48 +1,47 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-// Убедитесь, что файл называется page.module.css
 import styles from './page.module.css';
-import { ChevronRight, Calendar, Clock, HelpCircle, List, ArrowDownCircle } from 'lucide-react';
+import { ChevronRight, List, ChevronDown, Calendar, User } from 'lucide-react';
 
 const SITE_NAME = 'Мапка.рф';
-const SITE_URL = 'https://xn--80aa3agq.xn--p1ai';
 
+// === ДАННЫЕ ===
 async function getPostData(slug) {
+  // Имитация данных
   return {
-    title: 'Детские кружки 2026: Топ-7 направлений для развития ребенка',
+    title: 'Топ-5 направлений для детских кружков в январе 2026 года: Что выбрать?',
     slug: slug,
-    excerpt: 'Робототехника с ИИ, биохакинг или блогинг? Полный гид для родителей по выбору секций в новом году.',
-    publishedAt: '2026-01-20T09:00:00Z',
-    readTime: '6 мин',
+    excerpt: 'Робототехника, программирование или спорт? Разбираем тренды дополнительного образования.',
+    publishedAt: '2026-01-15T10:00:00Z',
+    readTime: '5 мин',
     author: {
-      name: 'Елена Соколова',
-      role: 'Педагог-психолог',
-      avatar: 'https://i.pravatar.cc/150?u=elena_kids'
+      name: 'Анна Смирнова',
+      role: 'Детский психолог, педагог',
+      avatar: 'https://i.pravatar.cc/150?u=anna'
     },
-    category: 'Образование',
+    category: 'Образование и Развитие',
+    coverImage: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200',
     
-    // Оглавление
+    // Оглавление для навигации
     toc: [
-      { id: 'tech', title: '1. Робототехника и ИИ' },
-      { id: 'media', title: '2. Блогинг и Медиа' },
-      { id: 'bio', title: '3. Биология (BioTech)' },
-      { id: 'soft', title: '4. Soft Skills' },
+      { id: 'robotics', title: '1. Робототехника и ИИ' },
+      { id: 'creative', title: '2. Цифровое творчество' },
+      { id: 'sport', title: '3. Современный спорт' },
+      { id: 'science', title: '4. Наука и эксперименты' },
       { id: 'faq', title: 'Вопросы и ответы' },
     ],
 
     faq: [
       {
-        question: 'С какого возраста изучать программирование?',
-        answer: 'Игровое программирование (Scratch) подходит с 5-6 лет. Python и серьезные задачи — с 10-12 лет.'
+        q: 'С какого возраста можно на программирование?',
+        a: 'Для Scratch оптимально 6-7 лет, Python — с 11-12 лет.'
       },
       {
-        question: 'Сколько кружков нужно ребенку?',
-        answer: 'Психологи советуют не более 2-3 секций, чтобы у ребенка оставалось время на отдых и детство.'
+        q: 'Нужен ли свой ноутбук?',
+        a: 'Большинство центров предоставляют оборудование, но для домашних заданий компьютер потребуется.'
       }
-    ],
-
-    coverImage: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200'
+    ]
   };
 }
 
@@ -56,9 +55,11 @@ export async function generateMetadata({ params }) {
 
 export default async function BlogPostPage({ params }) {
   const post = await getPostData(params.slug);
-  const dateStr = new Date(post.publishedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dateStr = new Date(post.publishedAt).toLocaleDateString('ru-RU', {
+    day: 'numeric', month: 'long', year: 'numeric'
+  });
 
-  // Схема JSON-LD (SEO)
+  // JSON-LD Schema
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
@@ -72,18 +73,17 @@ export default async function BlogPostPage({ params }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <main className={styles.container}>
-        
-        {/* Навигация (Хлебные крошки) */}
+        {/* Хлебные крошки */}
         <nav className={styles.breadcrumbs}>
           <Link href="/">Главная</Link>
           <ChevronRight size={14} />
           <Link href="/blog">Блог</Link>
           <ChevronRight size={14} />
-          <span className={styles.activeCrumb}>Тренды 2026</span>
+          <span style={{ color: '#0f172a', fontWeight: 500 }}>{post.title}</span>
         </nav>
 
         <div className={styles.grid}>
-          {/* ЛЕВАЯ КОЛОНКА */}
+          {/* Левая колонка */}
           <article className={styles.article}>
             
             <span className={styles.badge}>{post.category}</span>
@@ -93,30 +93,30 @@ export default async function BlogPostPage({ params }) {
               <Image 
                 src={post.author.avatar} 
                 alt={post.author.name} 
-                width={40} 
-                height={40} 
+                width={48} 
+                height={48} 
                 className={styles.avatar} 
               />
               <div className={styles.metaText}>
                 <strong>{post.author.name}</strong>
-                <span>{dateStr} • {post.readTime} чтения</span>
+                <span>{post.author.role} • {dateStr}</span>
               </div>
             </div>
 
             <div className={styles.coverWrapper}>
               <Image 
                 src={post.coverImage} 
-                alt="Дети" 
+                alt="Cover" 
                 fill 
                 style={{objectFit: 'cover'}} 
                 priority 
               />
             </div>
 
-            {/* Мобильное оглавление (Видно только на телефоне) */}
+            {/* Мобильное оглавление */}
             <div className={styles.mobileToc}>
-              <div className={styles.mobileTocTitle}>
-                <List size={18} /> Содержание статьи:
+              <div className={styles.tocTitle}>
+                <List size={18} /> Содержание статьи
               </div>
               <ul className={styles.tocList}>
                 {post.toc.map(item => (
@@ -129,50 +129,45 @@ export default async function BlogPostPage({ params }) {
               </ul>
             </div>
 
+            {/* Контент */}
             <div className={styles.content}>
-              <p className="lead">Мир меняется. В 2026 году самыми востребованными навыками становятся не просто знания, а умение адаптироваться.</p>
+              <p className="lead">Начало года — идеальное время, чтобы помочь ребенку найти новое увлечение. В 2026 году акцент смещается на цифру.</p>
 
-              <h2 id="tech">1. Робототехника и ИИ</h2>
-              <p>Робототехника перешла на новый уровень. Теперь дети учат роботов распознавать образы с помощью нейросетей.</p>
+              <h2 id="robotics">1. Робототехника и Искусственный Интеллект</h2>
+              <p>Это уже не будущее, а настоящее.  Кружки по робототехнике учат детей не просто собирать конструкторы, а программировать их.</p>
               <ul>
-                <li>Развитие логики и математики.</li>
-                <li>Понимание принципов работы ИИ.</li>
+                <li>Развивает логику.</li>
+                <li>Учит работать в команде.</li>
               </ul>
 
-              <h2 id="media">2. Блогинг и Медиа</h2>
-              <p>Умение презентовать себя — ключевой навык будущего. Курсы блогинга учат не кривляться на камеру, а структурировать мысли и держать внимание аудитории.</p>
+              <h2 id="creative">2. Цифровое творчество</h2>
+              <p>От 3D-моделирования до цифровой живописи. Планшет вместо холста — выбор современных художников.</p>
 
-              <h2 id="bio">3. Биология (BioTech)</h2>
-              <p>Сити-фермерство и микробиология. Дети выращивают растения в умных теплицах и изучают мир под цифровым микроскопом.</p>
+              <h2 id="sport">3. Современный спорт: Киберспорт и Скалолазание</h2>
+              <p>Традиционные секции всегда актуальны, но в тренде виды спорта, развивающие стратегическое мышление.</p>
 
-              <h2 id="soft">4. Soft Skills</h2>
-              <p>Эмоциональный интеллект важнее оценок. Умение договариваться и работать в команде — залог успеха в любой профессии.</p>
+              <h2 id="science">4. Научные лаборатории</h2>
+              <p>Для юных «почемучек» нет ничего лучше, чем самому провести химический опыт.</p>
 
-              {/* FAQ Блок */}
+              {/* FAQ */}
               <div id="faq" className={styles.faqSection}>
                 <h3 style={{fontSize: '20px', fontWeight: 'bold', marginBottom: '16px'}}>Частые вопросы</h3>
                 {post.faq.map((item, index) => (
                   <details key={index} className={styles.faqItem}>
                     <summary className={styles.faqSummary}>
-                      {item.question}
-                      <ChevronRight size={16} />
+                      {item.q} <ChevronDown size={16} />
                     </summary>
-                    <div className={styles.faqDetails}>
-                      {item.answer}
-                    </div>
+                    <div className={styles.faqDetails}>{item.a}</div>
                   </details>
                 ))}
               </div>
-
             </div>
           </article>
 
-          {/* ПРАВАЯ КОЛОНКА (САЙДБАР) */}
-          <aside className={styles.sidebar}>
-            
-            {/* Десктопное оглавление (Липкое) */}
+          {/* Правая колонка (Сайдбар) */}
+          <aside>
             <div className={styles.desktopToc}>
-              <div style={{fontWeight:'bold', marginBottom:'16px', display:'flex', gap:'8px'}}>
+              <div className={styles.tocTitle}>
                 <List size={18} /> Содержание
               </div>
               <ul className={styles.tocList}>
@@ -184,19 +179,13 @@ export default async function BlogPostPage({ params }) {
                   </li>
                 ))}
               </ul>
-            </div>
 
-            {/* Промо блок */}
-            <div className={styles.promoBox}>
-              <h3 style={{fontSize:'16px', fontWeight:'bold', marginBottom:'8px', color:'#1e3a8a'}}>
-                Подбор кружка
-              </h3>
-              <p style={{fontSize:'13px', marginBottom:'12px', color:'#1e40af'}}>
-                Пройдите тест и узнайте талант ребенка.
-              </p>
-              <button className={styles.promoBtn}>Начать тест</button>
+              <div className={styles.promoBox}>
+                <h4 style={{fontWeight: 'bold', marginBottom: '8px'}}>Подбор кружка</h4>
+                <p style={{fontSize: '13px', color: '#4b5563'}}>Пройдите тест и узнайте талант ребенка.</p>
+                <button className={styles.promoBtn}>Начать тест</button>
+              </div>
             </div>
-
           </aside>
         </div>
       </main>
