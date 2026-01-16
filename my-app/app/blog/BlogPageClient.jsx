@@ -228,7 +228,7 @@ export default function BlogPageClient() {
             className="footer-logo"
             loading="lazy"
           />
-          <div className="copyright">© 2025 Мапка. Все права защищены.</div>
+          <div className="copyright">© 2026 Мапка. Все права защищены.</div>
           <div className="footer-links">
             <a href="#">Политика конфиденциальности</a>
             <a href="#">Оферта</a>
