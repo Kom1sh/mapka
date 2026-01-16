@@ -3,54 +3,27 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import styles from "./page.module.css";
 
+// Для динамического slug и чтобы не попасть в статический пререндер
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const FALLBACK_SITE_URL = "https://xn--80aa3agq.xn--p1ai";
+// Основной домен сайта (punycode) — как в других страницах проекта
+const SITE_URL = "https://xn--80aa3agq.xn--p1ai";
 const SITE_NAME = "Мапка.рф";
 
-function normalizeOrigin(raw) {
-  let s = String(raw || "").trim();
-  if (!s) return FALLBACK_SITE_URL;
-  if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+// ✅ Паттерн API_BASE совпадает с lib/club-api.js
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  `${SITE_URL}/api`;
 
-  try {
-    const u = new URL(s);
-    // u.host будет в ASCII (punycode) для доменов с кириллицей
-    return `${u.protocol}//${u.host}`.replace(/\/+$/, "");
-  } catch {
-    return FALLBACK_SITE_URL;
-  }
-}
+// Внутренний origin, чтобы SSR не зависел от внешнего https/dns
+const INTERNAL_API_ORIGIN =
+  process.env.INTERNAL_API_ORIGIN || "http://127.0.0.1:8000";
 
-const PUBLIC_ORIGIN = normalizeOrigin(
-  process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || FALLBACK_SITE_URL
-);
-
-// Для SSR лучше уметь ходить в локальный reverse-proxy без DNS/SSL проблем.
-// Если есть INTERNAL_API_ORIGIN (например http://127.0.0.1), используем его первым.
-const API_ORIGINS = [
-  process.env.INTERNAL_API_ORIGIN,
-  // сначала пробуем прямой backend без caddy-редиректа
-  "http://127.0.0.1:8000",
-  "http://localhost:8000",
-
-  // потом уже публичный домен
-  PUBLIC_ORIGIN,
-
-  // и в самом конце — то, что может редиректить на https://127.0.0.1 (Caddy)
-  "http://127.0.0.1",
-  "http://localhost",
-]
-  .filter(Boolean)
-  .map((o) => String(o).replace(/\/+$/, ""));
-
-function absolutizeUrl(url) {
-  if (!url) return "";
-  if (/^https?:\/\//i.test(url)) return url;
-  const u = String(url);
-  if (u.startsWith("/")) return `${PUBLIC_ORIGIN}${u}`;
-  return `${PUBLIC_ORIGIN}/${u}`;
+function isHtml(s) {
+  const str = String(s || "").trim();
+  return /<\w+[\s\S]*?>/.test(str);
 }
 
 function stripHtml(html) {
@@ -61,7 +34,7 @@ function slugify(text) {
   return stripHtml(text)
     .toLowerCase()
     .replace(/&nbsp;|&#160;/g, " ")
-    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/[^A-zА-яЁё\d]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
 }
@@ -115,96 +88,85 @@ function buildTocAndHtml(html) {
   return { toc, html: withIds };
 }
 
-async function fetchJsonWithFallback(path) {
-  let saw404 = false;
-  let lastErr = null;
-
-  for (const origin of API_ORIGINS) {
-    const url = `${origin}${path}`;
-    try {
-      const r = await fetch(url, { cache: "no-store" });
-
-      if (r.status === 404) {
-        saw404 = true;
-        continue; // пробуем следующий origin
-      }
-      if (!r.ok) {
-        lastErr = new Error(`Fetch failed ${r.status} for ${url}`);
-        continue;
-      }
-
-      return await r.json();
-    } catch (e) {
-      lastErr = e;
-    }
+async function fetchJson(url, init) {
+  const res = await fetch(url, init);
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status} for ${url}: ${txt}`);
   }
-
-  if (saw404) return null;
-  throw lastErr || new Error("Fetch failed");
+  return res.json();
 }
 
-async function fetchPublicPost(slug) {
-  return fetchJsonWithFallback(
-    `/api/blog/public/posts/${encodeURIComponent(slug)}`
-  );
+async function fetchPost(slug) {
+  const encoded = encodeURIComponent(String(slug || "").trim());
+  if (!encoded) return null;
+
+  // 1) Сначала пробуем внутренний backend (быстрее и без редиректов/ssl)
+  try {
+    return await fetchJson(
+      `${INTERNAL_API_ORIGIN}/api/blog/public/posts/${encoded}`,
+      { cache: "no-store" }
+    );
+  } catch (e) {
+    // Лог оставляем — очень помогает при SSR
+    console.error("[blog/[slug]] internal fetch failed:", e);
+  }
+
+  // 2) Фолбэк на публичный домен
+  try {
+    return await fetchJson(`${API_BASE}/blog/public/posts/${encoded}`, {
+      cache: "no-store",
+    });
+  } catch (e) {
+    console.error("[blog/[slug]] public fetch failed:", e);
+    throw e;
+  }
 }
 
 export async function generateMetadata({ params }) {
-  try {
-    const post = await fetchPublicPost(params.slug);
-    if (!post) {
-      return {
-        title: `Статья не найдена | ${SITE_NAME}`,
-        robots: { index: false, follow: false },
-      };
-    }
+  // ✅ В твоём проекте params — Promise (см. app/[slug]/page.jsx)
+  const resolvedParams = await params;
+  const slug = resolvedParams?.slug;
 
-    const title = `${post.title} | Блог ${SITE_NAME}`;
-    const description = post.excerpt || "";
-    const canonical = `${PUBLIC_ORIGIN}/blog/${post.slug}`;
-    const ogImage =
-      absolutizeUrl(post.cover_image) || `${PUBLIC_ORIGIN}/og-image.jpg`;
-
+  const post = await fetchPost(slug).catch(() => null);
+  if (!post) {
     return {
-      title,
-      description,
-      alternates: { canonical },
-      openGraph: {
-        title,
-        description,
-        url: canonical,
-        siteName: SITE_NAME,
-        locale: "ru_RU",
-        type: "article",
-        images: [{ url: ogImage, width: 1200, height: 630, alt: post.title }],
-      },
-    };
-  } catch {
-    return {
-      title: `Блог | ${SITE_NAME}`,
+      title: `Статья не найдена | Блог ${SITE_NAME}`,
       robots: { index: false, follow: false },
     };
   }
+
+  const canonical = `${SITE_URL}/blog/${post.slug}`;
+  const ogImage = post.cover_image || `${SITE_URL}/og-image.jpg`;
+
+  return {
+    title: `${post.title} | Блог ${SITE_NAME}`,
+    description: post.excerpt || "",
+    alternates: { canonical },
+    openGraph: {
+      title: post.title,
+      description: post.excerpt || "",
+      url: canonical,
+      siteName: SITE_NAME,
+      locale: "ru_RU",
+      type: "article",
+      images: [{ url: ogImage, width: 1200, height: 630, alt: post.title }],
+    },
+  };
 }
 
 export default async function BlogPostPage({ params }) {
-  let post = null;
+  // ✅ В твоём проекте params — Promise
+  const resolvedParams = await params;
+  const slug = resolvedParams?.slug;
 
-  try {
-    post = await fetchPublicPost(params.slug);
-  } catch (e) {
-    // чтобы понять причину в логах Next:
-    console.error("[blog/[slug]] SSR fetch failed:", e);
-    notFound();
-  }
-
+  const post = await fetchPost(slug).catch(() => null);
   if (!post) notFound();
 
   const tags = normalizeTags(post.tags);
   const faq = normalizeFaq(post.faq);
 
-  const { toc, html } = buildTocAndHtml(post.content || "");
-  const cover = absolutizeUrl(post.cover_image);
   const publishedAt = post.published_at || post.created_at || null;
   const dateStr = publishedAt
     ? new Date(publishedAt).toLocaleDateString("ru-RU", {
@@ -214,14 +176,17 @@ export default async function BlogPostPage({ params }) {
       })
     : "";
 
+  const htmlContent = isHtml(post.content) ? String(post.content) : "";
+  const { toc, html } = buildTocAndHtml(htmlContent);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     headline: post.title,
-    description: post.excerpt || "",
-    image: cover ? [cover] : undefined,
+    image: post.cover_image ? [post.cover_image] : undefined,
     datePublished: publishedAt || undefined,
     dateModified: post.updated_at || publishedAt || undefined,
+    description: post.excerpt || "",
     author: {
       "@type": "Person",
       name: post.author_name || "Редакция Мапка",
@@ -229,9 +194,9 @@ export default async function BlogPostPage({ params }) {
     publisher: {
       "@type": "Organization",
       name: SITE_NAME,
-      logo: { "@type": "ImageObject", url: `${PUBLIC_ORIGIN}/logo.png` },
+      logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.png` },
     },
-    mainEntityOfPage: `${PUBLIC_ORIGIN}/blog/${post.slug}`,
+    mainEntityOfPage: `${SITE_URL}/blog/${post.slug}`,
   };
 
   const faqJsonLd =
@@ -255,12 +220,12 @@ export default async function BlogPostPage({ params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      {faqJsonLd && (
+      {faqJsonLd ? (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
         />
-      )}
+      ) : null}
 
       <main className={styles.container}>
         <nav className={styles.breadcrumbs}>
@@ -277,13 +242,14 @@ export default async function BlogPostPage({ params }) {
               {post.category ? (
                 <span className={styles.badge}>{post.category}</span>
               ) : null}
+
               <h1 className={styles.h1}>{post.title}</h1>
 
               <div className={styles.meta}>
                 <div className={styles.metaLeft}>
                   {post.author_avatar ? (
                     <img
-                      src={absolutizeUrl(post.author_avatar)}
+                      src={post.author_avatar}
                       alt={post.author_name || "Автор"}
                       className={styles.avatar}
                       loading="lazy"
@@ -297,17 +263,16 @@ export default async function BlogPostPage({ params }) {
                     <div className={styles.authorSub}>
                       {post.author_role ? `${post.author_role} • ` : ""}
                       {dateStr}
-                      {post.read_time ? ` • ${post.read_time}` : ""}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {cover ? (
+            {post.cover_image ? (
               <div className={styles.coverWrap}>
                 <img
-                  src={cover}
+                  src={post.cover_image}
                   alt={post.title}
                   className={styles.cover}
                   loading="eager"
@@ -320,7 +285,10 @@ export default async function BlogPostPage({ params }) {
                 <div className={styles.tocTitle}>Содержание</div>
                 <ul className={styles.tocList}>
                   {toc.map((i) => (
-                    <li key={i.id} className={styles[`lvl${i.level}`]}>
+                    <li
+                      key={i.id}
+                      className={styles[i.level === 2 ? "lvl2" : "lvl3"]}
+                    >
                       <a href={`#${i.id}`} className={styles.tocLink}>
                         {i.title}
                       </a>
@@ -330,10 +298,16 @@ export default async function BlogPostPage({ params }) {
               </div>
             ) : null}
 
-            <div
-              className={styles.content}
-              dangerouslySetInnerHTML={{ __html: html }}
-            />
+            {html ? (
+              <div
+                className={styles.content}
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            ) : (
+              <div className={styles.content} style={{ whiteSpace: "pre-wrap" }}>
+                {post.content || ""}
+              </div>
+            )}
 
             {tags.length > 0 ? (
               <div className={styles.tags}>
@@ -370,7 +344,10 @@ export default async function BlogPostPage({ params }) {
                 <div className={styles.tocTitle}>Содержание</div>
                 <ul className={styles.tocList}>
                   {toc.map((i) => (
-                    <li key={i.id} className={styles[`lvl${i.level}`]}>
+                    <li
+                      key={i.id}
+                      className={styles[i.level === 2 ? "lvl2" : "lvl3"]}
+                    >
                       <a href={`#${i.id}`} className={styles.tocLink}>
                         {i.title}
                       </a>
