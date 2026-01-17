@@ -435,6 +435,73 @@ def _serialize_blog_post(p: BlogPost):
     }
 
 
+
+
+def _jsonable(obj):
+    """Convert Pydantic models (and nested structures) into plain JSON-serializable objects."""
+    if obj is None:
+        return None
+
+    # pydantic v2
+    md = getattr(obj, "model_dump", None)
+    if callable(md):
+        try:
+            return _jsonable(md())
+        except Exception:
+            pass
+
+    # pydantic v1
+    dct = getattr(obj, "dict", None)
+    if callable(dct):
+        try:
+            return _jsonable(dct())
+        except Exception:
+            pass
+
+    if isinstance(obj, (str, int, float, bool)):
+        return obj
+
+    if isinstance(obj, (list, tuple)):
+        return [_jsonable(x) for x in obj]
+
+    if isinstance(obj, dict):
+        return {k: _jsonable(v) for k, v in obj.items()}
+
+    # last resort
+    try:
+        return str(obj)
+    except Exception:
+        return None
+
+
+def _normalize_blog_faq(faq):
+    """Normalize FAQ payload for JSONB: list of {q,a}. Filters out fully empty items."""
+    if faq is None:
+        return None
+
+    out = []
+    for item in (faq or []):
+        if item is None:
+            continue
+        d = _jsonable(item)
+
+        if isinstance(d, dict):
+            q = (d.get("q") or d.get("question") or "")
+            a = (d.get("a") or d.get("answer") or "")
+        else:
+            q = getattr(item, "q", "") or ""
+            a = getattr(item, "a", "") or ""
+
+        q = str(q).strip()
+        a = str(a).strip()
+
+        if not q and not a:
+            continue
+
+        out.append({"q": q, "a": a})
+
+    # even if empty list, return [] to allow clearing existing FAQ
+    return out
 def _render_club_html_simple(obj):
     title = obj.get("name", "Кружок")
     desc = obj.get("description", "")
@@ -1089,7 +1156,7 @@ async def api_admin_blog_create(payload: BlogPostCreateSchema, user=Depends(admi
             author_name=(payload.author_name or "Редакция Мапка").strip() or None,
             author_role=(payload.author_role or "").strip() or None,
             author_avatar=(payload.author_avatar or "").strip() or None,
-            faq=payload.faq,
+            faq=_normalize_blog_faq(payload.faq),
             published_at=published_at,
             created_at=now,
             updated_at=now,
@@ -1156,7 +1223,7 @@ async def api_admin_blog_update(post_id: str, payload: BlogPostUpdateSchema, use
             post.author_avatar = (payload.author_avatar or "").strip() or None
 
         if payload.faq is not None:
-            post.faq = payload.faq
+            post.faq = _normalize_blog_faq(payload.faq)
 
         if payload.status is not None:
             st = payload.status
