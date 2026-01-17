@@ -52,7 +52,6 @@ class ClubSchema(BaseModel):
     slug: Optional[str]
     description: Optional[str]
     meta_description: Optional[str] = None
-    metaDescription: Optional[str] = None
     phone: Optional[str] = None
     webSite: Optional[str] = None
 

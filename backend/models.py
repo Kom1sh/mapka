@@ -42,7 +42,6 @@ class Club(Base):
     name = Column(String(255), nullable=False)
     slug = Column(String(255), nullable=False, unique=True)
     description = Column(Text, nullable=True)
-    # SEO meta description (snippet)
     meta_description = Column(Text, nullable=True)
     phone = Column(String(64), nullable=True)
     webSite = Column(String(1024), nullable=True)

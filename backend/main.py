@@ -326,7 +326,6 @@ def _serialize_club(c, base_origin: str, payload_extra: dict = None):
             "slug": getattr(c, "slug", "") or "",
             "description": getattr(c, "description", "") or "",
             "meta_description": getattr(c, "meta_description", "") or "",
-            "metaDescription": getattr(c, "meta_description", "") or "",
             "image": image_url or "",
             "location": location,
             "lat": lat,
@@ -360,7 +359,6 @@ def _serialize_club(c, base_origin: str, payload_extra: dict = None):
 def _render_club_html_simple(obj):
     title = obj.get("name", "Кружок")
     desc = obj.get("description", "")
-    meta_desc = obj.get("meta_description") or obj.get("metaDescription") or desc
     image = obj.get("image", "")
     location = obj.get("location", "")
     tags = obj.get("tags", [])
@@ -466,7 +464,7 @@ async def api_create_club(request: Request, payload: dict, user=Depends(admin_re
             name=name,
             slug=payload.get("slug") or str(uuid.uuid4())[:8],
             description=payload.get("description") or "",
-            meta_description=(payload.get("meta_description") or payload.get("metaDescription") or "").strip() or None,
+            meta_description=(str(payload.get("meta_description") or payload.get("metaDescription") or "").strip() or None),
             main_image_url=payload.get("image") or None,
             price_cents=price_cents,
             address_id=getattr(addr_obj, "id", None),
@@ -880,9 +878,10 @@ async def api_get_clubs(request: Request, limit: int = 100, offset: int = 0):
 @app.get("/api/clubs/{club_id}")
 async def api_get_club(request: Request, club_id: str):
     async with AsyncSessionLocal() as session:
+        where_clause = None
         try:
             parsed_uuid = uuid.UUID(str(club_id))
-            where_clause = or_(Club.id == parsed_uuid, Club.slug == club_id)
+            where_clause = (Club.id == parsed_uuid)
         except Exception:
             where_clause = (Club.slug == club_id)
 
