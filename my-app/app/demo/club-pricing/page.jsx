@@ -1,5 +1,4 @@
 import Link from "next/link";
-import "./club.css";
 import PricingBlockClient from "./PricingBlockClient";
 
 const demoClub = {
