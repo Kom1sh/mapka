@@ -371,6 +371,7 @@ export default function AdminPanelClient() {
   // --- Blog: textarea editor helpers (mini-Word) ---
   // We keep storage format as HTML (string) to match blog rendering/ToC.
   const blogContentRef = useRef(null);
+  const faqAnswerRefs = useRef([]);
 
   function getContentEl() {
     return blogContentRef.current;
@@ -482,6 +483,69 @@ export default function AdminPanelClient() {
       const close = `</a>`;
       const text = `${open}${label}${close}`;
       const base = (blogContentRef.current?.selectionStart ?? 0) + open.length;
+      return { text, selectFrom: base, selectTo: base + label.length };
+    });
+  }
+
+  // --- FAQ: mini-formatting for answers (bold/italic/link) ---
+  function getFaqAnswerEl(idx) {
+    return (faqAnswerRefs.current && faqAnswerRefs.current[idx]) || null;
+  }
+
+  function applyToFaqSelection(idx, transform) {
+    const el = getFaqAnswerEl(idx);
+    if (!el) return;
+
+    const list = normalizeFaqItems(postForm.faq);
+    const value = String(list?.[idx]?.a ?? '');
+
+    const start = el.selectionStart ?? value.length;
+    const end = el.selectionEnd ?? value.length;
+    const selected = value.slice(start, end);
+
+    const { text: replacement, selectFrom, selectTo } = transform({
+      value,
+      start,
+      end,
+      selected,
+    });
+
+    const next = value.slice(0, start) + replacement + value.slice(end);
+    faqUpdate(idx, { a: next });
+
+    requestAnimationFrame(() => {
+      try {
+        const el2 = getFaqAnswerEl(idx);
+        if (!el2) return;
+        el2.focus();
+        const s = typeof selectFrom === 'number' ? selectFrom : start;
+        const e = typeof selectTo === 'number' ? selectTo : s;
+        el2.selectionStart = s;
+        el2.selectionEnd = e;
+      } catch {
+        // ignore
+      }
+    });
+  }
+
+  function faqWrapSelection(idx, open, close, placeholder = '') {
+    applyToFaqSelection(idx, ({ selected }) => {
+      const inner = selected || placeholder;
+      const text = `${open}${inner}${close}`;
+      const base = (getFaqAnswerEl(idx)?.selectionStart ?? 0) + open.length;
+      return { text, selectFrom: base, selectTo: base + inner.length };
+    });
+  }
+
+  function faqInsertLink(idx) {
+    const url = window.prompt('URL ссылки (например https://... или /club/slug):', '');
+    if (!url) return;
+    applyToFaqSelection(idx, ({ selected }) => {
+      const label = selected || window.prompt('Текст ссылки:', 'ссылка') || 'ссылка';
+      const open = `<a href="${url}">`;
+      const close = `</a>`;
+      const text = `${open}${label}${close}`;
+      const base = (getFaqAnswerEl(idx)?.selectionStart ?? 0) + open.length;
       return { text, selectFrom: base, selectTo: base + label.length };
     });
   }
@@ -1833,7 +1897,7 @@ export default function AdminPanelClient() {
                         <div>
                           <label style={{ marginBottom: 0 }}>FAQ (частые вопросы)</label>
                           <div className="muted">
-                            Для копирайтера: добавляй вопросы/ответы отдельным блоком. Ответ поддерживает обычный текст и markdown.
+                            Для копирайтера: добавляй вопросы/ответы отдельным блоком. В ответе можно делать жирный/курсив и вставлять ссылки.
                           </div>
                         </div>
                         <button type="button" className="btn" onClick={faqAdd}>
@@ -1891,7 +1955,34 @@ export default function AdminPanelClient() {
 
                               <div style={{ marginTop: 10 }}>
                                 <label>Ответ</label>
+                                <div className="editorToolbar faqToolbar" style={{ marginBottom: 8 }}>
+                                  <button
+                                    type="button"
+                                    className="miniBtn"
+                                    onClick={() => faqWrapSelection(idx, '<strong>', '</strong>', 'жирный')}
+                                    title="Жирный"
+                                  >
+                                    B
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="miniBtn"
+                                    onClick={() => faqWrapSelection(idx, '<em>', '</em>', 'курсив')}
+                                    title="Курсив"
+                                  >
+                                    I
+                                  </button>
+
+                                  <span className="editorSep" />
+
+                                  <button type="button" className="miniBtn" onClick={() => faqInsertLink(idx)} title="Вставить ссылку">
+                                    🔗 Ссылка
+                                  </button>
+                                </div>
                                 <textarea
+                                  ref={(el) => {
+                                    faqAnswerRefs.current[idx] = el;
+                                  }}
                                   value={item.a || ''}
                                   onChange={(e) => faqUpdate(idx, { a: e.target.value })}
                                   style={{ minHeight: 90 }}
