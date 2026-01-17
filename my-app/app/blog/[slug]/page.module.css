@@ -3,25 +3,6 @@
   background: #f8fafc;
 }
 
-/*
-  В проекте есть глобальный overflow:hidden на html/body.
-  Для публичных блог-страниц лучше дать обычный скролл документа,
-  иначе страница "залипает" без возможности прокрутки.
-*/
-:global(html),
-:global(body) {
-  height: auto !important;
-  min-height: 100% !important;
-  max-height: none !important;
-  overflow: auto !important;
-  overscroll-behavior: auto !important;
-}
-
-/* Make sure trackpad/gesture scrolling works predictably */
-:global(body) {
-  -webkit-overflow-scrolling: touch;
-}
-
 /* У нас body/html = overflow:hidden (app-style). Скролл идет внутри .blog-scroll */
 :global(.blog-scroll) {
   scroll-behavior: smooth;
@@ -244,19 +225,41 @@
   color: #0f172a;
   font-size: 16px;
   line-height: 1.7;
+}
 
-  /*
-    Контент хранится как HTML-строка из админки.
-    Внутри этой строки часто есть обычные переносы строк (\n).
-    По умолчанию браузер схлопывает их в пробел, из-за чего
-    "не переносится на новую строчку".
-    pre-line сохраняет переносы строк, но по-прежнему схлопывает лишние пробелы.
-  */
-  white-space: pre-line;
+/* Компактная типографика: чтобы не было «гигантских» разрывов между заголовками и текстом. */
+.content h2,
+.content h3,
+.content h4,
+.content p,
+.content ul,
+.content ol,
+.content blockquote {
+  margin: 0;
+}
+
+.content > h2:first-child,
+.content > h3:first-child,
+.content > h4:first-child {
+  margin-top: 0;
+}
+
+.content p {
+  margin: 10px 0;
+}
+
+.content ul,
+.content ol {
+  margin: 10px 0;
+  padding-left: 22px;
+}
+
+.content li {
+  margin: 4px 0;
 }
 
 .content h2 {
-  margin-top: 28px;
+  margin: 22px 0 10px;
   font-size: 22px;
   line-height: 1.2;
   font-weight: 900;
@@ -264,17 +267,17 @@
 }
 
 .content h3 {
-  margin-top: 20px;
+  margin: 18px 0 8px;
   font-size: 18px;
-  line-height: 1.2;
+  line-height: 1.25;
   font-weight: 800;
   scroll-margin-top: calc(var(--header-height) + 14px);
 }
 
 .content h4 {
-  margin-top: 16px;
+  margin: 14px 0 6px;
   font-size: 16px;
-  line-height: 1.2;
+  line-height: 1.25;
   font-weight: 800;
   scroll-margin-top: calc(var(--header-height) + 14px);
 }
@@ -312,7 +315,6 @@
   color: #1d4ed8;
 }
 
-/* FAQ (в конце статьи) */
 .faq {
   margin-top: 26px;
   padding-top: 18px;
@@ -349,19 +351,7 @@
   color: #334155;
   font-size: 15px;
   line-height: 1.65;
-
-  /* переносы строк в ответе */
-  white-space: pre-line;
 }
-
-.faqA a {
-  color: #1d4ed8;
-}
-
-.faqA a:hover {
-  text-decoration: underline;
-}
-
 
 .promo {
   background: #0b1220;
