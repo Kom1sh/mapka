@@ -124,6 +124,23 @@ function slugify(input) {
   return slug.slice(0, 80);
 }
 
+
+// Строгая нормализация slug при вводе (защита от мусора).
+// Разрешаем только a-z, 0-9 и дефис. Во время набора не режем хвостовой дефис,
+// чтобы не мешать пользователю печатать.
+function sanitizeSlugTyped(input) {
+  const s = translitRuToLat(String(input || '')).toLowerCase();
+  return s
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+/g, '')
+    .slice(0, 80);
+}
+
+function finalizeSlug(input) {
+  return sanitizeSlugTyped(input).replace(/-+$/g, '');
+}
+
 function makeId(prefix = 'id') {
   // crypto.randomUUID is supported in modern browsers
   try {
@@ -372,6 +389,7 @@ export default function AdminPanelClient() {
   // We keep storage format as HTML (string) to match blog rendering/ToC.
   const blogContentRef = useRef(null);
   const faqAnswerRefs = useRef([]);
+  const clubDescRef = useRef(null);
 
   function getContentEl() {
     return blogContentRef.current;
@@ -487,6 +505,104 @@ export default function AdminPanelClient() {
     });
   }
 
+
+
+  // --- Clubs: mini-editor (как в блоге), хранение в HTML строке ---
+  function getClubDescEl() {
+    return clubDescRef.current;
+  }
+
+  function setClubDescValue(next) {
+    setForm((prev) => ({ ...prev, descriptionHtml: next }));
+  }
+
+  function clubApplyToSelection(transform) {
+    const el = getClubDescEl();
+    if (!el) return;
+
+    const value = String(form.descriptionHtml || '');
+    const start = el.selectionStart ?? value.length;
+    const end = el.selectionEnd ?? value.length;
+    const selected = value.slice(start, end);
+
+    const { text: replacement, selectFrom, selectTo } = transform({ value, start, end, selected });
+    const next = value.slice(0, start) + replacement + value.slice(end);
+    setClubDescValue(next);
+
+    requestAnimationFrame(() => {
+      try {
+        const el2 = getClubDescEl();
+        if (!el2) return;
+        el2.focus();
+        const s = typeof selectFrom === 'number' ? selectFrom : start;
+        const e = typeof selectTo === 'number' ? selectTo : s;
+        el2.selectionStart = s;
+        el2.selectionEnd = e;
+      } catch {
+        // ignore
+      }
+    });
+  }
+
+  function clubWrapSelection(open, close, placeholder = '') {
+    clubApplyToSelection(({ selected }) => {
+      const inner = selected || placeholder;
+      const text = `${open}${inner}${close}`;
+      const base = (getClubDescEl()?.selectionStart ?? 0) + open.length;
+      return { text, selectFrom: base, selectTo: base + inner.length };
+    });
+  }
+
+  function clubInsertAtCursor(text) {
+    clubApplyToSelection(({ start, end }) => ({ text, selectFrom: start + text.length, selectTo: start + text.length }));
+  }
+
+  function clubAddHeading(level) {
+    const tag = `h${level}`;
+    clubApplyToSelection(({ selected, start }) => {
+      const inner = selected || `Заголовок ${tag.toUpperCase()}`;
+      const text = `
+<${tag}>${inner}</${tag}>
+`;
+      const base = start + (`
+<${tag}>`).length;
+      return { text, selectFrom: base, selectTo: base + inner.length };
+    });
+  }
+
+  function clubAddLink() {
+    const url = window.prompt('URL ссылки (например https://... или /club/slug):', '');
+    if (!url) return;
+    clubApplyToSelection(({ selected, start }) => {
+      const label = selected || window.prompt('Текст ссылки:', 'ссылка') || 'ссылка';
+      const open = `<a href="${url}">`;
+      const close = `</a>`;
+      const text = `${open}${label}${close}`;
+      const base = start + open.length;
+      return { text, selectFrom: base, selectTo: base + label.length };
+    });
+  }
+
+  function clubInsertAnchor() {
+    const id = normalizeAnchorId(window.prompt('ID якоря (латиница/цифры/дефис):', ''));
+    if (!id) return;
+    clubInsertAtCursor(`
+<span id="${id}"></span>
+`);
+  }
+
+  function clubLinkToAnchor() {
+    const id = normalizeAnchorId(window.prompt('ID якоря (куда вести):', ''));
+    if (!id) return;
+    clubApplyToSelection(({ selected, start }) => {
+      const label = selected || window.prompt('Текст ссылки:', 'к разделу') || 'к разделу';
+      const open = `<a href="#${id}">`;
+      const close = `</a>`;
+      const text = `${open}${label}${close}`;
+      const base = start + open.length;
+      return { text, selectFrom: base, selectTo: base + label.length };
+    });
+  }
   // --- FAQ: mini-formatting for answers (bold/italic/link) ---
   function getFaqAnswerEl(idx) {
     return (faqAnswerRefs.current && faqAnswerRefs.current[idx]) || null;
@@ -560,7 +676,8 @@ export default function AdminPanelClient() {
     id: '',
     name: '',
     slug: '',
-    description: '',
+    metaDescription: '',
+    descriptionHtml: '',
     image: '',
     location: '',
     lat: '',
@@ -704,7 +821,7 @@ export default function AdminPanelClient() {
 
   const buildPostPayload = (cur) => {
     const title = String(cur.title || '').trim();
-    const slugBase = String(cur.slug || '').trim() || slugify(title);
+    const slugBase = finalizeSlug(String(cur.slug || '').trim()) || slugify(title);
     const slugFinal = slugBase || `post-${Math.random().toString(16).slice(2, 8)}`;
 
     const tags = String(cur.tagsText || '')
@@ -923,7 +1040,8 @@ export default function AdminPanelClient() {
       id: selectedClub.id || '',
       name: selectedClub.name || '',
       slug: selectedClub.slug || '',
-      description: selectedClub.description || '',
+      metaDescription: selectedClub.meta_description || selectedClub.metaDescription || '',
+      descriptionHtml: selectedClub.description || '',
       image: selectedClub.image || '',
       location: selectedClub.location || '',
       lat: selectedClub.lat ?? '',
@@ -1076,8 +1194,9 @@ export default function AdminPanelClient() {
 
     return {
       name: String(cur.name || '').trim(),
-      slug: String(cur.slug || '').trim(),
-      description: String(cur.description || ''),
+      slug: finalizeSlug(String(cur.slug || '').trim()) || slugify(String(cur.name || '').trim()) || `club-${Math.random().toString(16).slice(2, 8)}`,
+      description: String(cur.descriptionHtml || ''),
+      ...(String(cur.metaDescription || '').trim() ? { meta_description: String(cur.metaDescription || '').trim() } : {}),
       image: String(cur.image || '').trim(),
       location: String(cur.location || '').trim(),
       ...(latNum != null && lonNum != null ? { lat: latNum, lon: lonNum } : {}),
@@ -1106,7 +1225,8 @@ export default function AdminPanelClient() {
     const empty = {
       name: 'Новый кружок',
       slug,
-      description: '',
+      metaDescription: '',
+      descriptionHtml: '',
       image: '',
       location: '',
       lat: '',
@@ -1453,7 +1573,18 @@ export default function AdminPanelClient() {
                   </div>
                   <div style={{ width: 320 }}>
                     <label>Slug</label>
-                    <input type="text" value={form.slug} onChange={(e) => setField('slug', e.target.value)} />
+                    <input
+                      type="text"
+                      value={form.slug}
+                      onChange={(e) => setField('slug', sanitizeSlugTyped(e.target.value))}
+                      onBlur={() => {
+                        const base = String(form.slug || '').trim() || slugify(form.name);
+                        const fin = finalizeSlug(base);
+                        if (fin) setField('slug', fin);
+                      }}
+                      placeholder="sqkids"
+                    />
+                    <div className="muted" style={{ marginTop: 6 }}>Разрешено: <b>a-z</b>, <b>0-9</b>, <b>-</b>. Все остальное будет удалено/нормализовано.</div>
                   </div>
                 </div>
 
@@ -1478,8 +1609,48 @@ export default function AdminPanelClient() {
                 </div>
 
                 <div style={{ marginTop: 12 }}>
-                  <label>Описание</label>
-                  <textarea value={form.description} onChange={(e) => setField('description', e.target.value)} />
+                  <label>Meta Description (для SEO-сниппета)</label>
+                  <textarea
+                    value={form.metaDescription}
+                    onChange={(e) => setField('metaDescription', String(e.target.value || '').slice(0, 160))}
+                    rows={3}
+                    placeholder="Короткое описание (лучше 140–160 символов)"
+                  />
+                  <div className="metaCounter">{String(form.metaDescription || '').length}/160</div>
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    Это поле пойдет в &lt;meta name="description"&gt;.
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                  <label>Описание кружка (на странице)</label>
+                  <div className="editorToolbar" style={{ marginTop: 8 }}>
+                    <button type="button" className="miniBtn" onClick={() => clubAddHeading(2)}>H2</button>
+                    <button type="button" className="miniBtn" onClick={() => clubAddHeading(3)}>H3</button>
+                    <button type="button" className="miniBtn" onClick={() => clubAddHeading(4)}>H4</button>
+
+                    <span className="editorSep" />
+
+                    <button type="button" className="miniBtn" onClick={() => clubWrapSelection('<strong>', '</strong>', 'текст')}>B</button>
+                    <button type="button" className="miniBtn" onClick={() => clubWrapSelection('<em>', '</em>', 'текст')}>I</button>
+
+                    <span className="editorSep" />
+
+                    <button type="button" className="miniBtn" onClick={clubAddLink} title="Вставить ссылку">🔗 Ссылка</button>
+                    <button type="button" className="miniBtn" onClick={clubInsertAnchor} title="Вставить якорь (ID)">⚓ Якорь</button>
+                    <button type="button" className="miniBtn" onClick={clubLinkToAnchor} title="Ссылка на якорь (#id)"># Ссылка</button>
+                  </div>
+
+                  <textarea
+                    ref={clubDescRef}
+                    value={form.descriptionHtml}
+                    onChange={(e) => setField('descriptionHtml', e.target.value)}
+                    style={{ minHeight: 220 }}
+                    placeholder="Основной текст для страницы кружка (можно HTML-теги <h2>, <strong>, <a> и т.д.)"
+                  />
+                  <div className="muted" style={{ marginTop: 8 }}>
+                    Будущий URL: <b>/club/{String(buildPayload(form).slug || '').trim()}</b>
+                  </div>
                 </div>
 
                 <div className="row" style={{ marginTop: 12 }}>
@@ -1751,12 +1922,16 @@ export default function AdminPanelClient() {
                         <input
                           type="text"
                           value={postForm.slug}
-                          onChange={(e) => setPostForm((p) => ({ ...p, slug: e.target.value }))}
+                          onChange={(e) => setPostForm((p) => ({ ...p, slug: sanitizeSlugTyped(e.target.value) }))}
                           onBlur={() =>
-                            setPostForm((p) => ({
-                              ...p,
-                              slug: String(p.slug || '').trim() || slugify(p.title) || p.slug,
-                            }))
+                            setPostForm((p) => {
+                              const base = String(p.slug || '').trim() || slugify(p.title);
+                              const fin = finalizeSlug(base);
+                              return {
+                                ...p,
+                                slug: fin || base || p.slug,
+                              };
+                            })
                           }
                         />
                       </div>

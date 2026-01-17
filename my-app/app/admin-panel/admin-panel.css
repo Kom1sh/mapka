@@ -116,3 +116,12 @@ input[type=time]:focus, select:focus{border-color:rgba(43,135,212,.55);box-shado
 .editorToolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px;border:1px solid var(--border);border-radius:14px;background:#fbfdff}
 .editorToolbar .miniBtn{padding:8px 10px}
 .editorSep{width:1px;height:22px;background:rgba(16,24,40,.14);margin:0 2px}
+
+
+/* --- Meta Description counter --- */
+.metaCounter {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b7280;
+  text-align: right;
+}
