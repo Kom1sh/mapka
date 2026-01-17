@@ -86,8 +86,8 @@ function normalizeFaqItems(input) {
 
   return data
     .map((x) => ({
-      q: String(x?.q ?? x?.question ?? x?.title ?? '').trim(),
-      a: String(x?.a ?? x?.answer ?? x?.text ?? '').trim(),
+      q: String(x?.q ?? x?.question ?? x?.title ?? ''),
+      a: String(x?.a ?? x?.answer ?? x?.text ?? ''),
     }))
 ;
 }
@@ -542,8 +542,8 @@ export default function AdminPanelClient() {
       excerpt: String(cur.excerpt || ''),
       content: String(cur.content || ''),
       faq: normalizeFaqItems(cur.faq)
-      .map((x) => ({ q: x.q, a: x.a }))
-      .filter((x) => String(x.q || '').trim() || String(x.a || '').trim()),
+      .map((x) => ({ q: String(x.q || '').trim(), a: String(x.a || '').trim() }))
+      .filter((x) => x.q || x.a),
       cover_image: String(cur.coverImage || '').trim() || null,
       tags,
       published_at: publishedAt || null,
