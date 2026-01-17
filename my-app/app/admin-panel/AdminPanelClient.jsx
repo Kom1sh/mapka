@@ -63,6 +63,35 @@ function safeJsonParse(str, fallback) {
   }
 }
 
+function normalizeFaqItems(input) {
+  if (!input) return [];
+  let data = input;
+
+  // stringified JSON
+  if (typeof data === 'string') {
+    const trimmed = data.trim();
+    if (!trimmed) return [];
+    try {
+      data = JSON.parse(trimmed);
+    } catch {
+      // allow simple text -> one item
+      return [];
+    }
+  }
+
+  // { items: [...] }
+  if (data && !Array.isArray(data) && Array.isArray(data.items)) data = data.items;
+
+  if (!Array.isArray(data)) return [];
+
+  return data
+    .map((x) => ({
+      q: String(x?.q ?? x?.question ?? x?.title ?? '').trim(),
+      a: String(x?.a ?? x?.answer ?? x?.text ?? '').trim(),
+    }))
+    .filter((x) => x.q || x.a); // allow empty answer while drafting
+}
+
 // ---- blog helpers ----
 const RU_TO_LAT = {
   а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y',
@@ -327,6 +356,7 @@ export default function AdminPanelClient() {
     coverImage: '',
     tagsText: '',
     content: '',
+    faq: [],
     createdAt: '',
     updatedAt: '',
     publishedAt: '',
@@ -429,6 +459,7 @@ export default function AdminPanelClient() {
         coverImage: p.coverImage ?? p.cover_image ?? p.cover ?? '',
         tags: Array.isArray(p.tags) ? p.tags : [],
         content: p.content ?? p.body ?? '',
+        faq: normalizeFaqItems(p.faq ?? p.faq_items ?? null),
         createdAt: p.createdAt ?? p.created_at ?? '',
         updatedAt: p.updatedAt ?? p.updated_at ?? '',
         publishedAt: p.publishedAt ?? p.published_at ?? '',
@@ -482,6 +513,7 @@ export default function AdminPanelClient() {
       coverImage: selectedPost.coverImage || '',
       tagsText: Array.isArray(selectedPost.tags) ? selectedPost.tags.join(', ') : '',
       content: selectedPost.content || '',
+      faq: normalizeFaqItems(selectedPost.faq),
       createdAt: selectedPost.createdAt || '',
       updatedAt: selectedPost.updatedAt || '',
       publishedAt: selectedPost.publishedAt || '',
@@ -509,10 +541,47 @@ export default function AdminPanelClient() {
       status,
       excerpt: String(cur.excerpt || ''),
       content: String(cur.content || ''),
+      faq: normalizeFaqItems(cur.faq).map((x) => ({ q: x.q, a: x.a })),
       cover_image: String(cur.coverImage || '').trim() || null,
       tags,
       published_at: publishedAt || null,
     };
+  };
+
+  // --- FAQ editor helpers (blog) ---
+  const faqAdd = () => {
+    setPostForm((p) => ({
+      ...p,
+      faq: [...normalizeFaqItems(p.faq), { q: '', a: '' }],
+    }));
+  };
+
+  const faqUpdate = (index, patch) => {
+    setPostForm((p) => {
+      const list = [...normalizeFaqItems(p.faq)];
+      list[index] = { ...(list[index] || { q: '', a: '' }), ...patch };
+      return { ...p, faq: list };
+    });
+  };
+
+  const faqRemove = (index) => {
+    setPostForm((p) => {
+      const list = [...normalizeFaqItems(p.faq)];
+      list.splice(index, 1);
+      return { ...p, faq: list };
+    });
+  };
+
+  const faqMove = (index, dir) => {
+    setPostForm((p) => {
+      const list = [...normalizeFaqItems(p.faq)];
+      const next = index + dir;
+      if (next < 0 || next >= list.length) return p;
+      const tmp = list[index];
+      list[index] = list[next];
+      list[next] = tmp;
+      return { ...p, faq: list };
+    });
   };
 
   const createNewPost = async () => {
@@ -527,6 +596,7 @@ export default function AdminPanelClient() {
       coverImage: '',
       tags: [],
       content: '',
+      faq: [],
       createdAt: now,
       updatedAt: now,
       publishedAt: '',
@@ -568,6 +638,7 @@ export default function AdminPanelClient() {
       coverImage: base.coverImage,
       tagsText: '',
       content: base.content,
+      faq: base.faq,
       createdAt: base.createdAt,
       updatedAt: base.updatedAt,
       publishedAt: base.publishedAt,
@@ -607,6 +678,7 @@ export default function AdminPanelClient() {
       status: payload.status,
       excerpt: payload.excerpt,
       content: payload.content,
+      faq: Array.isArray(payload.faq) ? payload.faq : normalizeFaqItems(payload.faq),
       coverImage: payload.cover_image || '',
       tags: payload.tags || [],
       publishedAt: payload.published_at || '',
@@ -1590,6 +1662,83 @@ export default function AdminPanelClient() {
                       <div className="muted" style={{ marginTop: 8 }}>
                         Будущий URL: <b>/blog/{String(buildPostPayload(postForm).slug || '').trim()}</b>
                       </div>
+                    </div>
+
+                    {/* FAQ конструктор — отдельным блоком от контента */}
+                    <div className="faqEditor">
+                      <div className="faqHeader">
+                        <div>
+                          <label style={{ marginBottom: 0 }}>FAQ (частые вопросы)</label>
+                          <div className="muted">
+                            Для копирайтера: добавляй вопросы/ответы отдельным блоком. Ответ поддерживает обычный текст и markdown.
+                          </div>
+                        </div>
+                        <button type="button" className="btn" onClick={faqAdd}>
+                          + Добавить вопрос
+                        </button>
+                      </div>
+
+                      {normalizeFaqItems(postForm.faq).length === 0 ? (
+                        <div className="muted" style={{ marginTop: 10 }}>
+                          Пока нет вопросов. Нажми «Добавить вопрос».
+                        </div>
+                      ) : (
+                        <div className="faqList">
+                          {normalizeFaqItems(postForm.faq).map((item, idx) => (
+                            <div className="faqItem" key={idx}>
+                              <div className="faqRow">
+                                <div style={{ flex: 1 }}>
+                                  <label>Вопрос #{idx + 1}</label>
+                                  <input
+                                    type="text"
+                                    value={item.q || ''}
+                                    onChange={(e) => faqUpdate(idx, { q: e.target.value })}
+                                    placeholder="Например: С какого возраста можно?"
+                                  />
+                                </div>
+                                <div className="faqControls">
+                                  <button
+                                    type="button"
+                                    className="miniBtn"
+                                    onClick={() => faqMove(idx, -1)}
+                                    disabled={idx === 0}
+                                    title="Вверх"
+                                  >
+                                    ↑
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="miniBtn"
+                                    onClick={() => faqMove(idx, +1)}
+                                    disabled={idx === normalizeFaqItems(postForm.faq).length - 1}
+                                    title="Вниз"
+                                  >
+                                    ↓
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="miniBtn danger"
+                                    onClick={() => faqRemove(idx)}
+                                    title="Удалить"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div style={{ marginTop: 10 }}>
+                                <label>Ответ</label>
+                                <textarea
+                                  value={item.a || ''}
+                                  onChange={(e) => faqUpdate(idx, { a: e.target.value })}
+                                  style={{ minHeight: 90 }}
+                                  placeholder="Ответ..."
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="actions" style={{ marginTop: 14 }}>

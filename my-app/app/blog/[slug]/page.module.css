@@ -3,6 +3,17 @@
   background: #f8fafc;
 }
 
+/*
+  В проекте есть глобальный overflow:hidden на html/body.
+  Для публичных блог-страниц лучше дать обычный скролл документа,
+  иначе страница "залипает" без возможности прокрутки.
+*/
+:global(html),
+:global(body) {
+  height: auto;
+  overflow: auto;
+}
+
 /* У нас body/html = overflow:hidden (app-style). Скролл идет внутри .blog-scroll */
 :global(.blog-scroll) {
   scroll-behavior: smooth;
