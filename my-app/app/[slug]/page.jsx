@@ -378,12 +378,17 @@ export default async function Page({ params }) {
   const allButtons = [...linkButtons, ...socialButtons];
 
   // CTA for pricing block
+  // UX: вместо жёсткой ссылки на Telegram/WhatsApp лучше прокрутить до блока
+  // "Контакты и соцсети", где родитель сам выберет удобный канал.
+  // Если кнопок-контактов нет — тогда используем лучший доступный канал напрямую.
   const ctaHref =
-    ensureUrl(socials?.whatsapp) ||
-    ensureUrl(socials?.telegram) ||
-    websiteHref ||
-    phoneToTelHref(club.phone) ||
-    null;
+    allButtons.length > 0
+      ? "#contacts"
+      : ensureUrl(socials?.whatsapp) ||
+        ensureUrl(socials?.telegram) ||
+        websiteHref ||
+        phoneToTelHref(club.phone) ||
+        null;
 
   return (
     <div className="club-main-wrapper">
@@ -505,7 +510,7 @@ export default async function Page({ params }) {
             ) : null}
 
             {allButtons.length > 0 ? (
-              <div className="social-block">
+              <div className="social-block" id="contacts">
                 <div className="social-title">Контакты и соцсети:</div>
 
                 <div className="social-grid">

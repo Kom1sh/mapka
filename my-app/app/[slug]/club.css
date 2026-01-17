@@ -332,6 +332,8 @@ h1.main-title {
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid var(--border-color);
+  /* чтобы якорь #contacts не прятался под липким хедером */
+  scroll-margin-top: calc(var(--header-height) + 16px);
 }
 .social-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; }
 .social-grid { display: flex; gap: 12px; flex-wrap: wrap; }

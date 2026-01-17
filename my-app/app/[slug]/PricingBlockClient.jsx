@@ -46,6 +46,16 @@ function renderHtml(s) {
 }
 
 export default function PricingBlockClient({ items = [], ctaHref, noteText }) {
+  const isAnchorCta = typeof ctaHref === "string" && ctaHref.startsWith("#");
+
+  const onCtaClick = (e) => {
+    if (!isAnchorCta) return;
+    e.preventDefault();
+    const el = document.querySelector(ctaHref);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const groups = useMemo(() => {
     const set = new Set(items.map((x) => x?.group).filter(Boolean));
 
@@ -78,7 +88,12 @@ export default function PricingBlockClient({ items = [], ctaHref, noteText }) {
         </div>
 
         {ctaHref ? (
-          <a className={styles.primaryCta} href={ctaHref} target="_blank" rel="noreferrer">
+          <a
+            className={styles.primaryCta}
+            href={ctaHref}
+            onClick={onCtaClick}
+            {...(!isAnchorCta ? { target: "_blank", rel: "noreferrer" } : {})}
+          >
             Записаться
           </a>
         ) : null}
@@ -157,7 +172,12 @@ export default function PricingBlockClient({ items = [], ctaHref, noteText }) {
               <div className={styles.right}>
                 <div className={styles.price}>{priceLabel}</div>
                 {ctaHref ? (
-                  <a className={styles.secondaryCta} href={ctaHref} target="_blank" rel="noreferrer">
+                  <a
+                    className={styles.secondaryCta}
+                    href={ctaHref}
+                    onClick={onCtaClick}
+                    {...(!isAnchorCta ? { target: "_blank", rel: "noreferrer" } : {})}
+                  >
                     Записаться
                   </a>
                 ) : null}
