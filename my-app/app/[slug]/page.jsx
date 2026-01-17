@@ -2,12 +2,16 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import './club.css';
 
-import { fetchClubData } from '@/lib/club-api';
 import ClubGallery from '@/components/ClubGallery';
 import ClubMap from '@/components/ClubMap';
 import ClubActions from '@/components/ClubActions';
 
+// ВАЖНО: эта страница должна быть динамической, иначе мета-описание может кэшироваться.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const SITE_URL = 'https://xn--80aa3agq.xn--p1ai';
+const INTERNAL_API_BASE = process.env.INTERNAL_API_BASE || 'http://127.0.0.1:8000';
 
 function stripHtml(s) {
   return String(s || '')
@@ -96,14 +100,41 @@ function parseTimeRange(timeStr) {
   return { opens, closes };
 }
 
+async function getClub(slug) {
+  const safeSlug = encodeURIComponent(String(slug || '').trim());
+  if (!safeSlug) return null;
+
+  // ВАЖНО: no-store, чтобы мета-описание и данные не застревали в кэше Next.
+  const res = await fetch(`${INTERNAL_API_BASE}/api/clubs/${safeSlug}`, {
+    cache: 'no-store',
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!res.ok) return null;
+
+  const club = await res.json();
+
+  // Нормализация минимально нужных полей под UI
+  if (!Array.isArray(club.photos)) {
+    const img = club.image || club.main_image_url || null;
+    club.photos = img ? [img] : [];
+  }
+
+  return club;
+}
+
 export async function generateMetadata({ params }) {
   const resolvedParams = await params;
-  const club = await fetchClubData(resolvedParams.slug);
+  const club = await getClub(resolvedParams.slug);
 
   if (!club) return { title: 'Кружок не найден – Мапка' };
 
   const title = club.title || club.name || 'Кружок';
-  const description = stripHtml(club.meta_description || club.metaDescription || club.description || '').slice(0, 160);
+
+  // ВАЖНО: meta_description должен иметь приоритет над description
+  const descSource = club.meta_description || club.metaDescription || '';
+  const description = stripHtml(descSource || club.description || '').slice(0, 160);
+
   const canonical = `${SITE_URL}/${resolvedParams.slug}`;
 
   const img =
@@ -127,7 +158,7 @@ export async function generateMetadata({ params }) {
 
 export default async function Page({ params }) {
   const resolvedParams = await params;
-  const club = await fetchClubData(resolvedParams.slug);
+  const club = await getClub(resolvedParams.slug);
 
   if (!club) notFound();
 
@@ -162,14 +193,8 @@ export default async function Page({ params }) {
 
   const sameAs = [];
 
-  // ✅ FIX: читаем сайт из разных возможных полей (админки/бэка)
-  const rawWebsite =
-    club.webSite ??
-    club.website ??
-    club.web_site ??
-    club.site ??
-    null;
-
+  // читаем сайт из разных возможных полей (админки/бэка)
+  const rawWebsite = club.webSite ?? club.website ?? club.web_site ?? club.site ?? null;
   const websiteHref = ensureUrl(rawWebsite);
   if (websiteHref) sameAs.push(websiteHref);
 
@@ -212,7 +237,8 @@ export default async function Page({ params }) {
     '@id': `${url}#club`,
     name: title,
     url,
-    description: stripHtml(club.description || club.meta_description || club.metaDescription || '') || undefined,
+    // Для schema лучше использовать реальное описание кружка (на странице).
+    description: stripHtml(club.description || '') || undefined,
     image: image || undefined,
     telephone: normalizePhoneForSchema(club.phone) || undefined,
     sameAs: sameAs.length ? Array.from(new Set(sameAs)) : undefined,
@@ -240,7 +266,9 @@ export default async function Page({ params }) {
     '@id': `${url}#webpage`,
     url,
     name: `${title} - Мапка`,
-    description: stripHtml(club.meta_description || club.metaDescription || club.description || '').slice(0, 160) || undefined,
+    // Для WebPage можно дать meta_description (если он есть)
+    description:
+      stripHtml(club.meta_description || club.metaDescription || club.description || '').slice(0, 160) || undefined,
     isPartOf: { '@id': `${SITE_URL}/#website` },
     about: { '@id': `${url}#club` },
     inLanguage: 'ru-RU',
@@ -285,15 +313,7 @@ export default async function Page({ params }) {
       <header className="header">
         <div className="header-inner">
           <Link href="/" className="back-btn">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
             <span>Назад</span>
@@ -304,15 +324,7 @@ export default async function Page({ params }) {
           </div>
 
           <button className="back-btn" id="shareBtn" style={{ border: 'none', background: 'none' }} aria-label="Поделиться">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -389,13 +401,7 @@ export default async function Page({ params }) {
 
                 <div className="social-grid">
                   {allButtons.map((b) => (
-                    <a
-                      key={b.key}
-                      href={b.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`social-btn ${b.className}`}
-                    >
+                    <a key={b.key} href={b.href} target="_blank" rel="noopener noreferrer" className={`social-btn ${b.className}`}>
                       {b.label}
                     </a>
                   ))}
