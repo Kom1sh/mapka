@@ -2,6 +2,8 @@ import Header from "@/components/Header";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import styles from "./page.module.css";
+// В проекте body/html имеют overflow:hidden (app-style), поэтому делаем скролл через .blog-scroll
+import "../blog.css";
 
 // Для динамического slug и чтобы не попасть в статический пререндер
 export const dynamic = "force-dynamic";
@@ -50,17 +52,87 @@ function normalizeTags(tags) {
   return [];
 }
 
-function normalizeFaq(faq) {
-  if (!faq) return [];
-  if (Array.isArray(faq)) {
-    return faq
-      .map((x) => ({
-        q: x?.q ?? x?.question ?? "",
-        a: x?.a ?? x?.answer ?? "",
-      }))
-      .filter((x) => x.q && x.a);
+function escapeHtml(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function mdInline(s) {
+  // ссылки [text](url)
+  let out = String(s || "");
+  out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (m, text, url) => {
+    const safeText = escapeHtml(text);
+    const safeUrl = escapeHtml(url);
+    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeText}</a>`;
+  });
+
+  // жирный **text**
+  out = out.replace(/\*\*([^*]+)\*\*/g, (m, t) => `<strong>${escapeHtml(t)}</strong>`);
+  // курсив *text*
+  out = out.replace(/\*([^*]+)\*/g, (m, t) => `<em>${escapeHtml(t)}</em>`);
+
+  return out;
+}
+
+function markdownToHtml(md) {
+  const src = String(md || "").replace(/\r\n/g, "\n");
+  const lines = src.split("\n");
+
+  const out = [];
+  let list = null;
+
+  const flushList = () => {
+    if (list && list.length) {
+      out.push(`<ul>${list.map((li) => `<li>${li}</li>`).join("")}</ul>`);
+    }
+    list = null;
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) {
+      flushList();
+      continue;
+    }
+
+    if (line.startsWith("#### ")) {
+      flushList();
+      out.push(`<h4>${mdInline(line.slice(5).trim())}</h4>`);
+      continue;
+    }
+    if (line.startsWith("### ")) {
+      flushList();
+      out.push(`<h3>${mdInline(line.slice(4).trim())}</h3>`);
+      continue;
+    }
+    if (line.startsWith("## ")) {
+      flushList();
+      out.push(`<h2>${mdInline(line.slice(3).trim())}</h2>`);
+      continue;
+    }
+    // Часто люди пишут одинарный # как «раздел». Внутри статьи это логичнее считать h2.
+    if (line.startsWith("# ")) {
+      flushList();
+      out.push(`<h2>${mdInline(line.slice(2).trim())}</h2>`);
+      continue;
+    }
+
+    if (line.startsWith("- ") || line.startsWith("* ")) {
+      if (!list) list = [];
+      list.push(mdInline(line.slice(2).trim()));
+      continue;
+    }
+
+    flushList();
+    out.push(`<p>${mdInline(line)}</p>`);
   }
-  return [];
+
+  flushList();
+  return out.join("\n");
 }
 
 function buildTocAndHtml(html) {
@@ -69,8 +141,8 @@ function buildTocAndHtml(html) {
   const toc = [];
   let idx = 0;
 
-  // h2/h3 -> оглавление + добавляем id, если его нет
-  const re = /<h([23])([^>]*)>([\s\S]*?)<\/h\1>/gi;
+  // h2/h3/h4 -> оглавление + добавляем id, если его нет
+  const re = /<h([2-4])([^>]*)>([\s\S]*?)<\/h\1>/gi;
 
   const withIds = html.replace(re, (full, level, attrs, inner) => {
     idx += 1;
@@ -165,7 +237,6 @@ export default async function BlogPostPage({ params }) {
   if (!post) notFound();
 
   const tags = normalizeTags(post.tags);
-  const faq = normalizeFaq(post.faq);
 
   const publishedAt = post.published_at || post.created_at || null;
   const dateStr = publishedAt
@@ -176,8 +247,11 @@ export default async function BlogPostPage({ params }) {
       })
     : "";
 
-  const htmlContent = isHtml(post.content) ? String(post.content) : "";
-  const { toc, html } = buildTocAndHtml(htmlContent);
+  const rawContent = post.content ?? "";
+  const htmlSource = isHtml(rawContent)
+    ? String(rawContent)
+    : markdownToHtml(String(rawContent));
+  const { toc, html } = buildTocAndHtml(htmlSource);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -199,19 +273,6 @@ export default async function BlogPostPage({ params }) {
     mainEntityOfPage: `${SITE_URL}/blog/${post.slug}`,
   };
 
-  const faqJsonLd =
-    faq.length > 0
-      ? {
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          mainEntity: faq.map((x) => ({
-            "@type": "Question",
-            name: x.q,
-            acceptedAnswer: { "@type": "Answer", text: x.a },
-          })),
-        }
-      : null;
-
   return (
     <div className={styles.wrapper}>
       <Header />
@@ -220,14 +281,8 @@ export default async function BlogPostPage({ params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      {faqJsonLd ? (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-        />
-      ) : null}
-
-      <main className={styles.container}>
+      <div className="blog-scroll">
+        <main className={styles.container}>
         <nav className={styles.breadcrumbs}>
           <Link href="/">Главная</Link>
           <span className={styles.sep}>/</span>
@@ -287,7 +342,11 @@ export default async function BlogPostPage({ params }) {
                   {toc.map((i) => (
                     <li
                       key={i.id}
-                      className={styles[i.level === 2 ? "lvl2" : "lvl3"]}
+                      className={
+                        styles[
+                          i.level === 2 ? "lvl2" : i.level === 3 ? "lvl3" : "lvl4"
+                        ]
+                      }
                     >
                       <a href={`#${i.id}`} className={styles.tocLink}>
                         {i.title}
@@ -305,7 +364,7 @@ export default async function BlogPostPage({ params }) {
               />
             ) : (
               <div className={styles.content} style={{ whiteSpace: "pre-wrap" }}>
-                {post.content || ""}
+                {rawContent || ""}
               </div>
             )}
 
@@ -323,19 +382,6 @@ export default async function BlogPostPage({ params }) {
               </div>
             ) : null}
 
-            {faq.length > 0 ? (
-              <section id="faq" className={styles.faq}>
-                <h2 className={styles.faqTitle}>Частые вопросы</h2>
-                <div className={styles.faqList}>
-                  {faq.map((x, idx) => (
-                    <details key={idx} className={styles.faqItem}>
-                      <summary className={styles.faqQ}>{x.q}</summary>
-                      <div className={styles.faqA}>{x.a}</div>
-                    </details>
-                  ))}
-                </div>
-              </section>
-            ) : null}
           </article>
 
           <aside className={styles.sidebar}>
@@ -346,7 +392,11 @@ export default async function BlogPostPage({ params }) {
                   {toc.map((i) => (
                     <li
                       key={i.id}
-                      className={styles[i.level === 2 ? "lvl2" : "lvl3"]}
+                      className={
+                        styles[
+                          i.level === 2 ? "lvl2" : i.level === 3 ? "lvl3" : "lvl4"
+                        ]
+                      }
                     >
                       <a href={`#${i.id}`} className={styles.tocLink}>
                         {i.title}
@@ -368,7 +418,8 @@ export default async function BlogPostPage({ params }) {
             </div>
           </aside>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
