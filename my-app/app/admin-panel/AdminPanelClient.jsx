@@ -109,19 +109,59 @@ function normalizePricingItems(input) {
 
   if (!Array.isArray(data)) return [];
 
+  const toKind = (raw) => {
+    const s = String(raw ?? '').trim();
+    if (!s) return 'single';
+    const low = s.toLowerCase();
+
+    // already UI tokens
+    if (['single', 'subscription', 'individual', 'extra', 'trial'].includes(low)) return low;
+
+    // english-ish
+    if (['one_time', 'one-time', 'onetime', 'once', 'oneTime'].includes(low)) return 'single';
+    if (['subscriptions', 'subscription', 'abonement', 'abonements', 'monthly'].includes(low)) return 'subscription';
+    if (['personal', 'individual', 'coach'].includes(low)) return 'individual';
+    if (['additional', 'add', 'extra'].includes(low)) return 'extra';
+    if (['trial', 'test'].includes(low)) return 'trial';
+
+    // russian
+    if (low.includes('разов')) return 'single';
+    if (low.includes('абон')) return 'subscription';
+    if (low.includes('индив')) return 'individual';
+    if (low.includes('доп')) return 'extra';
+    if (low.includes('проб')) return 'trial';
+
+    return 'single';
+  };
+
+  const toTextArea = (v) => {
+    if (v == null) return '';
+    if (Array.isArray(v)) {
+      return v
+        .map((x) => String(x ?? '').trim())
+        .filter(Boolean)
+        .join('\n');
+    }
+    return String(v);
+  };
+
   return data
     .filter(Boolean)
     .map((x) => {
-      const kind = String(x.kind ?? x.type ?? x.group ?? 'single').toLowerCase();
-      const title = String(x.title ?? x.name ?? '');
-      const badge = String(x.badge ?? '');
-      const unit = String(x.unit ?? x.price_unit ?? x.priceUnit ?? '');
-      const desc = String(x.desc ?? x.description ?? '');
-      const details = String(x.details ?? x.more ?? x.more_details ?? x.moreDetails ?? '');
+      const kind = toKind(x.kind ?? x.type ?? x.group ?? x.category);
+      const title = String(x.title ?? x.name ?? '').trim();
+      const badge = String(x.badge ?? '').trim();
+      const unit = String(x.unit ?? x.per ?? x.price_unit ?? x.priceUnit ?? '').trim();
 
-      const priceRaw = x.price_rub ?? x.priceRub ?? x.price ?? '';
-      const price = priceRaw === null || priceRaw === undefined ? '' : String(priceRaw);
-      const isFree = Boolean(x.isFree ?? x.free) || Number(priceRaw) == 0;
+      // ✅ Backend stores these as subtitle/detailsText (not desc/details)
+      const desc = String(x.desc ?? x.subtitle ?? x.description ?? '');
+      const details = toTextArea(
+        x.detailsText ?? x.details_text ?? x.details ?? x.more ?? x.more_details ?? x.moreDetails ?? ''
+      );
+
+      const priceRaw = x.price_rub ?? x.priceRub ?? x.price ?? x.amount ?? '';
+      const isFree = Boolean(x.isFree ?? x.free) || Number(priceRaw) === 0;
+      const price = isFree ? '' : priceRaw === null || priceRaw === undefined ? '' : String(priceRaw);
 
       return {
         kind: kind || 'single',
@@ -1344,17 +1384,42 @@ export default function AdminPanelClient() {
         const priceNum = parsePrice(it.price);
         const isFree = Boolean(it.isFree) || priceNum == 0;
 
+        const kindToGroup = (k) => {
+          switch (String(k || '').toLowerCase()) {
+            case 'single':
+            case 'one_time':
+            case 'one-time':
+            case 'once':
+              return 'Разовое';
+            case 'subscription':
+            case 'subscriptions':
+            case 'abonement':
+            case 'abonements':
+            case 'monthly':
+              return 'Абонементы';
+            case 'individual':
+            case 'personal':
+              return 'Индивидуально';
+            case 'trial':
+              return 'Пробное';
+            case 'extra':
+            default:
+              return 'Дополнительно';
+          }
+        };
+
+        // ✅ Backend expects: group/subtitle/detailsText (и умеет собирать details[] из detailsText)
         return {
-          kind: kind || 'single',
+          group: kindToGroup(kind),
           title,
           badge: badge || null,
           unit: unit || null,
           price_rub: isFree ? 0 : priceNum,
-          desc: desc || null,
-          details: details || null,
+          subtitle: desc || null,
+          detailsText: details || null,
         };
       })
-      .filter((x) => x.title || x.price_rub != null || x.desc || x.details);
+      .filter((x) => x.title || x.price_rub != null || x.subtitle || x.detailsText);
 
     const pricingPayload = pricingPayloadArr.length ? pricingPayloadArr : null;
 

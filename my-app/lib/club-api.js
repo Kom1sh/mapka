@@ -106,6 +106,11 @@ function normalizeClub(raw) {
     "";
   const tags = normalizeTags(raw.tags);
 
+  // ✅ pricing cards (мульти-тарифы). Нужны для нового блока стоимости на странице кружка
+  const pricing = Array.isArray(raw.pricing)
+    ? raw.pricing
+    : safeJsonParse(raw.pricing, []);
+
   return {
     // то, что нужно странице кружка
     id: raw.id,
@@ -121,6 +126,8 @@ function normalizeClub(raw) {
 
     price: raw.price_rub ?? raw.price ?? null,
     priceNotes,
+
+    pricing,
 
     minAge,
     maxAge,

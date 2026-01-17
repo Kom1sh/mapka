@@ -531,11 +531,13 @@ def _normalize_club_pricing(pricing):
             continue
 
         title = str(d.get('title') or '').strip()
-        subtitle = str(d.get('subtitle') or '').strip()
+        # UI (админка) может присылать short description как subtitle ИЛИ desc
+        subtitle = str(d.get('subtitle') or d.get('desc') or d.get('description') or '').strip()
         badge = str(d.get('badge') or '').strip()
         unit = str(d.get('unit') or '').strip()
         cta_text = str(d.get('cta_text') or d.get('ctaText') or '').strip()
-        group = str(d.get('group') or '').strip()
+        # UI может прислать group или kind/type (single/subscription/...)
+        group = str(d.get('group') or d.get('kind') or d.get('type') or '').strip()
 
         price_text = d.get('price_text')
         if price_text is None:
@@ -557,6 +559,9 @@ def _normalize_club_pricing(pricing):
         details_text = d.get('detailsText')
         if details_text is None:
             details_text = d.get('details_text')
+        # старый формат админки: details как строка
+        if details_text is None and isinstance(d.get('details'), str):
+            details_text = d.get('details')
         if isinstance(details_text, str) and details_text.strip():
             for line in details_text.splitlines():
                 s = line.strip()
