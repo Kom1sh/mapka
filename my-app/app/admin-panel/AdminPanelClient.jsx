@@ -92,6 +92,50 @@ function normalizeFaqItems(input) {
 ;
 }
 
+function normalizePricingItems(input) {
+  if (!input) return [];
+
+  let data = input;
+  if (typeof data === 'string') {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      return [];
+    }
+  }
+
+  // allow shape { items: [...] }
+  if (data && !Array.isArray(data) && Array.isArray(data.items)) data = data.items;
+
+  if (!Array.isArray(data)) return [];
+
+  return data
+    .filter(Boolean)
+    .map((x) => {
+      const kind = String(x.kind ?? x.type ?? x.group ?? 'single').toLowerCase();
+      const title = String(x.title ?? x.name ?? '');
+      const badge = String(x.badge ?? '');
+      const unit = String(x.unit ?? x.price_unit ?? x.priceUnit ?? '');
+      const desc = String(x.desc ?? x.description ?? '');
+      const details = String(x.details ?? x.more ?? x.more_details ?? x.moreDetails ?? '');
+
+      const priceRaw = x.price_rub ?? x.priceRub ?? x.price ?? '';
+      const price = priceRaw === null || priceRaw === undefined ? '' : String(priceRaw);
+      const isFree = Boolean(x.isFree ?? x.free) || Number(priceRaw) == 0;
+
+      return {
+        kind: kind || 'single',
+        title,
+        badge,
+        unit,
+        price,
+        isFree,
+        desc,
+        details,
+      };
+    });
+}
+
 // ---- blog helpers ----
 const RU_TO_LAT = {
   а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y',
@@ -389,6 +433,8 @@ export default function AdminPanelClient() {
   // We keep storage format as HTML (string) to match blog rendering/ToC.
   const blogContentRef = useRef(null);
   const faqAnswerRefs = useRef([]);
+  const pricingDescRefs = useRef([]);
+  const pricingDetailsRefs = useRef([]);
   const clubDescRef = useRef(null);
 
   function getContentEl() {
@@ -665,6 +711,89 @@ export default function AdminPanelClient() {
       return { text, selectFrom: base, selectTo: base + label.length };
     });
   }
+
+
+  function getPricingDescEl(idx) {
+    return (pricingDescRefs.current && pricingDescRefs.current[idx]) || null;
+  }
+  function getPricingDetailsEl(idx) {
+    return (pricingDetailsRefs.current && pricingDetailsRefs.current[idx]) || null;
+  }
+
+  function applyToPricingField(idx, field, getEl, fn) {
+    const el = getEl(idx);
+    if (!el) return;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const value = String(el.value ?? '');
+    const selected = value.slice(start, end);
+
+    const res = fn({ value, selected, start, end });
+    if (!res || typeof res.text !== 'string') return;
+
+    const next = value.slice(0, start) + res.text + value.slice(end);
+    setForm((prev) => {
+      const pricing = Array.isArray(prev.pricing) ? [...prev.pricing] : [];
+      const item = { ...(pricing[idx] || {}) };
+      item[field] = next;
+      pricing[idx] = item;
+      return { ...prev, pricing };
+    });
+
+    requestAnimationFrame(() => {
+      try {
+        el.focus();
+        if (typeof res.selectFrom === 'number' && typeof res.selectTo === 'number') {
+          el.setSelectionRange(res.selectFrom, res.selectTo);
+        }
+      } catch {}
+    });
+  }
+
+  function pricingDescWrap(idx, open, close, placeholder = '') {
+    applyToPricingField(idx, 'desc', getPricingDescEl, ({ selected, start }) => {
+      const inner = selected || placeholder;
+      const text = `${open}${inner}${close}`;
+      const base = (getPricingDescEl(idx)?.selectionStart ?? start) + open.length;
+      return { text, selectFrom: base, selectTo: base + inner.length };
+    });
+  }
+
+  function pricingDetailsWrap(idx, open, close, placeholder = '') {
+    applyToPricingField(idx, 'details', getPricingDetailsEl, ({ selected, start }) => {
+      const inner = selected || placeholder;
+      const text = `${open}${inner}${close}`;
+      const base = (getPricingDetailsEl(idx)?.selectionStart ?? start) + open.length;
+      return { text, selectFrom: base, selectTo: base + inner.length };
+    });
+  }
+
+  function pricingDescInsertLink(idx) {
+    const url = window.prompt('URL ссылки (например https://... или /club/slug):', '');
+    if (!url) return;
+    applyToPricingField(idx, 'desc', getPricingDescEl, ({ selected, start }) => {
+      const label = selected || window.prompt('Текст ссылки:', 'ссылка') || 'ссылка';
+      const open = `<a href="${url}">`;
+      const close = `</a>`;
+      const text = `${open}${label}${close}`;
+      const base = (getPricingDescEl(idx)?.selectionStart ?? start) + open.length;
+      return { text, selectFrom: base, selectTo: base + label.length };
+    });
+  }
+
+  function pricingDetailsInsertLink(idx) {
+    const url = window.prompt('URL ссылки (например https://... или /club/slug):', '');
+    if (!url) return;
+    applyToPricingField(idx, 'details', getPricingDetailsEl, ({ selected, start }) => {
+      const label = selected || window.prompt('Текст ссылки:', 'ссылка') || 'ссылка';
+      const open = `<a href="${url}">`;
+      const close = `</a>`;
+      const text = `${open}${label}${close}`;
+      const base = (getPricingDetailsEl(idx)?.selectionStart ?? start) + open.length;
+      return { text, selectFrom: base, selectTo: base + label.length };
+    });
+  }
+
   const [log, setLog] = useState('');
 
   const selectedClub = useMemo(
@@ -688,6 +817,7 @@ export default function AdminPanelClient() {
     maxAge: '',
     priceNotes: '',
     price_rub: '',
+    pricing: [],
     phone: '',
     webSite: '',
     socialLinks: Object.fromEntries(SOCIAL_FIELDS.map((f) => [f.key, ''])),
@@ -1054,6 +1184,7 @@ export default function AdminPanelClient() {
       price_rub:
         selectedClub.price_rub ??
         (selectedClub.price_cents != null ? (Number(selectedClub.price_cents) / 100).toFixed(2) : ''),
+      pricing: normalizePricingItems(selectedClub.pricing),
       phone: selectedClub.phone || '',
       webSite: selectedClub.webSite || selectedClub.website || '',
       socialLinks: links,
@@ -1191,6 +1322,42 @@ export default function AdminPanelClient() {
     const minAge = toIntOrNull(cur.minAge);
     const maxAge = toIntOrNull(cur.maxAge);
     const priceNotes = String(cur.priceNotes || '').trim();
+    const pricingRaw = normalizePricingItems(cur.pricing);
+
+    const parsePrice = (v) => {
+      const txt = String(v ?? '').trim().replace(',', '.');
+      if (!txt) return null;
+      const n = Number(txt);
+      if (!Number.isFinite(n)) return null;
+      return Math.max(0, Math.round(n));
+    };
+
+    const pricingPayloadArr = pricingRaw
+      .map((it) => {
+        const title = String(it.title || '').trim();
+        const kind = String(it.kind || 'single').trim().toLowerCase();
+        const badge = String(it.badge || '').trim();
+        const unit = String(it.unit || '').trim();
+        const desc = String(it.desc || '');
+        const details = String(it.details || '');
+
+        const priceNum = parsePrice(it.price);
+        const isFree = Boolean(it.isFree) || priceNum == 0;
+
+        return {
+          kind: kind || 'single',
+          title,
+          badge: badge || null,
+          unit: unit || null,
+          price_rub: isFree ? 0 : priceNum,
+          desc: desc || null,
+          details: details || null,
+        };
+      })
+      .filter((x) => x.title || x.price_rub != null || x.desc || x.details);
+
+    const pricingPayload = pricingPayloadArr.length ? pricingPayloadArr : null;
+
 
     return {
       name: String(cur.name || '').trim(),
@@ -1207,6 +1374,7 @@ export default function AdminPanelClient() {
       minAge,
       maxAge,
       priceNotes: priceNotes || null,
+      pricing: pricingPayload,
 
       price_rub: price_rub_num != null ? price_rub_num : null,
       price_cents,
@@ -1237,6 +1405,7 @@ export default function AdminPanelClient() {
       maxAge: '',
       priceNotes: '',
       price_rub: '',
+      pricing: [],
       phone: '',
       webSite: '',
       socialLinks: Object.fromEntries(SOCIAL_FIELDS.map((f) => [f.key, ''])),
@@ -1728,6 +1897,273 @@ export default function AdminPanelClient() {
                       placeholder='например: "за занятие" / "абонемент"'
                     />
                   </div>
+                </div>
+
+
+
+                {/* Pricing (multiple items) */}
+                <div className="pricingEditor" style={{ marginTop: 14 }}>
+                  <div className="pricingHeader">
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: 16 }}>Стоимость занятий и абонементов</h3>
+                      <div className="muted" style={{ marginTop: 6 }}>
+                        Заполни несколько ценников (разовое, абонементы, индивидуально и т.д.).
+                        Описание и «Подробнее» поддерживают <b>жирный</b>, <i>курсив</i> и ссылки.
+                      </div>
+                    </div>
+                    <button
+                      className="btn primary"
+                      type="button"
+                      onClick={() =>
+                        setForm((prev) => {
+                          const pricing = Array.isArray(prev.pricing) ? [...prev.pricing] : [];
+                          pricing.push({
+                            kind: 'single',
+                            title: '',
+                            badge: '',
+                            unit: 'за занятие',
+                            price: '',
+                            isFree: false,
+                            desc: '',
+                            details: '',
+                          });
+                          return { ...prev, pricing };
+                        })
+                      }
+                    >
+                      + Добавить позицию
+                    </button>
+                  </div>
+
+                  {(!Array.isArray(form.pricing) || form.pricing.length === 0) && (
+                    <div className="muted" style={{ marginTop: 10 }}>
+                      Пока пусто. Нажми «Добавить позицию» — и сделаем красивый блок цен на странице кружка.
+                    </div>
+                  )}
+
+                  {Array.isArray(form.pricing) && form.pricing.length > 0 && (
+                    <div className="pricingList" style={{ marginTop: 12 }}>
+                      {form.pricing.map((it, idx) => (
+                        <div className="pricingItem" key={idx}>
+                          <div className="pricingTop">
+                            <div className="pricingTopLeft">
+                              <div className="pricingIndex">#{idx + 1}</div>
+                              <select
+                                value={it.kind || 'single'}
+                                onChange={(e) =>
+                                  setForm((prev) => {
+                                    const pricing = Array.isArray(prev.pricing) ? [...prev.pricing] : [];
+                                    const item = { ...(pricing[idx] || {}) };
+                                    item.kind = e.target.value;
+                                    pricing[idx] = item;
+                                    return { ...prev, pricing };
+                                  })
+                                }
+                              >
+                                <option value="single">Разовое</option>
+                                <option value="subscription">Абонементы</option>
+                                <option value="individual">Индивидуально</option>
+                                <option value="extra">Дополнительно</option>
+                                <option value="trial">Пробное</option>
+                              </select>
+                              <input
+                                type="text"
+                                value={it.title || ''}
+                                onChange={(e) =>
+                                  setForm((prev) => {
+                                    const pricing = Array.isArray(prev.pricing) ? [...prev.pricing] : [];
+                                    const item = { ...(pricing[idx] || {}) };
+                                    item.title = e.target.value;
+                                    pricing[idx] = item;
+                                    return { ...prev, pricing };
+                                  })
+                                }
+                                placeholder='Название (например "Разовое посещение")'
+                              />
+                              <input
+                                type="text"
+                                value={it.badge || ''}
+                                onChange={(e) =>
+                                  setForm((prev) => {
+                                    const pricing = Array.isArray(prev.pricing) ? [...prev.pricing] : [];
+                                    const item = { ...(pricing[idx] || {}) };
+                                    item.badge = e.target.value;
+                                    pricing[idx] = item;
+                                    return { ...prev, pricing };
+                                  })
+                                }
+                                placeholder="Плашка (например: Выгодно)"
+                              />
+                            </div>
+
+                            <div className="pricingTopRight">
+                              <div className="pricingPriceCol">
+                                <label>Цена, ₽</label>
+                                <input
+                                  type="number"
+                                  value={it.price || ''}
+                                  disabled={Boolean(it.isFree)}
+                                  onChange={(e) =>
+                                    setForm((prev) => {
+                                      const pricing = Array.isArray(prev.pricing) ? [...prev.pricing] : [];
+                                      const item = { ...(pricing[idx] || {}) };
+                                      item.price = e.target.value;
+                                      pricing[idx] = item;
+                                      return { ...prev, pricing };
+                                    })
+                                  }
+                                  placeholder="1500"
+                                />
+                              </div>
+                              <label className="pricingFree">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(it.isFree)}
+                                  onChange={(e) =>
+                                    setForm((prev) => {
+                                      const pricing = Array.isArray(prev.pricing) ? [...prev.pricing] : [];
+                                      const item = { ...(pricing[idx] || {}) };
+                                      item.isFree = e.target.checked;
+                                      if (e.target.checked) item.price = '';
+                                      pricing[idx] = item;
+                                      return { ...prev, pricing };
+                                    })
+                                  }
+                                />
+                                Бесплатно
+                              </label>
+
+                              <div className="pricingControls">
+                                <button
+                                  type="button"
+                                  className="iconBtn"
+                                  title="Вверх"
+                                  disabled={idx === 0}
+                                  onClick={() =>
+                                    setForm((prev) => {
+                                      const pricing = Array.isArray(prev.pricing) ? [...prev.pricing] : [];
+                                      if (idx <= 0) return prev;
+                                      const t = pricing[idx - 1];
+                                      pricing[idx - 1] = pricing[idx];
+                                      pricing[idx] = t;
+                                      return { ...prev, pricing };
+                                    })
+                                  }
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  type="button"
+                                  className="iconBtn"
+                                  title="Вниз"
+                                  disabled={idx === form.pricing.length - 1}
+                                  onClick={() =>
+                                    setForm((prev) => {
+                                      const pricing = Array.isArray(prev.pricing) ? [...prev.pricing] : [];
+                                      if (idx >= pricing.length - 1) return prev;
+                                      const t = pricing[idx + 1];
+                                      pricing[idx + 1] = pricing[idx];
+                                      pricing[idx] = t;
+                                      return { ...prev, pricing };
+                                    })
+                                  }
+                                >
+                                  ↓
+                                </button>
+                                <button
+                                  type="button"
+                                  className="iconBtn danger"
+                                  title="Удалить"
+                                  onClick={() =>
+                                    setForm((prev) => {
+                                      const pricing = Array.isArray(prev.pricing) ? [...prev.pricing] : [];
+                                      pricing.splice(idx, 1);
+                                      return { ...prev, pricing };
+                                    })
+                                  }
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="pricingMid">
+                            <div style={{ flex: 1 }}>
+                              <label>Подпись к цене</label>
+                              <input
+                                type="text"
+                                value={it.unit || ''}
+                                onChange={(e) =>
+                                  setForm((prev) => {
+                                    const pricing = Array.isArray(prev.pricing) ? [...prev.pricing] : [];
+                                    const item = { ...(pricing[idx] || {}) };
+                                    item.unit = e.target.value;
+                                    pricing[idx] = item;
+                                    return { ...prev, pricing };
+                                  })
+                                }
+                                placeholder='например: "за занятие" / "за абонемент"'
+                              />
+                            </div>
+                          </div>
+
+                          <div className="pricingTextArea">
+                            <div className="editorToolbar" style={{ marginBottom: 6 }}>
+                              <button type="button" className="tool" onClick={() => pricingDescWrap(idx, '<strong>', '</strong>', 'жирный')}>B</button>
+                              <button type="button" className="tool" onClick={() => pricingDescWrap(idx, '<em>', '</em>', 'курсив')}>I</button>
+                              <button type="button" className="tool" onClick={() => pricingDescInsertLink(idx)}>Ссылка</button>
+                            </div>
+                            <textarea
+                              ref={(el) => {
+                                pricingDescRefs.current[idx] = el;
+                              }}
+                              value={it.desc || ''}
+                              onChange={(e) =>
+                                setForm((prev) => {
+                                  const pricing = Array.isArray(prev.pricing) ? [...prev.pricing] : [];
+                                  const item = { ...(pricing[idx] || {}) };
+                                  item.desc = e.target.value;
+                                  pricing[idx] = item;
+                                  return { ...prev, pricing };
+                                })
+                              }
+                              placeholder="Короткое описание (1–2 строки). Можно вставлять ссылки."
+                              rows={3}
+                            />
+                          </div>
+
+                          <details className="pricingDetails">
+                            <summary>Подробнее (раскрывающийся текст)</summary>
+                            <div className="pricingTextArea" style={{ marginTop: 10 }}>
+                              <div className="editorToolbar" style={{ marginBottom: 6 }}>
+                                <button type="button" className="tool" onClick={() => pricingDetailsWrap(idx, '<strong>', '</strong>', 'жирный')}>B</button>
+                                <button type="button" className="tool" onClick={() => pricingDetailsWrap(idx, '<em>', '</em>', 'курсив')}>I</button>
+                                <button type="button" className="tool" onClick={() => pricingDetailsInsertLink(idx)}>Ссылка</button>
+                              </div>
+                              <textarea
+                                ref={(el) => {
+                                  pricingDetailsRefs.current[idx] = el;
+                                }}
+                                value={it.details || ''}
+                                onChange={(e) =>
+                                  setForm((prev) => {
+                                    const pricing = Array.isArray(prev.pricing) ? [...prev.pricing] : [];
+                                    const item = { ...(pricing[idx] || {}) };
+                                    item.details = e.target.value;
+                                    pricing[idx] = item;
+                                    return { ...prev, pricing };
+                                  })
+                                }
+                                placeholder="Текст для раскрытия по клику «Подробнее»"
+                                rows={4}
+                              />
+                            </div>
+                          </details>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="row" style={{ marginTop: 12 }}>

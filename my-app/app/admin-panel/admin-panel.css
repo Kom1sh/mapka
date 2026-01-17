@@ -125,3 +125,129 @@ input[type=time]:focus, select:focus{border-color:rgba(43,135,212,.55);box-shado
   color: #6b7280;
   text-align: right;
 }
+
+/* Pricing editor */
+.pricingEditor{
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:14px;
+  padding:14px;
+  background:#fff;
+}
+.pricingHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+}
+.pricingHeader .btn.primary{
+  white-space:nowrap;
+}
+.pricingList{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.pricingItem{
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:14px;
+  padding:12px;
+  background:#fafbfc;
+}
+.pricingTop{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+}
+.pricingTopLeft{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex:1;
+  min-width:0;
+}
+.pricingIndex{
+  font-weight:700;
+  color:#4b5563;
+  min-width:38px;
+}
+.pricingTopLeft select{
+  padding:10px 10px;
+  border-radius:12px;
+  border:1px solid rgba(0,0,0,.12);
+  background:#fff;
+}
+.pricingTopLeft input{
+  flex:1;
+  min-width:140px;
+}
+.pricingTopLeft input:last-child{
+  max-width:180px;
+}
+.pricingTopRight{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.pricingPriceCol label{
+  display:block;
+  font-size:12px;
+  color:#6b7280;
+  margin-bottom:4px;
+}
+.pricingPriceCol input{
+  width:120px;
+}
+.pricingFree{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:14px;
+  color:#374151;
+  user-select:none;
+}
+.pricingControls{
+  display:flex;
+  gap:6px;
+}
+.pricingMid{
+  display:flex;
+  gap:12px;
+  margin-top:10px;
+}
+.pricingTextArea{
+  margin-top:10px;
+}
+.pricingTextArea textarea{
+  width:100%;
+  min-height:84px;
+  resize:vertical;
+  border-radius:12px;
+  border:1px solid rgba(0,0,0,.12);
+  padding:12px;
+}
+.pricingDetails{
+  margin-top:10px;
+}
+.pricingDetails summary{
+  cursor:pointer;
+  user-select:none;
+  color:#2563eb;
+  font-weight:600;
+}
+
+@media (max-width: 900px){
+  .pricingTop{
+    flex-direction:column;
+  }
+  .pricingTopRight{
+    justify-content:flex-start;
+  }
+  .pricingTopLeft{
+    flex-wrap:wrap;
+  }
+  .pricingTopLeft input:last-child{
+    max-width:none;
+  }
+}
