@@ -1,0 +1,322 @@
+import Link from "next/link";
+import "./club.css";
+import PricingBlockClient from "./PricingBlockClient";
+
+const demoClub = {
+  name: "SQ Kids",
+  slug: "sqkids",
+  category: "Спорт",
+  ageText: "7–12 лет",
+  address: "ул. Волкова, 9Б, микрорайон Северный",
+  photos: [
+    "https://cdn-blog.gdemoideti.ru/2021/10/robototekhnika-kruzhok-deti-3.jpg",
+  ],
+  descriptionHtml: `
+    <p>Спортивный клуб <strong>SQ Kids</strong> — это место, где дети могут заниматься спортивной гимнастикой под руководством опытных тренеров.</p>
+    <p>Есть <em>пробные</em> занятия, групповые и индивидуальные форматы.</p>
+  `,
+  tags: ["Спортивная гимнастика", "Робототехника"],
+  schedules: [
+    { day: "Понедельник", time: "09:00-21:00" },
+    { day: "Вторник", time: "09:00-21:00" },
+    { day: "Среда", time: "09:00-21:00" },
+    { day: "Четверг", time: "09:00-21:00" },
+    { day: "Пятница", time: "09:00-21:00" },
+    { day: "Суббота", time: "09:00-21:00" },
+  ],
+  cta: {
+    phone: "+7 (988) 551-97-77",
+    whatsapp:
+      "https://wa.me/79885519777?text=%D0%97%D0%B0%D0%BF%D0%B8%D1%81%D1%8C%20%D0%BD%D0%B0%20%D0%B7%D0%B0%D0%BD%D1%8F%D1%82%D0%B8%D0%B5%20%D1%81%20%D0%9C%D0%B0%D0%BF%D0%BA%D0%B0.%D1%80%D1%84",
+  },
+};
+
+const demoPrices = [
+  {
+    id: "trial",
+    group: "Разовое",
+    title: "Пробное занятие",
+    subtitle: "Для новых учеников. Включён инвентарь.",
+    price_rub: 0,
+    badge: "Новичкам",
+    icon: "🧸",
+    details: ["Длительность: 60 минут", "Форма: удобная спортивная одежда"],
+  },
+  {
+    id: "single",
+    group: "Разовое",
+    title: "Разовое посещение",
+    subtitle: "Групповая тренировка 60 минут.",
+    price_rub: 1500,
+    icon: "🏃‍♂️",
+    details: ["Можно оплатить на месте", "Подходит для разовых визитов"],
+  },
+  {
+    id: "start",
+    group: "Абонементы",
+    title: 'Абонемент "Старт" (4 занятия)',
+    subtitle: "1 раз в неделю. Действует 30 дней.",
+    price_rub: 5500,
+    per: "за абонемент",
+    icon: "🎟️",
+    details: ["Цена за занятие ≈ 1375 ₽", "Перенос 1 занятия по уваж. причине"],
+  },
+  {
+    id: "progress",
+    group: "Абонементы",
+    title: 'Абонемент "Прогресс" (8 занятий)',
+    subtitle: "2 раза в неделю. Выгоднее.",
+    price_rub: 10000,
+    per: "за абонемент",
+    badge: "Выгодно",
+    icon: "📈",
+    details: ["Цена за занятие ≈ 1250 ₽", "Перенос 2 занятий"],
+  },
+  {
+    id: "champ",
+    group: "Абонементы",
+    title: 'Абонемент "Чемпион" (12 занятий)',
+    subtitle: "3 раза в неделю. Максимальный эффект.",
+    price_rub: 14000,
+    per: "за абонемент",
+    badge: "ТОП",
+    icon: "🏆",
+    details: ["Цена за занятие ≈ 1167 ₽", "Перенос 3 занятий"],
+  },
+  {
+    id: "ind",
+    group: "Индивидуально",
+    title: "Индивидуальная тренировка",
+    subtitle: "Персональное занятие с тренером.",
+    price_rub: 2500,
+    per: "за занятие",
+    icon: "🎯",
+    details: ["Длительность: 60 минут", "Фокус на технике и цели ребёнка"],
+  },
+  {
+    id: "tournament",
+    group: "Дополнительно",
+    title: "Участие в турнире",
+    subtitle: "Стартовый взнос на внутренний турнир.",
+    price_rub: 1200,
+    icon: "🥇",
+    details: ["Даты публикуются заранее", "Фото/видео включены (если указано)"],
+  },
+];
+
+export default function DemoClubPricingPage() {
+  const title = demoClub.name;
+
+  return (
+    <div className="club-main-wrapper">
+      {/* Header */}
+      <header className="header">
+        <div className="header-inner">
+          <Link href="/" className="back-btn">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.75 19.5L8.25 12l7.5-7.5"
+              />
+            </svg>
+            <span>Назад</span>
+          </Link>
+
+          <div className="header-title-scroll visible">{title}</div>
+
+          <button
+            className="back-btn"
+            style={{ border: "none", background: "none" }}
+            aria-label="Поделиться"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                navigator.clipboard?.writeText(window.location.href);
+                alert("Ссылка скопирована");
+              }
+            }}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+              />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="club-container">
+        <div className="club-main">
+          {/* Header Block */}
+          <div className="header-block">
+            <div className="badges">
+              {demoClub.category ? (
+                <span className="badge category">{demoClub.category}</span>
+              ) : null}
+              {demoClub.ageText ? (
+                <span className="badge age">{demoClub.ageText}</span>
+              ) : null}
+            </div>
+
+            <h1 className="main-title">{demoClub.name}</h1>
+
+            <div className="address-row">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              <span>{demoClub.address}</span>
+            </div>
+          </div>
+
+          {/* Gallery (упрощённая) */}
+          <div className="gallery-container">
+            <div className="gallery-track" style={{ transform: "translateX(0)" }}>
+              <div
+                className="gallery-slide"
+                style={{ ["--bg"]: `url(${demoClub.photos[0]})` }}
+              >
+                {/* обычный img чтобы было максимально просто */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={demoClub.photos[0]}
+                  alt={demoClub.name}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    position: "relative",
+                    zIndex: 1,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* NEW: Pricing block */}
+          <div className="section-card">
+            <PricingBlockClient
+              items={demoPrices}
+              ctaHref={demoClub.cta.whatsapp}
+            />
+          </div>
+
+          {/* About */}
+          <div className="section-card">
+            <h2 className="section-header">О кружке</h2>
+            <div
+              className="section-text"
+              dangerouslySetInnerHTML={{ __html: demoClub.descriptionHtml }}
+            />
+
+            {demoClub.tags?.length ? (
+              <div className="tags-section">
+                {demoClub.tags.map((t) => (
+                  <span key={t} className="tag-chip">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          {/* Schedule */}
+          <div className="section-card">
+            <h2 className="section-header">Расписание занятий</h2>
+            <div className="schedule-list">
+              {demoClub.schedules.map((s) => (
+                <div className="schedule-row" key={s.day}>
+                  <div className="schedule-day">{s.day}</div>
+                  <div className="schedule-time">{s.time}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <aside className="sidebar-wrapper">
+          <div className="sidebar-sticky">
+            <button
+              className="cta-btn btn-primary"
+              onClick={() => {
+                if (typeof window !== "undefined") window.open(demoClub.cta.whatsapp, "_blank");
+              }}
+            >
+              Записаться
+            </button>
+            <button
+              className="cta-btn btn-outline"
+              onClick={() => {
+                if (typeof window !== "undefined") window.location.href = "/";
+              }}
+            >
+              Открыть карту
+            </button>
+            <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+              Телефон: {demoClub.cta.phone}
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      {/* Mobile bottom bar */}
+      <div className="mobile-bottom-bar">
+        <button
+          className="cta-btn btn-primary"
+          style={{ padding: 12 }}
+          onClick={() => {
+            if (typeof window !== "undefined") window.open(demoClub.cta.whatsapp, "_blank");
+          }}
+        >
+          Записаться
+        </button>
+        <button
+          className="cta-btn btn-outline"
+          style={{ padding: 12 }}
+          onClick={() => {
+            if (typeof window !== "undefined") window.location.href = "/";
+          }}
+        >
+          Карта
+        </button>
+      </div>
+    </div>
+  );
+}
