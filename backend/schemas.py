@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from datetime import time, datetime
 from uuid import UUID
 
@@ -76,3 +76,82 @@ class ClubSchema(BaseModel):
     teacher: Optional[TeacherSchema]
 
     model_config = {"from_attributes": True}
+
+# ==========================
+# Blog
+# ==========================
+
+class BlogFaqItemSchema(BaseModel):
+    q: Optional[str] = None
+    a: Optional[str] = None
+
+
+class BlogPostSchema(BaseModel):
+    id: UUID
+    title: str
+    slug: str
+    status: str = 'draft'
+
+    excerpt: Optional[str] = None
+    content: Optional[str] = None
+    content_blocks: Optional[Any] = None
+
+    cover_image: Optional[str] = None
+    category: Optional[str] = None
+    tags: List[str] = []
+
+    author_name: Optional[str] = None
+    author_role: Optional[str] = None
+    author_avatar: Optional[str] = None
+
+    faq: Optional[List[BlogFaqItemSchema]] = None
+
+    published_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class BlogPostCreateSchema(BaseModel):
+    title: str
+    slug: Optional[str] = None
+    status: Optional[str] = 'draft'
+
+    excerpt: Optional[str] = None
+    content: Optional[str] = None
+    content_blocks: Optional[Any] = None
+
+    cover_image: Optional[str] = None
+    category: Optional[str] = None
+    tags: Optional[List[str]] = None
+
+    author_name: Optional[str] = None
+    author_role: Optional[str] = None
+    author_avatar: Optional[str] = None
+
+    faq: Optional[List[BlogFaqItemSchema]] = None
+
+    published_at: Optional[datetime] = None
+
+
+class BlogPostUpdateSchema(BaseModel):
+    title: Optional[str] = None
+    slug: Optional[str] = None
+    status: Optional[str] = None
+
+    excerpt: Optional[str] = None
+    content: Optional[str] = None
+    content_blocks: Optional[Any] = None
+
+    cover_image: Optional[str] = None
+    category: Optional[str] = None
+    tags: Optional[List[str]] = None
+
+    author_name: Optional[str] = None
+    author_role: Optional[str] = None
+    author_avatar: Optional[str] = None
+
+    faq: Optional[List[BlogFaqItemSchema]] = None
+
+    published_at: Optional[datetime] = None

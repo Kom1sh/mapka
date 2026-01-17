@@ -16,13 +16,13 @@ from xml.sax.saxutils import escape as xml_escape
 import aiofiles
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from sqlalchemy.orm import selectinload
-from sqlalchemy import select, delete, or_
+from sqlalchemy import select, delete, or_, desc
 from datetime import time as dt_time
 
-from models import Club, Address, Schedule
+from models import Club, Address, Schedule, BlogPost
 from db import AsyncSessionLocal
 from crud import create_review_for_club
-from schemas import ReviewSchema, ReviewCreateSchema
+from schemas import ReviewSchema, ReviewCreateSchema, BlogPostSchema, BlogPostCreateSchema, BlogPostUpdateSchema
 from auth import router as auth_router, admin_required
 
 from fastapi.exception_handlers import RequestValidationError
@@ -932,6 +932,360 @@ async def serve_club_page(slug: str):
             pass
         return HTMLResponse(html)
 
+
+
+
+# ==========================
+# Blog helpers
+# ==========================
+
+def _slugify_basic(text: str) -> str:
+    """Простой slugify (fallback, если фронт не прислал slug)."""
+    s = (text or "").strip().lower()
+    out = []
+    prev_dash = False
+    for ch in s:
+        if ch.isalnum():
+            out.append(ch)
+            prev_dash = False
+        else:
+            if not prev_dash:
+                out.append("-")
+                prev_dash = True
+    slug = "".join(out).strip("-")
+    slug = "-".join([p for p in slug.split("-") if p])
+    return (slug or "post")[:80]
+
+
+async def _ensure_unique_blog_slug(session, desired_slug: str, exclude_id=None) -> str:
+    base = _slugify_basic(desired_slug)
+    slug = base
+    for i in range(1, 51):
+        q = select(BlogPost.id).where(BlogPost.slug == slug)
+        if exclude_id is not None:
+            q = q.where(BlogPost.id != exclude_id)
+        r = await session.execute(q)
+        exists = r.scalar_one_or_none()
+        if not exists:
+            return slug
+        slug = f"{base}-{i+1}"
+    return f"{base}-{uuid.uuid4().hex[:6]}"
+
+
+def _serialize_blog_post(p: BlogPost):
+    return {
+        "id": str(getattr(p, "id", "")),
+        "title": getattr(p, "title", "") or "",
+        "slug": getattr(p, "slug", "") or "",
+        "status": getattr(p, "status", "draft") or "draft",
+        "excerpt": getattr(p, "excerpt", None),
+        "content": getattr(p, "content", None),
+        "content_blocks": getattr(p, "content_blocks", None),
+        "cover_image": getattr(p, "cover_image", None),
+        "category": getattr(p, "category", None),
+        "tags": list(getattr(p, "tags", None) or []),
+        "author_name": getattr(p, "author_name", None),
+        "author_role": getattr(p, "author_role", None),
+        "author_avatar": getattr(p, "author_avatar", None),
+        "faq": getattr(p, "faq", None),
+        "published_at": getattr(p, "published_at", None),
+        "created_at": getattr(p, "created_at", None),
+        "updated_at": getattr(p, "updated_at", None),
+    }
+
+
+def _jsonable(obj):
+    """Convert Pydantic models (and nested structures) into plain JSON-serializable objects."""
+    if obj is None:
+        return None
+
+    md = getattr(obj, "model_dump", None)
+    if callable(md):
+        try:
+            return _jsonable(md())
+        except Exception:
+            pass
+
+    dct = getattr(obj, "dict", None)
+    if callable(dct):
+        try:
+            return _jsonable(dct())
+        except Exception:
+            pass
+
+    if isinstance(obj, (str, int, float, bool)):
+        return obj
+
+    if isinstance(obj, (list, tuple)):
+        return [_jsonable(x) for x in obj]
+
+    if isinstance(obj, dict):
+        return {k: _jsonable(v) for k, v in obj.items()}
+
+    try:
+        return str(obj)
+    except Exception:
+        return None
+
+
+def _normalize_blog_faq(faq):
+    """Normalize FAQ payload for JSONB: list of {q,a}. Filters out fully empty items."""
+    if faq is None:
+        return None
+
+    out = []
+    for item in (faq or []):
+        if item is None:
+            continue
+        d = _jsonable(item)
+
+        if isinstance(d, dict):
+            q = (d.get("q") or d.get("question") or "")
+            a = (d.get("a") or d.get("answer") or "")
+        else:
+            q = getattr(item, "q", "") or ""
+            a = getattr(item, "a", "") or ""
+
+        q = str(q).strip()
+        a = str(a).strip()
+
+        if not q and not a:
+            continue
+
+        out.append({"q": q, "a": a})
+
+    return out
+
+
+# ==========================
+# Blog API
+# ==========================
+
+
+@app.get("/api/blog/public/posts")
+async def api_public_blog_posts(
+    limit: int = 20,
+    offset: int = 0,
+    q: str | None = None,
+    tag: str | None = None,
+    category: str | None = None,
+):
+    """Публичный список статей (только published)."""
+    limit = max(1, min(int(limit or 20), 200))
+    offset = max(0, int(offset or 0))
+    q_txt = (q or "").strip()
+    tag_txt = (tag or "").strip()
+    cat_txt = (category or "").strip()
+
+    async with AsyncSessionLocal() as session:
+        stmt = (
+            select(BlogPost)
+            .where(BlogPost.status == "published")
+            .order_by(desc(BlogPost.published_at), desc(BlogPost.updated_at))
+            .limit(limit)
+            .offset(offset)
+        )
+        if cat_txt:
+            stmt = stmt.where(BlogPost.category == cat_txt)
+        if q_txt:
+            like = f"%{q_txt}%"
+            stmt = stmt.where(or_(BlogPost.title.ilike(like), BlogPost.excerpt.ilike(like)))
+
+        r = await session.execute(stmt)
+        posts = r.scalars().all()
+
+        out = []
+        for p in posts:
+            if tag_txt:
+                tags = list(getattr(p, "tags", None) or [])
+                if tag_txt not in tags:
+                    continue
+            out.append(_serialize_blog_post(p))
+        return out
+
+
+@app.get("/api/blog/public/posts/{slug}")
+async def api_public_blog_post(slug: str):
+    """Публичная статья по slug (только published)."""
+    s = (slug or "").strip()
+    if not s:
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    async with AsyncSessionLocal() as session:
+        r = await session.execute(
+            select(BlogPost)
+            .where(BlogPost.slug == s)
+            .where(BlogPost.status == "published")
+            .limit(1)
+        )
+        post = r.scalar_one_or_none()
+        if not post:
+            raise HTTPException(status_code=404, detail="Not Found")
+        return _serialize_blog_post(post)
+
+
+@app.get("/api/blog/posts")
+async def api_admin_blog_posts(
+    limit: int = 5000,
+    offset: int = 0,
+    include_drafts: bool = True,
+    user=Depends(admin_required),
+):
+    """Админский список статей (draft+published по умолчанию)."""
+    limit = max(1, min(int(limit or 5000), 5000))
+    offset = max(0, int(offset or 0))
+
+    async with AsyncSessionLocal() as session:
+        stmt = select(BlogPost)
+        if not include_drafts:
+            stmt = stmt.where(BlogPost.status == "published")
+        stmt = stmt.order_by(desc(BlogPost.updated_at), desc(BlogPost.created_at)).limit(limit).offset(offset)
+        r = await session.execute(stmt)
+        posts = r.scalars().all()
+        return [_serialize_blog_post(p) for p in posts]
+
+
+@app.post("/api/blog/posts")
+async def api_admin_blog_create(payload: BlogPostCreateSchema, user=Depends(admin_required)):
+    now = datetime.datetime.utcnow()
+    title = (payload.title or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+
+    async with AsyncSessionLocal() as session:
+        desired_slug = (payload.slug or "").strip() or _slugify_basic(title)
+        slug = await _ensure_unique_blog_slug(session, desired_slug)
+
+        status = payload.status or "draft"
+        published_at = payload.published_at
+        if status == "published" and not published_at:
+            published_at = now
+        if status != "published":
+            published_at = None
+
+        post = BlogPost(
+            title=title,
+            slug=slug,
+            status=status,
+            excerpt=(payload.excerpt or "").strip() or None,
+            content=payload.content,
+            content_blocks=payload.content_blocks,
+            cover_image=(payload.cover_image or "").strip() or None,
+            category=(payload.category or "").strip() or None,
+            tags=list(payload.tags or []),
+            author_name=(payload.author_name or "Редакция Мапка").strip() or None,
+            author_role=(payload.author_role or "").strip() or None,
+            author_avatar=(payload.author_avatar or "").strip() or None,
+            faq=_normalize_blog_faq(payload.faq),
+            published_at=published_at,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(post)
+        try:
+            await session.commit()
+        except IntegrityError as e:
+            await session.rollback()
+            raise HTTPException(status_code=400, detail=f"DB error: {str(e.orig) if getattr(e,'orig',None) else str(e)}")
+
+        await session.refresh(post)
+        return _serialize_blog_post(post)
+
+
+@app.put("/api/blog/posts/{post_id}")
+async def api_admin_blog_update(post_id: str, payload: BlogPostUpdateSchema, user=Depends(admin_required)):
+    now = datetime.datetime.utcnow()
+
+    try:
+        pid = uuid.UUID(str(post_id))
+    except Exception:
+        raise HTTPException(status_code=400, detail="post_id must be UUID")
+
+    async with AsyncSessionLocal() as session:
+        r = await session.execute(select(BlogPost).where(BlogPost.id == pid))
+        post = r.scalar_one_or_none()
+        if not post:
+            raise HTTPException(status_code=404, detail="Not Found")
+
+        if payload.title is not None:
+            t = (payload.title or "").strip()
+            if not t:
+                raise HTTPException(status_code=400, detail="title cannot be empty")
+            post.title = t
+
+        if payload.slug is not None:
+            desired = (payload.slug or "").strip() or _slugify_basic(post.title)
+            post.slug = await _ensure_unique_blog_slug(session, desired, exclude_id=post.id)
+
+        if payload.excerpt is not None:
+            post.excerpt = (payload.excerpt or "").strip() or None
+
+        if payload.content is not None:
+            post.content = payload.content
+
+        if payload.content_blocks is not None:
+            post.content_blocks = payload.content_blocks
+
+        if payload.cover_image is not None:
+            post.cover_image = (payload.cover_image or "").strip() or None
+
+        if payload.category is not None:
+            post.category = (payload.category or "").strip() or None
+
+        if payload.tags is not None:
+            post.tags = list(payload.tags or [])
+
+        if payload.author_name is not None:
+            post.author_name = (payload.author_name or "").strip() or None
+        if payload.author_role is not None:
+            post.author_role = (payload.author_role or "").strip() or None
+        if payload.author_avatar is not None:
+            post.author_avatar = (payload.author_avatar or "").strip() or None
+
+        if payload.faq is not None:
+            post.faq = _normalize_blog_faq(payload.faq)
+
+        if payload.status is not None:
+            st = payload.status
+            if st not in ("draft", "published"):
+                raise HTTPException(status_code=400, detail="status must be draft|published")
+            post.status = st
+
+        if payload.published_at is not None:
+            post.published_at = payload.published_at
+
+        if post.status == "published" and not post.published_at:
+            post.published_at = now
+        if post.status != "published":
+            post.published_at = None
+
+        post.updated_at = now
+        session.add(post)
+        try:
+            await session.commit()
+        except IntegrityError as e:
+            await session.rollback()
+            raise HTTPException(status_code=400, detail=f"DB error: {str(e.orig) if getattr(e,'orig',None) else str(e)}")
+
+        await session.refresh(post)
+        return _serialize_blog_post(post)
+
+
+@app.delete("/api/blog/posts/{post_id}")
+async def api_admin_blog_delete(post_id: str, user=Depends(admin_required)):
+    try:
+        pid = uuid.UUID(str(post_id))
+    except Exception:
+        raise HTTPException(status_code=400, detail="post_id must be UUID")
+
+    async with AsyncSessionLocal() as session:
+        r = await session.execute(select(BlogPost).where(BlogPost.id == pid))
+        post = r.scalar_one_or_none()
+        if not post:
+            raise HTTPException(status_code=404, detail="Not Found")
+        await session.delete(post)
+        await session.commit()
+        return {"ok": True}
 
 @app.get("/api/admin/geocode-missing")
 @app.post("/api/admin/geocode-missing")

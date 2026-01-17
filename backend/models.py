@@ -109,3 +109,34 @@ class User(Base):
     password_hash = Column(Text, nullable=False)
     role = Column(String(50), nullable=False, default="moder")
     created_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
+
+# ==========================
+# Blog
+# ==========================
+
+class BlogPost(Base):
+    __tablename__ = "blog_posts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String(255), nullable=False)
+    slug = Column(String(255), nullable=False, unique=True, index=True)
+
+    excerpt = Column(Text, nullable=True)
+    content = Column(Text, nullable=True)
+    content_blocks = Column(JSONB, nullable=True)
+
+    cover_image = Column(Text, nullable=True)
+    category = Column(String(255), nullable=True)
+    tags = Column(MutableList.as_mutable(JSONB), nullable=True, default=list)
+
+    status = Column(String(32), nullable=False, default="draft")
+    published_at = Column(DateTime(timezone=True), nullable=True)
+
+    author_name = Column(Text, nullable=True)
+    author_role = Column(Text, nullable=True)
+    author_avatar = Column(Text, nullable=True)
+
+    faq = Column(JSONB, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
