@@ -2,16 +2,14 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import './club.css';
 
+import { fetchClubData } from '@/lib/club-api';
 import ClubGallery from '@/components/ClubGallery';
 import ClubMap from '@/components/ClubMap';
 import ClubActions from '@/components/ClubActions';
 
-// ВАЖНО: эта страница должна быть динамической, иначе мета-описание может кэшироваться.
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+import PricingBlockClient from './PricingBlockClient';
 
 const SITE_URL = 'https://xn--80aa3agq.xn--p1ai';
-const INTERNAL_API_BASE = process.env.INTERNAL_API_BASE || 'http://127.0.0.1:8000';
 
 function stripHtml(s) {
   return String(s || '')
@@ -62,6 +60,11 @@ function normalizePhoneForSchema(phone) {
   return cleaned || null;
 }
 
+function phoneToTelHref(phone) {
+  const p = normalizePhoneForSchema(phone);
+  return p ? `tel:${p}` : null;
+}
+
 function toAgeNum(v) {
   if (v == null) return null;
   const s = String(v).trim().toLowerCase();
@@ -100,41 +103,94 @@ function parseTimeRange(timeStr) {
   return { opens, closes };
 }
 
-async function getClub(slug) {
-  const safeSlug = encodeURIComponent(String(slug || '').trim());
-  if (!safeSlug) return null;
+// --- Pricing normalization ---
+const PRICING_GROUP_MAP = {
+  one_time: 'Разовое',
+  oneTime: 'Разовое',
+  'one-time': 'Разовое',
+  single: 'Разовое',
+  once: 'Разовое',
+  subscription: 'Абонементы',
+  subscriptions: 'Абонементы',
+  abonement: 'Абонементы',
+  abonements: 'Абонементы',
+  monthly: 'Абонементы',
+  individual: 'Индивидуально',
+  personal: 'Индивидуально',
+  extra: 'Дополнительно',
+  add: 'Дополнительно',
+};
 
-  // ВАЖНО: no-store, чтобы мета-описание и данные не застревали в кэше Next.
-  const res = await fetch(`${INTERNAL_API_BASE}/api/clubs/${safeSlug}`, {
-    cache: 'no-store',
-    headers: { Accept: 'application/json' },
-  });
+function normalizePricingGroup(g) {
+  const raw = String(g || '').trim();
+  if (!raw) return '';
 
-  if (!res.ok) return null;
+  if (PRICING_GROUP_MAP[raw]) return PRICING_GROUP_MAP[raw];
+  const lower = raw.toLowerCase();
+  if (PRICING_GROUP_MAP[lower]) return PRICING_GROUP_MAP[lower];
 
-  const club = await res.json();
+  // Если уже по-русски — оставляем как есть
+  return raw;
+}
 
-  // Нормализация минимально нужных полей под UI
-  if (!Array.isArray(club.photos)) {
-    const img = club.image || club.main_image_url || null;
-    club.photos = img ? [img] : [];
-  }
+function splitDetails(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map(String).map((x) => x.trim()).filter(Boolean);
 
-  return club;
+  const lines = String(v)
+    .split(/\r?\n/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map((x) => x.replace(/^[-•\*]+\s+/, '').trim());
+
+  return lines;
+}
+
+function normalizePricingItems(raw) {
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((it, idx) => {
+      const o = it && typeof it === 'object' ? it : {};
+
+      const priceText = String(o.price_text ?? o.priceText ?? '').trim();
+      const priceRubRaw = o.price_rub ?? o.priceRub ?? o.price ?? o.amount;
+      const priceRub = Number.isFinite(Number(priceRubRaw)) ? Number(priceRubRaw) : undefined;
+
+      const details = splitDetails(o.details ?? o.detailsText ?? o.details_text);
+
+      return {
+        id: o.id || `pricing-${idx}`,
+        group: normalizePricingGroup(o.group ?? o.category ?? o.type),
+        title: String(o.title ?? o.name ?? '').trim(),
+        subtitle: String(o.subtitle ?? o.description ?? '').trim(),
+        badge: String(o.badge ?? '').trim(),
+        icon: String(o.icon ?? '').trim(),
+        per: String(o.per ?? o.unit ?? '').trim(),
+        price_rub: priceRub,
+        price_text: priceText,
+        details,
+      };
+    })
+    .filter((x) => x.title);
+}
+
+function minPositivePrice(items) {
+  const nums = (items || [])
+    .map((x) => Number(x?.price_rub))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  if (!nums.length) return null;
+  return Math.min(...nums);
 }
 
 export async function generateMetadata({ params }) {
   const resolvedParams = await params;
-  const club = await getClub(resolvedParams.slug);
+  const club = await fetchClubData(resolvedParams.slug);
 
   if (!club) return { title: 'Кружок не найден – Мапка' };
 
   const title = club.title || club.name || 'Кружок';
-
-  // ВАЖНО: meta_description должен иметь приоритет над description
-  const descSource = club.meta_description || club.metaDescription || '';
-  const description = stripHtml(descSource || club.description || '').slice(0, 160);
-
+  const description = stripHtml(club.meta_description || club.metaDescription || club.description || '').slice(0, 160);
   const canonical = `${SITE_URL}/${resolvedParams.slug}`;
 
   const img =
@@ -158,7 +214,7 @@ export async function generateMetadata({ params }) {
 
 export default async function Page({ params }) {
   const resolvedParams = await params;
-  const club = await getClub(resolvedParams.slug);
+  const club = await fetchClubData(resolvedParams.slug);
 
   if (!club) notFound();
 
@@ -170,8 +226,24 @@ export default async function Page({ params }) {
   const category = String(club.category || '').trim();
   const ageText = formatAge(club.minAge, club.maxAge);
 
-  const priceNum = Number(club.price ?? club.price_rub ?? 0);
-  const hasPrice = Number.isFinite(priceNum) && priceNum > 0;
+  // --- Pricing (new block) ---
+  const pricingItems = normalizePricingItems(
+    club.pricing ?? club.pricing_items ?? club.pricingItems
+  );
+
+  // Legacy single price (keep for backward compatibility)
+  let priceNum = Number(club.price ?? club.price_rub ?? 0);
+  let hasPrice = Number.isFinite(priceNum) && priceNum > 0;
+
+  // Если single price не задан, но есть pricingItems — берём минимальную цену для schema/шапки.
+  if (!hasPrice && pricingItems.length) {
+    const min = minPositivePrice(pricingItems);
+    if (min != null) {
+      priceNum = min;
+      hasPrice = true;
+    }
+  }
+
   const priceStr = hasPrice ? `${priceNum.toLocaleString('ru-RU')} ₽` : 'Бесплатно';
 
   // --- Schema: Breadcrumbs ---
@@ -193,8 +265,14 @@ export default async function Page({ params }) {
 
   const sameAs = [];
 
-  // читаем сайт из разных возможных полей (админки/бэка)
-  const rawWebsite = club.webSite ?? club.website ?? club.web_site ?? club.site ?? null;
+  // ✅ FIX: читаем сайт из разных возможных полей (админки/бэка)
+  const rawWebsite =
+    club.webSite ??
+    club.website ??
+    club.web_site ??
+    club.site ??
+    null;
+
   const websiteHref = ensureUrl(rawWebsite);
   if (websiteHref) sameAs.push(websiteHref);
 
@@ -237,8 +315,7 @@ export default async function Page({ params }) {
     '@id': `${url}#club`,
     name: title,
     url,
-    // Для schema лучше использовать реальное описание кружка (на странице).
-    description: stripHtml(club.description || '') || undefined,
+    description: stripHtml(club.description || club.meta_description || club.metaDescription || '') || undefined,
     image: image || undefined,
     telephone: normalizePhoneForSchema(club.phone) || undefined,
     sameAs: sameAs.length ? Array.from(new Set(sameAs)) : undefined,
@@ -266,9 +343,7 @@ export default async function Page({ params }) {
     '@id': `${url}#webpage`,
     url,
     name: `${title} - Мапка`,
-    // Для WebPage можно дать meta_description (если он есть)
-    description:
-      stripHtml(club.meta_description || club.metaDescription || club.description || '').slice(0, 160) || undefined,
+    description: stripHtml(club.meta_description || club.metaDescription || club.description || '').slice(0, 160) || undefined,
     isPartOf: { '@id': `${SITE_URL}/#website` },
     about: { '@id': `${url}#club` },
     inLanguage: 'ru-RU',
@@ -302,6 +377,14 @@ export default async function Page({ params }) {
 
   const allButtons = [...linkButtons, ...socialButtons];
 
+  // CTA for pricing block
+  const ctaHref =
+    ensureUrl(socials?.whatsapp) ||
+    ensureUrl(socials?.telegram) ||
+    websiteHref ||
+    phoneToTelHref(club.phone) ||
+    null;
+
   return (
     <div className="club-main-wrapper">
       {/* Schema.org */}
@@ -313,7 +396,15 @@ export default async function Page({ params }) {
       <header className="header">
         <div className="header-inner">
           <Link href="/" className="back-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
             <span>Назад</span>
@@ -324,7 +415,15 @@ export default async function Page({ params }) {
           </div>
 
           <button className="back-btn" id="shareBtn" style={{ border: 'none', background: 'none' }} aria-label="Поделиться">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -355,7 +454,7 @@ export default async function Page({ params }) {
                   strokeWidth="2"
                   d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
                 />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               <span>{addressText}</span>
             </div>
@@ -364,14 +463,24 @@ export default async function Page({ params }) {
           {/* Gallery */}
           <ClubGallery photos={club.photos} />
 
-          {/* Price */}
-          <div className="section-card price-card">
-            <div className="price-info">
-              <h2 className="section-header">Стоимость обучения</h2>
-              <div className="price-value">{priceStr}</div>
-              {club.priceNotes ? <div className="price-note">{club.priceNotes}</div> : null}
+          {/* Pricing (new) or legacy price */}
+          {pricingItems.length ? (
+            <div className="section-card">
+              <PricingBlockClient
+                items={pricingItems}
+                ctaHref={ctaHref}
+                noteText={club.priceNotes ? String(club.priceNotes) : undefined}
+              />
             </div>
-          </div>
+          ) : (
+            <div className="section-card price-card">
+              <div className="price-info">
+                <h2 className="section-header">Стоимость обучения</h2>
+                <div className="price-value">{priceStr}</div>
+                {club.priceNotes ? <div className="price-note">{club.priceNotes}</div> : null}
+              </div>
+            </div>
+          )}
 
           {/* About */}
           <div className="section-card">
@@ -401,7 +510,13 @@ export default async function Page({ params }) {
 
                 <div className="social-grid">
                   {allButtons.map((b) => (
-                    <a key={b.key} href={b.href} target="_blank" rel="noopener noreferrer" className={`social-btn ${b.className}`}>
+                    <a
+                      key={b.key}
+                      href={b.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`social-btn ${b.className}`}
+                    >
                       {b.label}
                     </a>
                   ))}
