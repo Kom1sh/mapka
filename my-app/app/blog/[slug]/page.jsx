@@ -2,18 +2,15 @@ import Header from "@/components/Header";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import styles from "./page.module.css";
-// В проекте body/html имеют overflow:hidden (app-style), поэтому делаем скролл через .blog-scroll
-import "../blog.css";
 
-// Для динамического slug и чтобы не попасть в статический пререндер
+// Динамический slug, без статического пререндеринга
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Основной домен сайта (punycode) — как в других страницах проекта
 const SITE_URL = "https://xn--80aa3agq.xn--p1ai";
 const SITE_NAME = "Мапка.рф";
 
-// ✅ Паттерн API_BASE совпадает с lib/club-api.js
+// Паттерн API_BASE, чтобы совпадать с остальным фронтом
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ||
   process.env.NEXT_PUBLIC_API_URL ||
@@ -28,6 +25,15 @@ function isHtml(s) {
   return /<\w+[\s\S]*?>/.test(str);
 }
 
+function escapeHtml(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function stripHtml(html) {
   return String(html || "").replace(/<[^>]*>/g, "").trim();
 }
@@ -36,7 +42,7 @@ function slugify(text) {
   return stripHtml(text)
     .toLowerCase()
     .replace(/&nbsp;|&#160;/g, " ")
-    .replace(/[^A-zА-яЁё\d]+/g, "-")
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
 }
@@ -52,86 +58,101 @@ function normalizeTags(tags) {
   return [];
 }
 
-function escapeHtml(s) {
-  return String(s || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+function normalizeFaq(faq) {
+  if (!faq) return [];
+
+  let data = faq;
+  if (typeof data === "string") {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      return [];
+    }
+  }
+
+  // { items: [...] }
+  if (data && !Array.isArray(data) && Array.isArray(data.items)) {
+    data = data.items;
+  }
+
+  if (!Array.isArray(data)) return [];
+
+  return data
+    .map((x) => ({
+      q: x?.q ?? x?.question ?? x?.title ?? "",
+      a: x?.a ?? x?.answer ?? x?.text ?? "",
+    }))
+    .map((x) => ({ q: String(x.q || "").trim(), a: String(x.a || "").trim() }))
+    .filter((x) => x.q && x.a);
 }
 
-function mdInline(s) {
-  // ссылки [text](url)
-  let out = String(s || "");
-  out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (m, text, url) => {
-    const safeText = escapeHtml(text);
-    const safeUrl = escapeHtml(url);
-    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeText}</a>`;
-  });
+function renderInlineMd(text) {
+  let s = escapeHtml(text);
 
-  // жирный **text**
-  out = out.replace(/\*\*([^*]+)\*\*/g, (m, t) => `<strong>${escapeHtml(t)}</strong>`);
-  // курсив *text*
-  out = out.replace(/\*([^*]+)\*/g, (m, t) => `<em>${escapeHtml(t)}</em>`);
+  // links: [text](url)
+  s = s.replace(
+    /\[([^\]]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\)/g,
+    '<a href="$2" rel="noopener noreferrer">$1</a>'
+  );
 
-  return out;
+  // bold: **text**
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+
+  // italic: *text*
+  s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+
+  return s;
 }
 
 function markdownToHtml(md) {
-  const src = String(md || "").replace(/\r\n/g, "\n");
+  const src = String(md || "").replace(/\r\n?/g, "\n");
   const lines = src.split("\n");
 
   const out = [];
-  let list = null;
+  let inList = false;
 
-  const flushList = () => {
-    if (list && list.length) {
-      out.push(`<ul>${list.map((li) => `<li>${li}</li>`).join("")}</ul>`);
+  const closeList = () => {
+    if (inList) {
+      out.push("</ul>");
+      inList = false;
     }
-    list = null;
   };
 
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line) {
-      flushList();
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/\t/g, "  ");
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      closeList();
       continue;
     }
 
-    if (line.startsWith("#### ")) {
-      flushList();
-      out.push(`<h4>${mdInline(line.slice(5).trim())}</h4>`);
-      continue;
-    }
-    if (line.startsWith("### ")) {
-      flushList();
-      out.push(`<h3>${mdInline(line.slice(4).trim())}</h3>`);
-      continue;
-    }
-    if (line.startsWith("## ")) {
-      flushList();
-      out.push(`<h2>${mdInline(line.slice(3).trim())}</h2>`);
-      continue;
-    }
-    // Часто люди пишут одинарный # как «раздел». Внутри статьи это логичнее считать h2.
-    if (line.startsWith("# ")) {
-      flushList();
-      out.push(`<h2>${mdInline(line.slice(2).trim())}</h2>`);
+    // headings: # / ## / ### / ####
+    const hm = trimmed.match(/^(#{1,4})\s+(.+?)\s*$/);
+    if (hm) {
+      closeList();
+      const n = hm[1].length;
+      const lvl = Math.min(Math.max(n, 2), 4); // h2..h4
+      out.push(`<h${lvl}>${renderInlineMd(hm[2])}</h${lvl}>`);
       continue;
     }
 
-    if (line.startsWith("- ") || line.startsWith("* ")) {
-      if (!list) list = [];
-      list.push(mdInline(line.slice(2).trim()));
+    // bullet list: - item / * item
+    const lm = trimmed.match(/^[-*]\s+(.+)$/);
+    if (lm) {
+      if (!inList) {
+        out.push("<ul>");
+        inList = true;
+      }
+      out.push(`<li>${renderInlineMd(lm[1])}</li>`);
       continue;
     }
 
-    flushList();
-    out.push(`<p>${mdInline(line)}</p>`);
+    closeList();
+    out.push(`<p>${renderInlineMd(trimmed)}</p>`);
   }
 
-  flushList();
+  closeList();
   return out.join("\n");
 }
 
@@ -142,7 +163,7 @@ function buildTocAndHtml(html) {
   let idx = 0;
 
   // h2/h3/h4 -> оглавление + добавляем id, если его нет
-  const re = /<h([2-4])([^>]*)>([\s\S]*?)<\/h\1>/gi;
+  const re = /<h([234])([^>]*)>([\s\S]*?)<\/h\1>/gi;
 
   const withIds = html.replace(re, (full, level, attrs, inner) => {
     idx += 1;
@@ -181,23 +202,17 @@ async function fetchPost(slug) {
       { cache: "no-store" }
     );
   } catch (e) {
-    // Лог оставляем — очень помогает при SSR
     console.error("[blog/[slug]] internal fetch failed:", e);
   }
 
   // 2) Фолбэк на публичный домен
-  try {
-    return await fetchJson(`${API_BASE}/blog/public/posts/${encoded}`, {
-      cache: "no-store",
-    });
-  } catch (e) {
-    console.error("[blog/[slug]] public fetch failed:", e);
-    throw e;
-  }
+  return fetchJson(`${API_BASE}/blog/public/posts/${encoded}`, {
+    cache: "no-store",
+  });
 }
 
 export async function generateMetadata({ params }) {
-  // ✅ В твоём проекте params — Promise (см. app/[slug]/page.jsx)
+  // В проекте params = Promise
   const resolvedParams = await params;
   const slug = resolvedParams?.slug;
 
@@ -229,7 +244,7 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function BlogPostPage({ params }) {
-  // ✅ В твоём проекте params — Promise
+  // В проекте params = Promise
   const resolvedParams = await params;
   const slug = resolvedParams?.slug;
 
@@ -237,6 +252,7 @@ export default async function BlogPostPage({ params }) {
   if (!post) notFound();
 
   const tags = normalizeTags(post.tags);
+  const faq = normalizeFaq(post.faq);
 
   const publishedAt = post.published_at || post.created_at || null;
   const dateStr = publishedAt
@@ -247,11 +263,19 @@ export default async function BlogPostPage({ params }) {
       })
     : "";
 
-  const rawContent = post.content ?? "";
-  const htmlSource = isHtml(rawContent)
-    ? String(rawContent)
-    : markdownToHtml(String(rawContent));
-  const { toc, html } = buildTocAndHtml(htmlSource);
+  const htmlContent = isHtml(post.content)
+    ? String(post.content)
+    : markdownToHtml(post.content || "");
+
+  const { toc: rawToc, html } = buildTocAndHtml(htmlContent);
+  const toc = faq.length > 0
+    ? [...rawToc, { id: "faq", title: "Частые вопросы", level: 2 }]
+    : rawToc;
+
+  const faqItems = faq.map((x) => {
+    const aHtml = isHtml(x.a) ? String(x.a) : markdownToHtml(x.a);
+    return { q: x.q, aHtml, aText: stripHtml(aHtml) };
+  });
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -273,6 +297,19 @@ export default async function BlogPostPage({ params }) {
     mainEntityOfPage: `${SITE_URL}/blog/${post.slug}`,
   };
 
+  const faqJsonLd =
+    faqItems.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: faqItems.map((x) => ({
+            "@type": "Question",
+            name: x.q,
+            acceptedAnswer: { "@type": "Answer", text: x.aText },
+          })),
+        }
+      : null;
+
   return (
     <div className={styles.wrapper}>
       <Header />
@@ -281,8 +318,14 @@ export default async function BlogPostPage({ params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="blog-scroll">
-        <main className={styles.container}>
+      {faqJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+      ) : null}
+
+      <main className={styles.container}>
         <nav className={styles.breadcrumbs}>
           <Link href="/">Главная</Link>
           <span className={styles.sep}>/</span>
@@ -302,15 +345,6 @@ export default async function BlogPostPage({ params }) {
 
               <div className={styles.meta}>
                 <div className={styles.metaLeft}>
-                  {post.author_avatar ? (
-                    <img
-                      src={post.author_avatar}
-                      alt={post.author_name || "Автор"}
-                      className={styles.avatar}
-                      loading="lazy"
-                    />
-                  ) : null}
-
                   <div className={styles.metaText}>
                     <div className={styles.authorName}>
                       {post.author_name || "Редакция Мапка"}
@@ -342,11 +376,7 @@ export default async function BlogPostPage({ params }) {
                   {toc.map((i) => (
                     <li
                       key={i.id}
-                      className={
-                        styles[
-                          i.level === 2 ? "lvl2" : i.level === 3 ? "lvl3" : "lvl4"
-                        ]
-                      }
+                      className={styles[i.level === 2 ? "lvl2" : "lvl3"]}
                     >
                       <a href={`#${i.id}`} className={styles.tocLink}>
                         {i.title}
@@ -357,16 +387,10 @@ export default async function BlogPostPage({ params }) {
               </div>
             ) : null}
 
-            {html ? (
-              <div
-                className={styles.content}
-                dangerouslySetInnerHTML={{ __html: html }}
-              />
-            ) : (
-              <div className={styles.content} style={{ whiteSpace: "pre-wrap" }}>
-                {rawContent || ""}
-              </div>
-            )}
+            <div
+              className={styles.content}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
 
             {tags.length > 0 ? (
               <div className={styles.tags}>
@@ -382,6 +406,23 @@ export default async function BlogPostPage({ params }) {
               </div>
             ) : null}
 
+            {/* FAQ — самым последним блоком в статье */}
+            {faqItems.length > 0 ? (
+              <section id="faq" className={styles.faq}>
+                <h2 className={styles.faqTitle}>Частые вопросы</h2>
+                <div className={styles.faqList}>
+                  {faqItems.map((x, idx) => (
+                    <details key={idx} className={styles.faqItem}>
+                      <summary className={styles.faqQ}>{x.q}</summary>
+                      <div
+                        className={styles.faqA}
+                        dangerouslySetInnerHTML={{ __html: x.aHtml }}
+                      />
+                    </details>
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </article>
 
           <aside className={styles.sidebar}>
@@ -392,11 +433,7 @@ export default async function BlogPostPage({ params }) {
                   {toc.map((i) => (
                     <li
                       key={i.id}
-                      className={
-                        styles[
-                          i.level === 2 ? "lvl2" : i.level === 3 ? "lvl3" : "lvl4"
-                        ]
-                      }
+                      className={styles[i.level === 2 ? "lvl2" : "lvl3"]}
                     >
                       <a href={`#${i.id}`} className={styles.tocLink}>
                         {i.title}
@@ -418,8 +455,7 @@ export default async function BlogPostPage({ params }) {
             </div>
           </aside>
         </div>
-        </main>
-      </div>
+      </main>
     </div>
   );
 }
