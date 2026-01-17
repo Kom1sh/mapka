@@ -89,7 +89,7 @@ function normalizeFaqItems(input) {
       q: String(x?.q ?? x?.question ?? x?.title ?? '').trim(),
       a: String(x?.a ?? x?.answer ?? x?.text ?? '').trim(),
     }))
-    .filter((x) => x.q || x.a); // allow empty answer while drafting
+;
 }
 
 // ---- blog helpers ----
@@ -541,7 +541,9 @@ export default function AdminPanelClient() {
       status,
       excerpt: String(cur.excerpt || ''),
       content: String(cur.content || ''),
-      faq: normalizeFaqItems(cur.faq).map((x) => ({ q: x.q, a: x.a })),
+      faq: normalizeFaqItems(cur.faq)
+      .map((x) => ({ q: x.q, a: x.a }))
+      .filter((x) => String(x.q || '').trim() || String(x.a || '').trim()),
       cover_image: String(cur.coverImage || '').trim() || null,
       tags,
       published_at: publishedAt || null,
