@@ -66,6 +66,9 @@ class Club(Base):
     max_age = Column(Integer, nullable=True)
     price_notes = Column(Text, nullable=True)
 
+    # ✅ pricing items (multiple tariffs) stored as JSONB list
+    pricing = Column(MutableList.as_mutable(JSONB), nullable=True, default=list)
+
     images = relationship("Image", back_populates="club", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="club", cascade="all, delete-orphan")
     schedules = relationship("Schedule", back_populates="club", cascade="all, delete-orphan")
@@ -110,14 +113,14 @@ class User(Base):
     role = Column(String(50), nullable=False, default="moder")
     created_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
 
-# ==========================
+# =====================
 # Blog
-# ==========================
-
+# =====================
 class BlogPost(Base):
     __tablename__ = "blog_posts"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
     title = Column(String(255), nullable=False)
     slug = Column(String(255), nullable=False, unique=True, index=True)
 
@@ -127,16 +130,20 @@ class BlogPost(Base):
 
     cover_image = Column(Text, nullable=True)
     category = Column(String(255), nullable=True)
-    tags = Column(MutableList.as_mutable(JSONB), nullable=True, default=list)
 
-    status = Column(String(32), nullable=False, default="draft")
+    # draft | published
+    status = Column(String(20), nullable=False, default="draft")
     published_at = Column(DateTime(timezone=True), nullable=True)
 
-    author_name = Column(Text, nullable=True)
-    author_role = Column(Text, nullable=True)
+    author_name = Column(String(255), nullable=True)
+    author_role = Column(String(255), nullable=True)
     author_avatar = Column(Text, nullable=True)
 
+    tags = Column(MutableList.as_mutable(JSONB), nullable=True, default=list)
+
+    # FAQ: list of {q,a}
     faq = Column(JSONB, nullable=True)
 
     created_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
+

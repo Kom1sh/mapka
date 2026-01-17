@@ -22,7 +22,13 @@ from datetime import time as dt_time
 from models import Club, Address, Schedule, BlogPost
 from db import AsyncSessionLocal
 from crud import create_review_for_club
-from schemas import ReviewSchema, ReviewCreateSchema, BlogPostSchema, BlogPostCreateSchema, BlogPostUpdateSchema
+from schemas import (
+    ReviewSchema,
+    ReviewCreateSchema,
+    BlogPostSchema,
+    BlogPostCreateSchema,
+    BlogPostUpdateSchema,
+)
 from auth import router as auth_router, admin_required
 
 from fastapi.exception_handlers import RequestValidationError
@@ -57,6 +63,14 @@ def _to_float(v):
         return float(v)
     except Exception:
         return None
+
+
+def _is_uuid(v: str) -> bool:
+    try:
+        uuid.UUID(str(v))
+        return True
+    except Exception:
+        return False
 
 
 def _to_int(v):
@@ -200,6 +214,13 @@ async def sitemap_xml(request: Request):
         )
         rows = q.all()
 
+        qb = await session.execute(
+            select(BlogPost.slug, BlogPost.updated_at)
+            .where(BlogPost.slug != None)
+            .where(BlogPost.status == "published")
+        )
+        blog_rows = qb.all()
+
     parts = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
@@ -225,6 +246,17 @@ async def sitemap_xml(request: Request):
             except Exception:
                 lm = None
         add_url(f"{base}/{slug}", lm)
+
+    for slug, updated_at in blog_rows:
+        if not slug:
+            continue
+        lm = None
+        if updated_at:
+            try:
+                lm = updated_at.date().isoformat()
+            except Exception:
+                lm = None
+        add_url(f"{base}/blog/{slug}", lm)
 
     parts.append("</urlset>")
     xml = "\n".join(parts)
@@ -325,7 +357,7 @@ def _serialize_club(c, base_origin: str, payload_extra: dict = None):
             "name": getattr(c, "name", "") or "",
             "slug": getattr(c, "slug", "") or "",
             "description": getattr(c, "description", "") or "",
-            "meta_description": getattr(c, "meta_description", "") or "",
+            "meta_description": getattr(c, "meta_description", None),
             "image": image_url or "",
             "location": location,
             "lat": lat,
@@ -336,6 +368,7 @@ def _serialize_club(c, base_origin: str, payload_extra: dict = None):
             "minAge": getattr(c, "min_age", None),
             "maxAge": getattr(c, "max_age", None),
             "priceNotes": getattr(c, "price_notes", "") or "",
+            "pricing": list(getattr(c, "pricing", None) or []),
             "price_cents": price_cents,
             "price_rub": price_rub,
             "phone": getattr(c, "phone", "") or "",
@@ -355,6 +388,206 @@ def _serialize_club(c, base_origin: str, payload_extra: dict = None):
             "slug": getattr(c, "slug", "") or "",
         }
 
+
+def _slugify_basic(text: str) -> str:
+    """Очень простой slugify на случай, если фронт не прислал slug."""
+    s = (text or "").strip().lower()
+    out = []
+    prev_dash = False
+    for ch in s:
+        if ch.isalnum():
+            out.append(ch)
+            prev_dash = False
+        else:
+            if not prev_dash:
+                out.append("-")
+                prev_dash = True
+    slug = "".join(out).strip("-")
+    slug = "-".join([p for p in slug.split("-") if p])
+    return (slug or "post")[:80]
+
+
+async def _ensure_unique_blog_slug(session, desired_slug: str, exclude_id=None) -> str:
+    base = _slugify_basic(desired_slug)
+    slug = base
+    for i in range(1, 51):
+        q = select(BlogPost.id).where(BlogPost.slug == slug)
+        if exclude_id is not None:
+            q = q.where(BlogPost.id != exclude_id)
+        r = await session.execute(q)
+        exists = r.scalar_one_or_none()
+        if not exists:
+            return slug
+        slug = f"{base}-{i+1}"
+    # fallback
+    return f"{base}-{uuid.uuid4().hex[:6]}"
+
+
+def _serialize_blog_post(p: BlogPost):
+    return {
+        "id": str(getattr(p, "id", "")),
+        "title": getattr(p, "title", "") or "",
+        "slug": getattr(p, "slug", "") or "",
+        "status": getattr(p, "status", "draft") or "draft",
+        "excerpt": getattr(p, "excerpt", None),
+        "content": getattr(p, "content", None),
+        "content_blocks": getattr(p, "content_blocks", None),
+        "cover_image": getattr(p, "cover_image", None),
+        "category": getattr(p, "category", None),
+        "tags": list(getattr(p, "tags", None) or []),
+        "author_name": getattr(p, "author_name", None),
+        "author_role": getattr(p, "author_role", None),
+        "author_avatar": getattr(p, "author_avatar", None),
+        "faq": getattr(p, "faq", None),
+        "published_at": getattr(p, "published_at", None),
+        "created_at": getattr(p, "created_at", None),
+        "updated_at": getattr(p, "updated_at", None),
+    }
+
+
+
+
+def _jsonable(obj):
+    """Convert Pydantic models (and nested structures) into plain JSON-serializable objects."""
+    if obj is None:
+        return None
+
+    # pydantic v2
+    md = getattr(obj, "model_dump", None)
+    if callable(md):
+        try:
+            return _jsonable(md())
+        except Exception:
+            pass
+
+    # pydantic v1
+    dct = getattr(obj, "dict", None)
+    if callable(dct):
+        try:
+            return _jsonable(dct())
+        except Exception:
+            pass
+
+    if isinstance(obj, (str, int, float, bool)):
+        return obj
+
+    if isinstance(obj, (list, tuple)):
+        return [_jsonable(x) for x in obj]
+
+    if isinstance(obj, dict):
+        return {k: _jsonable(v) for k, v in obj.items()}
+
+    # last resort
+    try:
+        return str(obj)
+    except Exception:
+        return None
+
+
+def _normalize_blog_faq(faq):
+    """Normalize FAQ payload for JSONB: list of {q,a}. Filters out fully empty items."""
+    if faq is None:
+        return None
+
+    out = []
+    for item in (faq or []):
+        if item is None:
+            continue
+        d = _jsonable(item)
+
+        if isinstance(d, dict):
+            q = (d.get("q") or d.get("question") or "")
+            a = (d.get("a") or d.get("answer") or "")
+        else:
+            q = getattr(item, "q", "") or ""
+            a = getattr(item, "a", "") or ""
+
+        q = str(q).strip()
+        a = str(a).strip()
+
+        if not q and not a:
+            continue
+
+        out.append({"q": q, "a": a})
+
+    # even if empty list, return [] to allow clearing existing FAQ
+    return out
+
+
+def _normalize_club_pricing(pricing):
+    """Normalize pricing payload for JSONB: list of cards.
+
+    Accepts list of dicts (or Pydantic models). Filters out fully empty cards.
+    """
+    if pricing is None:
+        return None
+
+    out = []
+    for item in (pricing or []):
+        if item is None:
+            continue
+        d = _jsonable(item)
+        if not isinstance(d, dict):
+            continue
+
+        title = str(d.get('title') or '').strip()
+        subtitle = str(d.get('subtitle') or '').strip()
+        badge = str(d.get('badge') or '').strip()
+        unit = str(d.get('unit') or '').strip()
+        cta_text = str(d.get('cta_text') or d.get('ctaText') or '').strip()
+        group = str(d.get('group') or '').strip()
+
+        price_text = d.get('price_text')
+        if price_text is None:
+            price_text = d.get('priceText')
+        price_text = str(price_text).strip() if isinstance(price_text, str) else (str(price_text).strip() if price_text is not None else '')
+
+        price_rub = d.get('price_rub')
+        if price_rub is None:
+            price_rub = d.get('priceRub')
+        if price_rub is not None and str(price_rub).strip() != '':
+            try:
+                price_rub = float(str(price_rub).replace(',', '.'))
+            except Exception:
+                price_rub = None
+        else:
+            price_rub = None
+
+        details_list = []
+        details_text = d.get('detailsText')
+        if details_text is None:
+            details_text = d.get('details_text')
+        if isinstance(details_text, str) and details_text.strip():
+            for line in details_text.splitlines():
+                s = line.strip()
+                if s:
+                    details_list.append(s)
+        raw_details = d.get('details')
+        if isinstance(raw_details, list):
+            for x in raw_details:
+                s = str(x).strip()
+                if s and s not in details_list:
+                    details_list.append(s)
+
+        if not any([title, subtitle, badge, unit, price_text, price_rub, details_list]):
+            continue
+
+        out.append({
+            'id': str(d.get('id') or '').strip() or None,
+            'group': group or None,
+            'title': title or None,
+            'subtitle': subtitle or None,
+            'badge': badge or None,
+            'unit': unit or None,
+            'price_rub': price_rub,
+            'price_text': price_text or None,
+            'cta_text': cta_text or None,
+            'details': details_list,
+            'detailsText': details_text if isinstance(details_text, str) else None,
+        })
+
+    # allow clearing by sending []
+    return out
 
 def _render_club_html_simple(obj):
     title = obj.get("name", "Кружок")
@@ -459,12 +692,22 @@ async def api_create_club(request: Request, payload: dict, user=Depends(admin_re
         tags = payload.get("tags") or []
         if not isinstance(tags, (list, tuple)):
             tags = []
+        pricing_in = None
+        if "pricing" in payload:
+            pricing_in = payload.get("pricing")
+        elif "pricingItems" in payload:
+            pricing_in = payload.get("pricingItems")
+        elif "pricing_items" in payload:
+            pricing_in = payload.get("pricing_items")
+        pricing_norm = _normalize_club_pricing(pricing_in) if pricing_in is not None else None
+
 
         club = Club(
             name=name,
             slug=payload.get("slug") or str(uuid.uuid4())[:8],
             description=payload.get("description") or "",
-            meta_description=(str(payload.get("meta_description") or payload.get("metaDescription") or "").strip() or None),
+            meta_description=((payload.get("meta_description") if "meta_description" in payload else None) or (payload.get("metaDescription") if "metaDescription" in payload else None) or None),
+            pricing=pricing_norm,
             main_image_url=payload.get("image") or None,
             price_cents=price_cents,
             address_id=getattr(addr_obj, "id", None),
@@ -599,9 +842,11 @@ async def api_update_club(club_id: str, request: Request, payload: dict, user=De
             club.slug = payload.get("slug")
         if "description" in payload:
             club.description = payload.get("description")
+
         if "meta_description" in payload or "metaDescription" in payload:
             v = payload.get("meta_description") if "meta_description" in payload else payload.get("metaDescription")
             club.meta_description = (str(v).strip() if v is not None else None) or None
+
         if "image" in payload:
             club.main_image_url = payload.get("image")
 
@@ -636,6 +881,18 @@ async def api_update_club(club_id: str, request: Request, payload: dict, user=De
         if "priceNotes" in payload or "price_notes" in payload:
             v = payload.get("priceNotes") if "priceNotes" in payload else payload.get("price_notes")
             club.price_notes = (str(v).strip() if v is not None else None) or None
+
+        if ("pricing" in payload) or ("pricingItems" in payload) or ("pricing_items" in payload):
+            pricing_in = payload.get("pricing")
+            if pricing_in is None and "pricingItems" in payload:
+                pricing_in = payload.get("pricingItems")
+            if pricing_in is None and "pricing_items" in payload:
+                pricing_in = payload.get("pricing_items")
+            club.pricing = _normalize_club_pricing(pricing_in)
+            try:
+                flag_modified(club, "pricing")
+            except Exception:
+                pass
 
 
         if "tags" in payload:
@@ -809,7 +1066,14 @@ async def api_update_club(club_id: str, request: Request, payload: dict, user=De
 @app.delete("/api/clubs/{club_id}")
 async def api_delete_club(club_id: str, user=Depends(admin_required)):
     async with AsyncSessionLocal() as session:
-        q = await session.execute(select(Club).where(Club.id == club_id))
+        where_clause = None
+        try:
+            parsed_uuid = uuid.UUID(str(club_id))
+            where_clause = (Club.id == parsed_uuid)
+        except Exception:
+            where_clause = (Club.slug == club_id)
+
+        q = await session.execute(select(Club).where(where_clause))
         club = q.scalar_one_or_none()
         if not club:
             raise HTTPException(404, "Club not found")
@@ -902,161 +1166,6 @@ async def api_get_club(request: Request, club_id: str):
         return _serialize_club(c, base_origin)
 
 
-@app.post("/api/clubs/{club_id}")
-async def api_update_club_post(club_id: str, request: Request, user=Depends(admin_required)):
-    payload = await request.json()
-    print(f"[DEBUG] Update club {club_id} payload: {payload}")
-    return await api_update_club(club_id, request, payload, user=user)
-
-
-@app.get("/club/{slug}")
-async def serve_club_page(slug: str):
-    fname = os.path.join(STATIC_CLUBS_DIR, f"{slug}.html")
-    if os.path.exists(fname):
-        return FileResponse(fname, media_type="text/html")
-
-    async with AsyncSessionLocal() as session:
-        q = await session.execute(select(Club)\
-            .where(Club.slug == slug)\
-            .options(selectinload(Club.address), selectinload(Club.images), selectinload(Club.schedules), selectinload(Club.teacher))
-        )
-        c = q.scalar_one_or_none()
-        if not c:
-            raise HTTPException(404, "Club not found")
-        serialized = _serialize_club(c, "")
-        html = _render_club_html_simple(serialized)
-        try:
-            with open(fname, "w", encoding="utf-8") as f:
-                f.write(html)
-        except Exception:
-            pass
-        return HTMLResponse(html)
-
-
-
-
-# ==========================
-# Blog helpers
-# ==========================
-
-def _slugify_basic(text: str) -> str:
-    """Простой slugify (fallback, если фронт не прислал slug)."""
-    s = (text or "").strip().lower()
-    out = []
-    prev_dash = False
-    for ch in s:
-        if ch.isalnum():
-            out.append(ch)
-            prev_dash = False
-        else:
-            if not prev_dash:
-                out.append("-")
-                prev_dash = True
-    slug = "".join(out).strip("-")
-    slug = "-".join([p for p in slug.split("-") if p])
-    return (slug or "post")[:80]
-
-
-async def _ensure_unique_blog_slug(session, desired_slug: str, exclude_id=None) -> str:
-    base = _slugify_basic(desired_slug)
-    slug = base
-    for i in range(1, 51):
-        q = select(BlogPost.id).where(BlogPost.slug == slug)
-        if exclude_id is not None:
-            q = q.where(BlogPost.id != exclude_id)
-        r = await session.execute(q)
-        exists = r.scalar_one_or_none()
-        if not exists:
-            return slug
-        slug = f"{base}-{i+1}"
-    return f"{base}-{uuid.uuid4().hex[:6]}"
-
-
-def _serialize_blog_post(p: BlogPost):
-    return {
-        "id": str(getattr(p, "id", "")),
-        "title": getattr(p, "title", "") or "",
-        "slug": getattr(p, "slug", "") or "",
-        "status": getattr(p, "status", "draft") or "draft",
-        "excerpt": getattr(p, "excerpt", None),
-        "content": getattr(p, "content", None),
-        "content_blocks": getattr(p, "content_blocks", None),
-        "cover_image": getattr(p, "cover_image", None),
-        "category": getattr(p, "category", None),
-        "tags": list(getattr(p, "tags", None) or []),
-        "author_name": getattr(p, "author_name", None),
-        "author_role": getattr(p, "author_role", None),
-        "author_avatar": getattr(p, "author_avatar", None),
-        "faq": getattr(p, "faq", None),
-        "published_at": getattr(p, "published_at", None),
-        "created_at": getattr(p, "created_at", None),
-        "updated_at": getattr(p, "updated_at", None),
-    }
-
-
-def _jsonable(obj):
-    """Convert Pydantic models (and nested structures) into plain JSON-serializable objects."""
-    if obj is None:
-        return None
-
-    md = getattr(obj, "model_dump", None)
-    if callable(md):
-        try:
-            return _jsonable(md())
-        except Exception:
-            pass
-
-    dct = getattr(obj, "dict", None)
-    if callable(dct):
-        try:
-            return _jsonable(dct())
-        except Exception:
-            pass
-
-    if isinstance(obj, (str, int, float, bool)):
-        return obj
-
-    if isinstance(obj, (list, tuple)):
-        return [_jsonable(x) for x in obj]
-
-    if isinstance(obj, dict):
-        return {k: _jsonable(v) for k, v in obj.items()}
-
-    try:
-        return str(obj)
-    except Exception:
-        return None
-
-
-def _normalize_blog_faq(faq):
-    """Normalize FAQ payload for JSONB: list of {q,a}. Filters out fully empty items."""
-    if faq is None:
-        return None
-
-    out = []
-    for item in (faq or []):
-        if item is None:
-            continue
-        d = _jsonable(item)
-
-        if isinstance(d, dict):
-            q = (d.get("q") or d.get("question") or "")
-            a = (d.get("a") or d.get("answer") or "")
-        else:
-            q = getattr(item, "q", "") or ""
-            a = getattr(item, "a", "") or ""
-
-        q = str(q).strip()
-        a = str(a).strip()
-
-        if not q and not a:
-            continue
-
-        out.append({"q": q, "a": a})
-
-    return out
-
-
 # ==========================
 # Blog API
 # ==========================
@@ -1109,7 +1218,7 @@ async def api_public_blog_post(slug: str):
     """Публичная статья по slug (только published)."""
     s = (slug or "").strip()
     if not s:
-        raise HTTPException(status_code=404, detail="Not Found")
+        raise HTTPException(status_code=404, detail="Not found")
 
     async with AsyncSessionLocal() as session:
         r = await session.execute(
@@ -1120,7 +1229,7 @@ async def api_public_blog_post(slug: str):
         )
         post = r.scalar_one_or_none()
         if not post:
-            raise HTTPException(status_code=404, detail="Not Found")
+            raise HTTPException(status_code=404, detail="Not found")
         return _serialize_blog_post(post)
 
 
@@ -1205,7 +1314,7 @@ async def api_admin_blog_update(post_id: str, payload: BlogPostUpdateSchema, use
         r = await session.execute(select(BlogPost).where(BlogPost.id == pid))
         post = r.scalar_one_or_none()
         if not post:
-            raise HTTPException(status_code=404, detail="Not Found")
+            raise HTTPException(status_code=404, detail="Not found")
 
         if payload.title is not None:
             t = (payload.title or "").strip()
@@ -1251,6 +1360,7 @@ async def api_admin_blog_update(post_id: str, payload: BlogPostUpdateSchema, use
                 raise HTTPException(status_code=400, detail="status must be draft|published")
             post.status = st
 
+        # published_at rules
         if payload.published_at is not None:
             post.published_at = payload.published_at
 
@@ -1282,10 +1392,42 @@ async def api_admin_blog_delete(post_id: str, user=Depends(admin_required)):
         r = await session.execute(select(BlogPost).where(BlogPost.id == pid))
         post = r.scalar_one_or_none()
         if not post:
-            raise HTTPException(status_code=404, detail="Not Found")
+            raise HTTPException(status_code=404, detail="Not found")
         await session.delete(post)
         await session.commit()
         return {"ok": True}
+
+
+@app.post("/api/clubs/{club_id}")
+async def api_update_club_post(club_id: str, request: Request, user=Depends(admin_required)):
+    payload = await request.json()
+    print(f"[DEBUG] Update club {club_id} payload: {payload}")
+    return await api_update_club(club_id, request, payload, user=user)
+
+
+@app.get("/club/{slug}")
+async def serve_club_page(slug: str):
+    fname = os.path.join(STATIC_CLUBS_DIR, f"{slug}.html")
+    if os.path.exists(fname):
+        return FileResponse(fname, media_type="text/html")
+
+    async with AsyncSessionLocal() as session:
+        q = await session.execute(select(Club)\
+            .where(Club.slug == slug)\
+            .options(selectinload(Club.address), selectinload(Club.images), selectinload(Club.schedules), selectinload(Club.teacher))
+        )
+        c = q.scalar_one_or_none()
+        if not c:
+            raise HTTPException(404, "Club not found")
+        serialized = _serialize_club(c, "")
+        html = _render_club_html_simple(serialized)
+        try:
+            with open(fname, "w", encoding="utf-8") as f:
+                f.write(html)
+        except Exception:
+            pass
+        return HTMLResponse(html)
+
 
 @app.get("/api/admin/geocode-missing")
 @app.post("/api/admin/geocode-missing")
