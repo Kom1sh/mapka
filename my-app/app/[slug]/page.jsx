@@ -9,28 +9,20 @@ import ClubActions from '@/components/ClubActions';
 
 const SITE_URL = 'https://xn--80aa3agq.xn--p1ai';
 
-function stripHtml(html) {
-  return String(html || '')
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, '')
-    .replace(/<[^>]*>/g, ' ')
+function stripHtml(s) {
+  return String(s || '')
+    .replace(/<\/?[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function limitLen(s, n = 160) {
-  const t = String(s || '').trim();
-  if (!t) return '';
-  return t.length > n ? t.slice(0, n) : t;
-}
-
-function escapeHtml(text) {
-  return String(text || '')
+function escapeHtml(s) {
+  return String(s || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/'/g, '&#39;');
 }
 
 function jsonLd(obj) {
@@ -111,8 +103,7 @@ export async function generateMetadata({ params }) {
   if (!club) return { title: 'Кружок не найден – Мапка' };
 
   const title = club.title || club.name || 'Кружок';
-  const meta = club.meta_description || club.metaDescription || '';
-  const description = limitLen(meta || stripHtml(club.description), 160);
+  const description = stripHtml(club.meta_description || club.metaDescription || club.description || '').slice(0, 160);
   const canonical = `${SITE_URL}/${resolvedParams.slug}`;
 
   const img =
@@ -144,8 +135,6 @@ export default async function Page({ params }) {
   const url = `${SITE_URL}/${slug}`;
 
   const title = club.title || club.name || '';
-  const meta = club.meta_description || club.metaDescription || '';
-  const plainDescription = limitLen(meta || stripHtml(club.description), 160);
   const addressText = club.address || club.location || '';
   const category = String(club.category || '').trim();
   const ageText = formatAge(club.minAge, club.maxAge);
@@ -223,7 +212,7 @@ export default async function Page({ params }) {
     '@id': `${url}#club`,
     name: title,
     url,
-    description: plainDescription || undefined,
+    description: stripHtml(club.description || club.meta_description || club.metaDescription || '') || undefined,
     image: image || undefined,
     telephone: normalizePhoneForSchema(club.phone) || undefined,
     sameAs: sameAs.length ? Array.from(new Set(sameAs)) : undefined,
@@ -251,7 +240,7 @@ export default async function Page({ params }) {
     '@id': `${url}#webpage`,
     url,
     name: `${title} - Мапка`,
-    description: plainDescription || undefined,
+    description: stripHtml(club.meta_description || club.metaDescription || club.description || '').slice(0, 160) || undefined,
     isPartOf: { '@id': `${SITE_URL}/#website` },
     about: { '@id': `${url}#club` },
     inLanguage: 'ru-RU',
@@ -378,7 +367,7 @@ export default async function Page({ params }) {
             <div
               className="section-text"
               dangerouslySetInnerHTML={{
-                __html: String(club.description || '').includes('<')
+                __html: /<\/?[a-z][\s\S]*>/i.test(String(club.description || ''))
                   ? String(club.description || '')
                   : escapeHtml(String(club.description || '')).replace(/\n/g, '<br/>'),
               }}

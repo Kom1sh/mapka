@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Literal, Any
+from typing import List, Optional
 from datetime import time, datetime
 from uuid import UUID
 
@@ -52,6 +52,7 @@ class ClubSchema(BaseModel):
     slug: Optional[str]
     description: Optional[str]
     meta_description: Optional[str] = None
+    metaDescription: Optional[str] = None
     phone: Optional[str] = None
     webSite: Optional[str] = None
 
@@ -76,81 +77,3 @@ class ClubSchema(BaseModel):
     teacher: Optional[TeacherSchema]
 
     model_config = {"from_attributes": True}
-
-
-# ==========================
-# Blog
-# ==========================
-
-class BlogFaqItemSchema(BaseModel):
-    q: str
-    a: str
-
-
-class BlogPostSchema(BaseModel):
-    id: UUID
-    title: str
-    slug: str
-
-    status: Literal["draft", "published"] = "draft"
-    excerpt: Optional[str] = None
-    content: Optional[str] = None
-    content_blocks: Optional[List[Any]] = None
-
-    cover_image: Optional[str] = None
-    category: Optional[str] = None
-    tags: List[str] = []
-
-    author_name: Optional[str] = None
-    author_role: Optional[str] = None
-    author_avatar: Optional[str] = None
-
-    published_at: Optional[datetime] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-    faq: Optional[List[BlogFaqItemSchema]] = None
-
-    model_config = {"from_attributes": True}
-
-
-class BlogPostCreateSchema(BaseModel):
-    title: str
-    slug: Optional[str] = None
-    status: Literal["draft", "published"] = "draft"
-
-    excerpt: Optional[str] = None
-    content: Optional[str] = None
-    content_blocks: Optional[List[Any]] = None
-
-    cover_image: Optional[str] = None
-    category: Optional[str] = None
-    tags: List[str] = []
-
-    author_name: Optional[str] = None
-    author_role: Optional[str] = None
-    author_avatar: Optional[str] = None
-
-    published_at: Optional[datetime] = None
-    faq: Optional[List[BlogFaqItemSchema]] = None
-
-
-class BlogPostUpdateSchema(BaseModel):
-    title: Optional[str] = None
-    slug: Optional[str] = None
-    status: Optional[Literal["draft", "published"]] = None
-
-    excerpt: Optional[str] = None
-    content: Optional[str] = None
-    content_blocks: Optional[List[Any]] = None
-
-    cover_image: Optional[str] = None
-    category: Optional[str] = None
-    tags: Optional[List[str]] = None
-
-    author_name: Optional[str] = None
-    author_role: Optional[str] = None
-    author_avatar: Optional[str] = None
-
-    published_at: Optional[datetime] = None
-    faq: Optional[List[BlogFaqItemSchema]] = None

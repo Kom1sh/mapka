@@ -42,7 +42,7 @@ class Club(Base):
     name = Column(String(255), nullable=False)
     slug = Column(String(255), nullable=False, unique=True)
     description = Column(Text, nullable=True)
-    # SEO: meta description (plain text, без HTML)
+    # SEO meta description (snippet)
     meta_description = Column(Text, nullable=True)
     phone = Column(String(64), nullable=True)
     webSite = Column(String(1024), nullable=True)
@@ -59,7 +59,7 @@ class Club(Base):
     lon = Column(Float)
     created_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
-    tags = Column(MutableList.as_mutable(JSONB), nullable=True, default=list)
+    tags = Column(MutableList.as_mutable(JSON), nullable=True, default=list)
 
     # ✅ new fields for badges
     category = Column(String(255), nullable=True)
@@ -110,37 +110,3 @@ class User(Base):
     password_hash = Column(Text, nullable=False)
     role = Column(String(50), nullable=False, default="moder")
     created_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
-
-
-# ==========================
-# Blog
-# ==========================
-class BlogPost(Base):
-    __tablename__ = "blog_posts"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    title = Column(String(512), nullable=False)
-    slug = Column(String(255), nullable=False, unique=True, index=True)
-
-    excerpt = Column(Text, nullable=True)
-    # HTML content (для публичного рендера). Позже можно перейти на blocks-конструктор.
-    content = Column(Text, nullable=True)
-    # Optional blocks for constructor (list of blocks)
-    content_blocks = Column(JSONB, nullable=True)
-
-    cover_image = Column(Text, nullable=True)
-    category = Column(String(255), nullable=True)
-    tags = Column(MutableList.as_mutable(JSON), nullable=True, default=list)
-
-    # draft | published
-    status = Column(String(20), nullable=False, default="draft")
-    published_at = Column(DateTime(timezone=True), nullable=True)
-
-    author_name = Column(String(255), nullable=True)
-    author_role = Column(String(255), nullable=True)
-    author_avatar = Column(Text, nullable=True)
-
-    faq = Column(JSONB, nullable=True)
-
-    created_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
