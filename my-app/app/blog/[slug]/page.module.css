@@ -10,8 +10,16 @@
 */
 :global(html),
 :global(body) {
-  height: auto;
-  overflow: auto;
+  height: auto !important;
+  min-height: 100% !important;
+  max-height: none !important;
+  overflow: auto !important;
+  overscroll-behavior: auto !important;
+}
+
+/* Make sure trackpad/gesture scrolling works predictably */
+:global(body) {
+  -webkit-overflow-scrolling: touch;
 }
 
 /* У нас body/html = overflow:hidden (app-style). Скролл идет внутри .blog-scroll */

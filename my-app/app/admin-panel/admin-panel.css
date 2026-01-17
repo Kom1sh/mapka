@@ -111,3 +111,8 @@ input[type=time]:focus, select:focus{border-color:rgba(43,135,212,.55);box-shado
 .miniBtn:hover{background:#f7f8fa}
 .miniBtn:disabled{opacity:.45;cursor:not-allowed}
 .miniBtn.danger{border-color:rgba(231,76,60,.35);color:var(--danger)}
+
+/* --- Blog mini editor toolbar --- */
+.editorToolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px;border:1px solid var(--border);border-radius:14px;background:#fbfdff}
+.editorToolbar .miniBtn{padding:8px 10px}
+.editorSep{width:1px;height:22px;background:rgba(16,24,40,.14);margin:0 2px}

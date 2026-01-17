@@ -367,6 +367,124 @@ export default function AdminPanelClient() {
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState('');
+
+  // --- Blog: textarea editor helpers (mini-Word) ---
+  // We keep storage format as HTML (string) to match blog rendering/ToC.
+  const blogContentRef = useRef(null);
+
+  function getContentEl() {
+    return blogContentRef.current;
+  }
+
+  function setContentValue(next) {
+    setPostForm((p) => ({ ...p, content: next }));
+  }
+
+  function applyToSelection(transform) {
+    const el = getContentEl();
+    if (!el) return;
+
+    const value = String(postForm.content || '');
+    const start = el.selectionStart ?? value.length;
+    const end = el.selectionEnd ?? value.length;
+    const selected = value.slice(start, end);
+
+    const { text: replacement, selectFrom, selectTo } = transform({
+      value,
+      start,
+      end,
+      selected,
+    });
+
+    const next = value.slice(0, start) + replacement + value.slice(end);
+    setContentValue(next);
+
+    // Restore selection after React state update
+    requestAnimationFrame(() => {
+      try {
+        el.focus();
+        const s = typeof selectFrom === 'number' ? selectFrom : start;
+        const e = typeof selectTo === 'number' ? selectTo : s;
+        el.selectionStart = s;
+        el.selectionEnd = e;
+      } catch {
+        // ignore
+      }
+    });
+  }
+
+  function wrapSelection(open, close, placeholder = '') {
+    applyToSelection(({ selected }) => {
+      const inner = selected || placeholder;
+      const text = `${open}${inner}${close}`;
+      const from = (blogContentRef.current?.selectionStart ?? 0) + open.length;
+      const to = from + inner.length;
+      return { text, selectFrom: from, selectTo: to };
+    });
+  }
+
+  function insertAtCursor(text) {
+    applyToSelection(({ start }) => {
+      const from = start + text.length;
+      return { text, selectFrom: from, selectTo: from };
+    });
+  }
+
+  function normalizeAnchorId(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    // keep latin/cyrillic, digits, dash/underscore
+    return s
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^\p{L}\p{N}_-]+/gu, '')
+      .slice(0, 64);
+  }
+
+  function editorAddHeading(level) {
+    const tag = `h${level}`;
+    applyToSelection(({ selected }) => {
+      const title = selected || 'Заголовок';
+      const open = `\n<${tag}>`;
+      const close = `</${tag}>\n`;
+      const text = `${open}${title}${close}`;
+      const base = (blogContentRef.current?.selectionStart ?? 0) + open.length;
+      return { text, selectFrom: base, selectTo: base + title.length };
+    });
+  }
+
+  function editorAddLink() {
+    const url = window.prompt('URL ссылки (например https://... или /club/slug):', '');
+    if (!url) return;
+    applyToSelection(({ selected }) => {
+      const label = selected || window.prompt('Текст ссылки:', 'ссылка') || 'ссылка';
+      const open = `<a href="${url}">`;
+      const close = `</a>`;
+      const text = `${open}${label}${close}`;
+      const base = (blogContentRef.current?.selectionStart ?? 0) + open.length;
+      return { text, selectFrom: base, selectTo: base + label.length };
+    });
+  }
+
+  function editorInsertAnchor() {
+    const id = normalizeAnchorId(window.prompt('ID якоря (латиница/цифры/дефис):', ''));
+    if (!id) return;
+    // Use <span id> to avoid invalid nesting
+    insertAtCursor(`\n<span id="${id}"></span>\n`);
+  }
+
+  function editorLinkToAnchor() {
+    const id = normalizeAnchorId(window.prompt('ID якоря (куда вести):', ''));
+    if (!id) return;
+    applyToSelection(({ selected }) => {
+      const label = selected || window.prompt('Текст ссылки:', 'к разделу') || 'к разделу';
+      const open = `<a href="#${id}">`;
+      const close = `</a>`;
+      const text = `${open}${label}${close}`;
+      const base = (blogContentRef.current?.selectionStart ?? 0) + open.length;
+      return { text, selectFrom: base, selectTo: base + label.length };
+    });
+  }
   const [log, setLog] = useState('');
 
   const selectedClub = useMemo(
@@ -1656,7 +1774,50 @@ export default function AdminPanelClient() {
 
                     <div style={{ marginTop: 12 }}>
                       <label>Контент</label>
+                      <div className="editorToolbar" style={{ marginBottom: 8 }}>
+                        <button type="button" className="miniBtn" onClick={() => editorAddHeading(2)} title="Заголовок H2">
+                          H2
+                        </button>
+                        <button type="button" className="miniBtn" onClick={() => editorAddHeading(3)} title="Заголовок H3">
+                          H3
+                        </button>
+                        <button type="button" className="miniBtn" onClick={() => editorAddHeading(4)} title="Заголовок H4">
+                          H4
+                        </button>
+
+                        <span className="editorSep" />
+
+                        <button
+                          type="button"
+                          className="miniBtn"
+                          onClick={() => wrapSelection('<strong>', '</strong>', 'жирный')}
+                          title="Жирный"
+                        >
+                          B
+                        </button>
+                        <button
+                          type="button"
+                          className="miniBtn"
+                          onClick={() => wrapSelection('<em>', '</em>', 'курсив')}
+                          title="Курсив"
+                        >
+                          I
+                        </button>
+
+                        <span className="editorSep" />
+
+                        <button type="button" className="miniBtn" onClick={editorAddLink} title="Вставить ссылку">
+                          🔗 Ссылка
+                        </button>
+                        <button type="button" className="miniBtn" onClick={editorInsertAnchor} title="Вставить якорь (ID) в текущую позицию">
+                          ⚓ Якорь
+                        </button>
+                        <button type="button" className="miniBtn" onClick={editorLinkToAnchor} title="Ссылка на якорь (#id)">
+                          # Ссылка
+                        </button>
+                      </div>
                       <textarea
+                        ref={blogContentRef}
                         value={postForm.content}
                         onChange={(e) => setPostForm((p) => ({ ...p, content: e.target.value }))}
                         style={{ minHeight: 280 }}
