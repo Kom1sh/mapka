@@ -9,6 +9,30 @@ import ClubActions from '@/components/ClubActions';
 
 const SITE_URL = 'https://xn--80aa3agq.xn--p1ai';
 
+function stripHtml(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function limitLen(s, n = 160) {
+  const t = String(s || '').trim();
+  if (!t) return '';
+  return t.length > n ? t.slice(0, n) : t;
+}
+
+function escapeHtml(text) {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function jsonLd(obj) {
   return JSON.stringify(obj).replace(/</g, '\\u003c');
 }
@@ -87,7 +111,8 @@ export async function generateMetadata({ params }) {
   if (!club) return { title: 'Кружок не найден – Мапка' };
 
   const title = club.title || club.name || 'Кружок';
-  const description = (club.description || '').slice(0, 160);
+  const meta = club.meta_description || club.metaDescription || '';
+  const description = limitLen(meta || stripHtml(club.description), 160);
   const canonical = `${SITE_URL}/${resolvedParams.slug}`;
 
   const img =
@@ -119,6 +144,8 @@ export default async function Page({ params }) {
   const url = `${SITE_URL}/${slug}`;
 
   const title = club.title || club.name || '';
+  const meta = club.meta_description || club.metaDescription || '';
+  const plainDescription = limitLen(meta || stripHtml(club.description), 160);
   const addressText = club.address || club.location || '';
   const category = String(club.category || '').trim();
   const ageText = formatAge(club.minAge, club.maxAge);
@@ -196,7 +223,7 @@ export default async function Page({ params }) {
     '@id': `${url}#club`,
     name: title,
     url,
-    description: club.description || undefined,
+    description: plainDescription || undefined,
     image: image || undefined,
     telephone: normalizePhoneForSchema(club.phone) || undefined,
     sameAs: sameAs.length ? Array.from(new Set(sameAs)) : undefined,
@@ -224,7 +251,7 @@ export default async function Page({ params }) {
     '@id': `${url}#webpage`,
     url,
     name: `${title} - Мапка`,
-    description: (club.description || '').slice(0, 160) || undefined,
+    description: plainDescription || undefined,
     isPartOf: { '@id': `${SITE_URL}/#website` },
     about: { '@id': `${url}#club` },
     inLanguage: 'ru-RU',
@@ -348,7 +375,14 @@ export default async function Page({ params }) {
           {/* About */}
           <div className="section-card">
             <h2 className="section-header">О кружке</h2>
-            <div className="section-text">{club.description}</div>
+            <div
+              className="section-text"
+              dangerouslySetInnerHTML={{
+                __html: String(club.description || '').includes('<')
+                  ? String(club.description || '')
+                  : escapeHtml(String(club.description || '')).replace(/\n/g, '<br/>'),
+              }}
+            />
 
             {club.tags?.length > 0 ? (
               <div className="tags-section">

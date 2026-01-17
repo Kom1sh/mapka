@@ -349,6 +349,9 @@ def _serialize_club(c, base_origin: str, payload_extra: dict = None):
             "name": getattr(c, "name", "") or "",
             "slug": getattr(c, "slug", "") or "",
             "description": getattr(c, "description", "") or "",
+            # SEO
+            "meta_description": getattr(c, "meta_description", None),
+            "metaDescription": getattr(c, "meta_description", None),
             "image": image_url or "",
             "location": location,
             "lat": lat,
@@ -505,6 +508,7 @@ def _normalize_blog_faq(faq):
 def _render_club_html_simple(obj):
     title = obj.get("name", "Кружок")
     desc = obj.get("description", "")
+    meta_desc = (obj.get("meta_description") or obj.get("metaDescription") or "").strip()
     image = obj.get("image", "")
     location = obj.get("location", "")
     tags = obj.get("tags", [])
@@ -512,7 +516,9 @@ def _render_club_html_simple(obj):
     html = f"""<!doctype html>
 <html lang=\"ru\">
 <head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">
-<title>{title}</title></head><body>
+<title>{title}</title>
+{f'<meta name="description" content="{xml_escape(meta_desc)}" />' if meta_desc else ''}
+</head><body>
 <main>
   <h1>{title}</h1>
   <p>{desc}</p>
@@ -610,6 +616,11 @@ async def api_create_club(request: Request, payload: dict, user=Depends(admin_re
             name=name,
             slug=payload.get("slug") or str(uuid.uuid4())[:8],
             description=payload.get("description") or "",
+            meta_description=(
+                (payload.get("meta_description") if "meta_description" in payload else None)
+                or (payload.get("metaDescription") if "metaDescription" in payload else None)
+                or None
+            ),
             main_image_url=payload.get("image") or None,
             price_cents=price_cents,
             address_id=getattr(addr_obj, "id", None),
@@ -744,6 +755,9 @@ async def api_update_club(club_id: str, request: Request, payload: dict, user=De
             club.slug = payload.get("slug")
         if "description" in payload:
             club.description = payload.get("description")
+        if "meta_description" in payload or "metaDescription" in payload:
+            v = payload.get("meta_description") if "meta_description" in payload else payload.get("metaDescription")
+            club.meta_description = (str(v).strip() if v is not None else None) or None
         if "image" in payload:
             club.main_image_url = payload.get("image")
 

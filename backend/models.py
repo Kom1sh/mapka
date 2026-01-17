@@ -42,6 +42,8 @@ class Club(Base):
     name = Column(String(255), nullable=False)
     slug = Column(String(255), nullable=False, unique=True)
     description = Column(Text, nullable=True)
+    # SEO: meta description (plain text, без HTML)
+    meta_description = Column(Text, nullable=True)
     phone = Column(String(64), nullable=True)
     webSite = Column(String(1024), nullable=True)
     social_links = Column(JSON, nullable=True, default=dict)

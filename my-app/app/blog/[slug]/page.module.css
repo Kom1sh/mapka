@@ -1,3 +1,19 @@
+/*
+  FIX: глобально на сайте мог быть overflow: hidden на html/body (для карты).
+  На статье блога возвращаем нормальный скролл страницы (в т.ч. тачпад).
+*/
+:global(html),
+:global(body) {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  position: static !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: auto;
+  touch-action: pan-y;
+}
+
 .wrapper {
   min-height: 100vh;
   background: #f8fafc;
